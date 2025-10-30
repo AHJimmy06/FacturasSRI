@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "GrUfS8zN7bLice1ZFJ0x1IuQA7cFI/mpSROlzTZfHHs=",
+  "Source": "FacturasSRI.Api",
+  "BasePath": "_content/FacturasSRI.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

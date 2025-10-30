@@ -1,0 +1,11 @@
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\bin\Debug\net8.0\FacturasSRI.Domain.deps.json
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\bin\Debug\net8.0\FacturasSRI.Domain.dll
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\bin\Debug\net8.0\FacturasSRI.Domain.pdb
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.AssemblyInfoInputs.cache
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.AssemblyInfo.cs
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.csproj.CoreCompileInputs.cache
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.dll
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\refint\FacturasSRI.Domain.dll
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\FacturasSRI.Domain.pdb
+C:\Users\LENOVO\Desktop\PROYECTO_MA\FacturasSRI.Domain\obj\Debug\net8.0\ref\FacturasSRI.Domain.dll
