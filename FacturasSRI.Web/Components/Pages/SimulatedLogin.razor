@@ -1,0 +1,40 @@
+@page "/login"
+@layout EmptyLayout
+
+@inject CurrentUserState CurrentUser
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<div class="d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-lg" style="max-width: 400px; width: 100%;">
+        <div class="card-header text-center">
+            <h3>Bienvenido</h3>
+        </div>
+        <div class="card-body">
+            <p>Seleccione un rol para simular el inicio de sesión.</p>
+            <div class="mb-3">
+                <label class="form-label">Rol</label>
+                <select class="form-select" @bind="selectedRole">
+                    <option value="Admin">Rol de Admin</option>
+                </select>
+            </div>
+            <div class="d-grid">
+                <button class="btn btn-primary" @onclick="Login">Ingresar como @selectedRole</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private string selectedRole = "Admin";
+
+    private void Login()
+    {
+        CurrentUser.Login(selectedRole);
+        // Usamos forceLoad: true para asegurar una recarga completa de la aplicación,
+        // lo que activará la lógica en el MainLayout.
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+}
