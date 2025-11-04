@@ -1,16 +1,18 @@
 using FacturasSRI.Application.Dtos.Inventario;
-using FacturasSRI.Infrastructure.Persistence;
-using FacturasSRI.Domain.Entities;
 using FacturasSRI.Application.Interfaces;
+using FacturasSRI.Application.Mappings;
+using FacturasSRI.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FacturasSRI.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Administrador,Bodeguero")]
     public class InventarioController : ControllerBase
     {
         private readonly ILoteRepository _loteRepository;
@@ -20,25 +22,22 @@ namespace FacturasSRI.Api.Controllers
             _loteRepository = loteRepository;
         }
 
-        // POST: /api/inventario/compra
         [HttpPost("compra")]
         public async Task<IActionResult> RegistrarCompra([FromBody] CreateLoteDto dto)
         {
-            if (dto == null)
-                return BadRequest("Payload vacío");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
 
-            if (dto.Cantidad <= 0)
-                return BadRequest("La cantidad debe ser mayor que cero");
+            if (dto.Cantidad <= 0 || dto.PrecioCompra < 0)
+                return BadRequest("La cantidad y el precio deben ser valores positivos.");
 
-            if (dto.PrecioCompra < 0)
-                return BadRequest("El precio no puede ser negativo");
+            var productoExiste = await _loteRepository.ProductoExistsAsync(dto.ProductoId);
+            if (!productoExiste)
+                return NotFound($"El producto con ID {dto.ProductoId} no fue encontrado.");
 
-            // Validar que exista el producto a través del repositorio
-            var existe = await _loteRepository.ProductoExistsAsync(dto.ProductoId);
-            if (!existe)
-                return NotFound(new { message = "Producto no encontrado" });
-
-            var now = DateTime.UtcNow;
             var lote = new Lote
             {
                 Id = Guid.NewGuid(),
@@ -46,29 +45,17 @@ namespace FacturasSRI.Api.Controllers
                 CantidadComprada = dto.Cantidad,
                 CantidadDisponible = dto.Cantidad,
                 PrecioCompraUnitario = dto.PrecioCompra,
-                FechaCompra = dto.FechaCompra ?? now,
+                FechaCompra = dto.FechaCompra ?? DateTime.UtcNow,
                 FechaCaducidad = dto.FechaCaducidad,
-                UsuarioIdCreador = dto.UsuarioId ?? Guid.Empty,
-                FechaCreacion = now
+                UsuarioIdCreador = Guid.Parse(userId),
+                FechaCreacion = DateTime.UtcNow
             };
 
-            var nuevo = await _loteRepository.AddAsync(lote);
+            var nuevoLote = await _loteRepository.AddAsync(lote);
 
-            var loteDto = new LoteDto
-            {
-                Id = nuevo.Id,
-                ProductoId = nuevo.ProductoId,
-                CantidadComprada = nuevo.CantidadComprada,
-                CantidadDisponible = nuevo.CantidadDisponible,
-                PrecioCompraUnitario = nuevo.PrecioCompraUnitario,
-                FechaCompra = nuevo.FechaCompra,
-                FechaCaducidad = nuevo.FechaCaducidad
-            };
-
-            return CreatedAtAction(nameof(GetLoteById), new { id = lote.Id }, loteDto);
+            return CreatedAtAction(nameof(GetLoteById), new { id = nuevoLote.Id }, nuevoLote.ToDto());
         }
 
-        // Helper: GET lote by id (used by CreatedAtAction)
         [HttpGet("lotes/{id}")]
         public async Task<IActionResult> GetLoteById(Guid id)
         {
@@ -76,18 +63,7 @@ namespace FacturasSRI.Api.Controllers
             if (lote == null)
                 return NotFound();
 
-            var loteDto = new LoteDto
-            {
-                Id = lote.Id,
-                ProductoId = lote.ProductoId,
-                CantidadComprada = lote.CantidadComprada,
-                CantidadDisponible = lote.CantidadDisponible,
-                PrecioCompraUnitario = lote.PrecioCompraUnitario,
-                FechaCompra = lote.FechaCompra,
-                FechaCaducidad = lote.FechaCaducidad
-            };
-
-            return Ok(loteDto);
+            return Ok(lote.ToDto());
         }
     }
 }

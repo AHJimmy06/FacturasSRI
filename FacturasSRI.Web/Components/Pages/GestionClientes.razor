@@ -1,0 +1,264 @@
+@page "/gestion-clientes"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject CurrentUserState CurrentUser
+
+@rendermode InteractiveServer
+@using FacturasSRI.Application.Dtos.Clientes
+@using System.Net.Http.Headers
+@implements IDisposable
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Gestión de Clientes</h3>
+    <button class="btn btn-primary" @onclick="MostrarFormularioNuevo">
+        <span class="bi bi-plus-circle-fill me-2" aria-hidden="true"></span> Crear Nuevo Cliente
+    </button>
+</div>
+
+<div class="input-group mb-3">
+    <span class="input-group-text">
+        <span class="bi bi-search"></span>
+    </span>
+    <input type="text" class="form-control" placeholder="Buscar por identificación o razón social..." 
+           @bind="searchQuery" @bind:event="oninput" />
+</div>
+
+@if (mostrandoFormulario)
+{
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h3>@(clienteEnEdicionId.HasValue ? "Editar Cliente" : "Nuevo Cliente")</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="@clienteModel" OnValidSubmit="GuardarCliente" FormName="cliente-form">
+                <DataAnnotationsValidator />
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Tipo de Identificación</label>
+                        <InputSelect @bind-Value="clienteModel.TipoIdentificacion" class="form-select">
+                            <option value="1">RUC</option>
+                            <option value="2">Cédula</option>
+                            <option value="3">Pasaporte</option>
+                            <option value="4">Consumidor Final</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Número de Identificación</label>
+                        <InputText @bind-Value="clienteModel.NumeroIdentificacion" class="form-control" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Razón Social</label>
+                    <InputText @bind-Value="clienteModel.RazonSocial" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <InputText @bind-Value="clienteModel.Email" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dirección</label>
+                    <InputText @bind-Value="clienteModel.Direccion" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <InputText @bind-Value="clienteModel.Telefono" class="form-control" />
+                </div>
+                
+                <button type="submit" class="btn btn-success">Guardar</button>
+                <button type="button" class="btn btn-secondary" @onclick="OcultarFormulario">Cancelar</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (isLoading)
+{
+    <p><em>Cargando clientes...</em></p>
+}
+else if (clientes == null)
+{
+    <div class="alert alert-danger">
+        Error al cargar clientes. Verifique la conexión o los permisos.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Razón Social</th>
+                <th>Identificación</th>
+                <th>Email</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cliente in FilteredClientes)
+            {
+                <tr>
+                    <td>@cliente.RazonSocial</td>
+                    <td>@cliente.NumeroIdentificacion</td>
+                    <td>@cliente.Email</td>
+                    <td>
+                        <span class="badge @(cliente.EstaActivo ? "bg-success" : "bg-danger")">
+                            @(cliente.EstaActivo ? "Activo" : "Inactivo")
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => MostrarFormularioEditar(cliente)">Editar</button>
+                        
+                        @if (cliente.EstaActivo)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DesactivarCliente(cliente.Id)">Desactivar</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-success" @onclick="() => ActivarCliente(cliente.Id)">Activar</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<ClienteDto>? clientes;
+    private bool mostrandoFormulario = false;
+    private Guid? clienteEnEdicionId;
+    private UpdateClienteDto clienteModel = new();
+    private string searchQuery = string.Empty;
+    private bool isLoading = true;
+    private bool hasAttemptedLoad = false;
+
+    private IEnumerable<ClienteDto> FilteredClientes =>
+        clientes?.Where(c =>
+            string.IsNullOrWhiteSpace(searchQuery) ||
+            c.RazonSocial.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+            c.NumeroIdentificacion.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+        ) ?? Enumerable.Empty<ClienteDto>();
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("--- GestionClientes: OnInitialized (Suscrito a OnChange) ---");
+        CurrentUser.OnChange += HandleAuthStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        Console.WriteLine($"--- GestionClientes: OnAfterRenderAsync (firstRender: {firstRender}) ---");
+        if (firstRender)
+        {
+            await LoadDataIfAuthenticated();
+        }
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        Console.WriteLine("--- GestionClientes: HandleAuthStateChanged (Evento de OnChange recibido) ---");
+        await LoadDataIfAuthenticated();
+    }
+
+    private async Task LoadDataIfAuthenticated()
+    {
+        Console.WriteLine($"--- GestionClientes: LoadDataIfAuthenticated (IsLoggedIn: {CurrentUser.IsLoggedIn}, hasAttemptedLoad: {hasAttemptedLoad}) ---");
+        if (CurrentUser.IsLoggedIn && !hasAttemptedLoad)
+        {
+            hasAttemptedLoad = true;
+            
+            Console.WriteLine("--- GestionClientes: Configurando cabecera de autorización por defecto en HttpClient ---");
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CurrentUser.Token);
+            
+            await CargarClientes();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarClientes()
+    {
+        isLoading = true;
+        Console.WriteLine("--- GestionClientes: CargarClientes INICIADO ---");
+        try
+        {
+            clientes = await Http.GetFromJsonAsync<List<ClienteDto>>("api/clientes");
+            Console.WriteLine("--- GestionClientes: CargarClientes FINALIZADO (sin error) ---");
+        }
+        catch (System.Exception ex)
+        {
+            Console.WriteLine($"--- GestionClientes: Error al cargar clientes: {ex.Message} ---");
+            clientes = null;
+        }
+        isLoading = false;
+    }
+
+    private void MostrarFormularioNuevo()
+    {
+        clienteEnEdicionId = null;
+        clienteModel = new UpdateClienteDto();
+        mostrandoFormulario = true;
+    }
+
+    private void MostrarFormularioEditar(ClienteDto cliente)
+    {
+        clienteEnEdicionId = cliente.Id;
+        clienteModel = new UpdateClienteDto
+        {
+            TipoIdentificacion = cliente.TipoIdentificacion,
+            NumeroIdentificacion = cliente.NumeroIdentificacion,
+            RazonSocial = cliente.RazonSocial,
+            Email = cliente.Email,
+            Direccion = cliente.Direccion,
+            Telefono = cliente.Telefono
+        };
+        mostrandoFormulario = true;
+    }
+
+    private void OcultarFormulario()
+    {
+        mostrandoFormulario = false;
+        clienteModel = new();
+        clienteEnEdicionId = null;
+    }
+
+    private async Task GuardarCliente()
+    {
+        if (clienteEnEdicionId.HasValue)
+        {
+            await Http.PutAsJsonAsync($"api/clientes/{clienteEnEdicionId.Value}", clienteModel);
+        }
+        else
+        {
+            var createDto = new CreateClienteDto
+            {
+                TipoIdentificacion = clienteModel.TipoIdentificacion,
+                NumeroIdentificacion = clienteModel.NumeroIdentificacion,
+                RazonSocial = clienteModel.RazonSocial,
+                Email = clienteModel.Email,
+                Direccion = clienteModel.Direccion,
+                Telefono = clienteModel.Telefono
+            };
+            await Http.PostAsJsonAsync("api/clientes", createDto);
+        }
+        OcultarFormulario();
+        await CargarClientes();
+    }
+
+    private async Task DesactivarCliente(Guid id)
+    {
+        await Http.PatchAsync($"api/clientes/{id}/deactivate", null);
+        await CargarClientes();
+    }
+
+    private async Task ActivarCliente(Guid id)
+    {
+        await Http.PatchAsync($"api/clientes/{id}/activate", null);
+        await CargarClientes();
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("--- GestionClientes: Dispose (Quitando suscripción de OnChange) ---");
+        CurrentUser.OnChange -= HandleAuthStateChanged;
+    }
+}

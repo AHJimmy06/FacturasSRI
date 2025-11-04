@@ -1,6 +1,28 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@using FacturasSRI.Web.Services
+@inject LocalStorageService LocalStorage
+@inject CurrentUserState CurrentUser
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync("authToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                CurrentUser.SetUser(token);
+            }
+            else
+            {
+                CurrentUser.FinishLoading();
+            }
+        }
+    }
+}

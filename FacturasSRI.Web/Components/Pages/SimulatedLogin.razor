@@ -3,6 +3,10 @@
 
 @inject CurrentUserState CurrentUser
 @inject NavigationManager Navigation
+@inject HttpClient Http
+@inject LocalStorageService LocalStorage
+@using FacturasSRI.Web.Services
+@using FacturasSRI.Web.Dtos
 
 @rendermode InteractiveServer
 
@@ -25,36 +29,30 @@
                 <div class="mb-3">
                     <label class="form-label">Correo Electrónico</label>
                     <InputText class="form-control" @bind-Value="loginModel.Email" />
-                    <ValidationMessage For="@(() => loginModel.Email)" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Clave</label>
                     <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
-                    <ValidationMessage For="@(() => loginModel.Password)" />
                 </div>
-
-                <div class="form-check mb-3">
-                    <InputCheckbox class="form-check-input" @bind-Value="loginModel.IsAdminLoginAttempt" />
-                    <label class="form-check-label">Elevar a sesión de Administrador</label>
-                </div>
-
-                @if (loginModel.IsAdminLoginAttempt)
-                {
-                    <div class="mb-3">
-                        <label class="form-label">Clave de Administrador</label>
-                        <InputText type="password" class="form-control" @bind-Value="loginModel.AdminKey" placeholder="Requiere clave adicional..." />
-                        <ValidationMessage For="@(() => loginModel.AdminKey)" />
-                    </div>
-                }
 
                 <div class="d-grid">
-                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isLoggingIn">
+                        @if (isLoggingIn)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span>Ingresando...</span>
+                        }
+                        else
+                        {
+                            <span>Ingresar</span>
+                        }
+                    </button>
                 </div>
             </EditForm>
         </div>
         <div class="card-footer text-muted small">
-             <p class="mb-1"><strong>Cuentas:</strong> user@facturas.com / user123</p>
-             <p class="mb-0"><strong>Clave Admin:</strong> SUPER_SECRET_KEY_123</p>
+             <p class="mb-1"><strong>Usuario:</strong> admin@facturassri.com</p>
+             <p class="mb-0"><strong>Clave:</strong> Admin123*</p>
         </div>
     </div>
 </div>
@@ -62,35 +60,45 @@
 @code {
     private LoginModel loginModel = new();
     private string? errorMessage;
+    private bool isLoggingIn = false;
 
-    private void HandleLogin()
+    private async Task HandleLogin()
     {
-        errorMessage = null; 
-        bool loginSuccessful;
-        string? adminKeyToSend = loginModel.IsAdminLoginAttempt ? loginModel.AdminKey : null;
+        isLoggingIn = true;
+        errorMessage = null;
+        StateHasChanged();
 
-        loginSuccessful = CurrentUser.Login(loginModel.Email, loginModel.Password, adminKeyToSend);
-        
-        if (loginSuccessful)
+        var request = new LoginRequestDto { Email = loginModel.Email, Password = loginModel.Password };
+        var response = await Http.PostAsJsonAsync("api/auth/login", request);
+
+        if (response.IsSuccessStatusCode)
         {
-            Navigation.NavigateTo("/", forceLoad: true);
+            var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+            if (result != null && !string.IsNullOrEmpty(result.Token))
+            {
+                await LocalStorage.SetItemAsync("authToken", result.Token);
+                CurrentUser.SetUser(result.Token);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                errorMessage = "No se recibió un token válido del servidor.";
+            }
         }
         else
         {
-            errorMessage = "Credenciales incorrectas. Verifique los datos o la clave de administrador.";
+            errorMessage = "Credenciales incorrectas. Por favor, verifique sus datos.";
         }
+        
+        isLoggingIn = false;
+        StateHasChanged();
     }
-
     public class LoginModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El correo es requerido.")]
-        [System.ComponentModel.DataAnnotations.EmailAddress]
-        public string Email { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Email { get; set; } = string.Empty;
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La clave es requerida.")]
-        public string Password { get; set; } = "";
-        
-        public bool IsAdminLoginAttempt { get; set; }
-        public string AdminKey { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
     }
 }

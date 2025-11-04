@@ -1,13 +1,28 @@
 using FacturasSRI.Web.Components;
+using FacturasSRI.Web.Handlers;
+using FacturasSRI.Web.Services;
 using FacturasSRI.Web.States;
+using System;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<CurrentUserState>(); 
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddScoped<LocalStorageService>();
+builder.Services.AddScoped<CurrentUserState>(); 
+
+builder.Services.AddTransient<AuthHeaderHandler>();
+
+builder.Services.AddHttpClient("SRI_API", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5092");
+}).AddHttpMessageHandler<AuthHeaderHandler>();
+
+builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("SRI_API"));
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5092") });
 
 var app = builder.Build();
 

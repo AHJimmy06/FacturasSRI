@@ -1,66 +1,79 @@
+using System.Security.Claims;
+using System.Text.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace FacturasSRI.Web.States
 {
     public class CurrentUserState
     {
-        public bool IsLoggedIn { get; private set; }
-        public string? Role { get; private set; }
-        public string? Email { get; private set; }
+        public string? Token { get; private set; }
+        public bool IsLoggedIn => !string.IsNullOrEmpty(Token);
+        public string Role { get; private set; } = string.Empty;
+        public string Email { get; private set; } = string.Empty;
+        public string FullName { get; private set; } = string.Empty;
         public Guid UserId { get; private set; }
+        
+        public bool IsLoading { get; private set; } = true;
 
         public event Action? OnChange;
-        private const string AdminSecretKey = "SUPER_SECRET_KEY_123";
-        private static readonly Dictionary<string, string> ValidUsers = new()
-        {
-            { "user@facturas.com", "user123" },
-            { "admin@facturas.com", "admin123" }
-        };
 
-        public bool Login(string email, string password, string? adminKey = null)
+        public void SetUser(string token)
         {
-            if (!ValidUsers.TryGetValue(email.ToLower(), out var correctPassword) || correctPassword != password)
+            Token = token;
+            if (!string.IsNullOrEmpty(Token))
             {
-                return false;
+                var claims = ParseClaimsFromJwt(Token);
+                UserId = Guid.Parse(claims.FirstOrDefault(c => c.Type == "sub")?.Value ?? Guid.Empty.ToString());
+                Email = claims.FirstOrDefault(c => c.Type == "email")?.Value ?? string.Empty;
+                Role = claims.FirstOrDefault(c => c.Type == "role")?.Value ?? string.Empty;
+                FullName = claims.FirstOrDefault(c => c.Type == "name")?.Value ?? string.Empty;
             }
-
-            if (adminKey != null)
-            {
-                if (adminKey == AdminSecretKey)
-                {
-                    LoginAs("Admin", email);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                LoginAs("General", email);
-                return true;
-            }
-        }
-        
-        private void LoginAs(string role, string email)
-        {
-            IsLoggedIn = true;
-            Role = role;
-            Email = email;
-            UserId = (role == "Admin") 
-                ? Guid.Parse("00000000-0000-0000-0000-000000000001") 
-                : Guid.Parse("00000000-0000-0000-0000-000000000002");
+            IsLoading = false;
             NotifyStateChanged();
         }
 
         public void Logout()
         {
-            IsLoggedIn = false;
-            Role = null;
-            Email = null;
+            Token = null;
             UserId = Guid.Empty;
+            Email = string.Empty;
+            Role = string.Empty;
+            FullName = string.Empty;
+            IsLoading = false;
+            NotifyStateChanged();
+        }
+        
+        public void FinishLoading()
+        {
+            IsLoading = false;
             NotifyStateChanged();
         }
 
         private void NotifyStateChanged() => OnChange?.Invoke();
+
+        private IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
+        {
+            var claims = new List<Claim>();
+            var payload = jwt.Split('.')[1];
+            var jsonBytes = ParseBase64WithoutPadding(payload);
+            var keyValuePairs = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonBytes);
+            if (keyValuePairs != null)
+            {
+                claims.AddRange(keyValuePairs.Select(kvp => new Claim(kvp.Key, kvp.Value.ToString()!)));
+            }
+            return claims;
+        }
+
+        private byte[] ParseBase64WithoutPadding(string base64)
+        {
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
+            return Convert.FromBase64String(base64);
+        }
     }
 }

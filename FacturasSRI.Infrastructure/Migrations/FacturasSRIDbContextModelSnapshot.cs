@@ -17,7 +17,7 @@ namespace FacturasSRI.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "8.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -487,20 +487,42 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Property<bool>("EstaActivo")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Nombre")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PasswordHash")
+                    b.Property<string>("PrimerApellido")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimerNombre")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Rol")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SegundoApellido")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SegundoNombre")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("Usuarios");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
+                            Email = "admin@facturassri.com",
+                            EstaActivo = true,
+                            PasswordHash = "$2a$11$KnYr45JSbCoMg4Jtkg0GXegC7SegKYTidLxFYYljNwtLH0l024qLG",
+                            PrimerApellido = "Sistema",
+                            PrimerNombre = "Admin",
+                            Rol = 1
+                        });
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.AjusteInventario", b =>
