@@ -1,0 +1,34 @@
+﻿@inherits LayoutComponentBase
+@inject CurrentUserState CurrentUser
+@inject NavigationManager Navigation
+
+@* Si el usuario está logueado, muestra la aplicación. Si no, no muestra nada
+   porque el código lo redirigirá antes de que pueda ver la página. *@
+@if (CurrentUser.IsLoggedIn) 
+{
+    <div class="page">
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <main>
+            <div class="top-row px-4">
+                <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            </div>
+
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CurrentUser.IsLoggedIn)
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}
