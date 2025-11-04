@@ -1,6 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject CurrentUserState CurrentUser
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">FacturasSRI.Web</a>
+        <a class="navbar-brand" href="">FacturasSRI</a>
     </div>
 </div>
 
@@ -8,26 +11,37 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
+        
+        <div class="nav-item px-3">
+            <span class="nav-link text-white">
+                <span class="bi bi-person-check-fill-nav-menu" aria-hidden="true"></span> Logueado como: <strong>@CurrentUser.Role</strong>
+            </span>
+        </div>
+        <hr class="bg-light" />
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
+
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="gestion-productos">
                 <span class="bi bi-box-seam-nav-menu" aria-hidden="true"></span> Productos
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        CurrentUser.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= StateHasChanged;
+    }
+}
