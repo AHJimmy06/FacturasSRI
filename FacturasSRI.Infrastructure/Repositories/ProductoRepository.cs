@@ -1,8 +1,11 @@
-using FacturasSRI.Application.Dtos.Productos;
 using FacturasSRI.Application.Interfaces;
 using FacturasSRI.Domain.Entities;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FacturasSRI.Infrastructure.Repositories
 {
@@ -15,20 +18,15 @@ namespace FacturasSRI.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<ProductoDto>> GetAllProductsAsync()
+        public async Task<IEnumerable<Producto>> GetAllProductsAsync()
         {
             return await _context.Productos
-                .Where(p => p.EstaActivo) // Opcional: solo mostrar activos en la lista principal
-                .Select(p => new ProductoDto
-                {
-                    Id = p.Id,
-                    CodigoPrincipal = p.CodigoPrincipal,
-                    Nombre = p.Nombre,
-                    PrecioVentaUnitario = p.PrecioVentaUnitario,
-                    EstaActivo = p.EstaActivo
-                })
+                .Where(p => p.EstaActivo)
+                .AsNoTracking()
                 .ToListAsync();
         }
+
+
 
         public async Task<Producto?> GetProductByIdAsync(Guid id)
         {
@@ -48,11 +46,14 @@ namespace FacturasSRI.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeactivateProductAsync(Producto producto)
+        public async Task DeactivateProductAsync(Guid id)
         {
-            producto.EstaActivo = false;
-            _context.Entry(producto).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
+            var producto = await _context.Productos.FindAsync(id);
+            if (producto != null)
+            {
+                producto.EstaActivo = false;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

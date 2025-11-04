@@ -12,5 +12,6 @@ namespace FacturasSRI.Application.Interfaces
         Task<Cliente> AddAsync(Cliente cliente);
         Task UpdateAsync(Cliente cliente);
         Task DeactivateAsync(Guid id);
+        Task ActivateAsync(Guid id);
     }
 }

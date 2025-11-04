@@ -12,31 +12,19 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
-        
-        <div class="nav-item px-3">
-            <div class="nav-link text-white">
-                <span class="bi bi-person-check-fill-nav-menu" aria-hidden="true"></span>
-                <span>
-                    <strong>@CurrentUser.Email</strong>
-                    <small class="d-block">(@CurrentUser.Role)</small>
-                </span>
-            </div>
-        </div>
-         <div class="nav-item px-3">
-             <button class="btn btn-link nav-link" @onclick="Logout">
-                <span class="bi bi-box-arrow-left-nav-menu" aria-hidden="true"></span> Cerrar Sesión
-             </button>
-        </div>
-        <hr class="bg-light" />
-
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
 
-        @if (CurrentUser.Role == "Admin")
+        @if (CurrentUser.Role == "Administrador")
         {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="gestion-clientes">
+                    <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Clientes
+                </NavLink>
+            </div>
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="gestion-productos">
                     <span class="bi bi-box-seam-nav-menu" aria-hidden="true"></span> Productos
@@ -49,10 +37,4 @@
 @code {
     protected override void OnInitialized() => CurrentUser.OnChange += StateHasChanged;
     public void Dispose() => CurrentUser.OnChange -= StateHasChanged;
-
-    private void Logout()
-    {
-        CurrentUser.Logout();
-        Navigation.NavigateTo("/login", forceLoad: true);
-    }
 }

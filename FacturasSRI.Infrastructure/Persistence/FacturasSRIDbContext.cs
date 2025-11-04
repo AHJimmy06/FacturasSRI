@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using FacturasSRI.Domain.Entities;
 using System.Reflection;
+using FacturasSRI.Domain.Enums;
+using System;
 
 namespace FacturasSRI.Infrastructure.Persistence
 {
@@ -24,7 +26,6 @@ namespace FacturasSRI.Infrastructure.Persistence
         public DbSet<NotaDeCreditoDetalle> NotaDeCreditoDetalles { get; set; }
         public DbSet<FacturaSRI> FacturasSRI { get; set; }
         public DbSet<NotaDeCreditoSRI> NotasDeCreditoSRI { get; set; }
-
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,6 +64,19 @@ namespace FacturasSRI.Infrastructure.Persistence
             {
                 property.SetColumnType("decimal(18, 2)");
             }
+
+            modelBuilder.Entity<Usuario>().HasData(
+                new Usuario
+                {
+                    Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                    PrimerNombre = "Admin",
+                    PrimerApellido = "Sistema",
+                    Email = "admin@facturassri.com",
+                    PasswordHash = "$2a$11$KnYr45JSbCoMg4Jtkg0GXegC7SegKYTidLxFYYljNwtLH0l024qLG",
+                    Rol = RolUsuario.Administrador,
+                    EstaActivo = true
+                }
+            );
         }
     }
 }

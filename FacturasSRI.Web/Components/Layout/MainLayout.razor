@@ -1,10 +1,17 @@
 ﻿@inherits LayoutComponentBase
 @inject CurrentUserState CurrentUser
 @inject NavigationManager Navigation
+@implements IDisposable
 
-@* Si el usuario está logueado, muestra la aplicación. Si no, no muestra nada
-   porque el código lo redirigirá antes de que pueda ver la página. *@
-@if (CurrentUser.IsLoggedIn) 
+@if (CurrentUser.IsLoading)
+{
+    <div class="page">
+        <main class="content px-4">
+            <p>Cargando...</p>
+        </main>
+    </div>
+}
+else if (CurrentUser.IsLoggedIn)
 {
     <div class="page">
         <div class="sidebar">
@@ -12,8 +19,8 @@
         </div>
 
         <main>
-            <div class="top-row px-4">
-                <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="top-row px-4 d-flex justify-content-end">
+                <UserProfileDropdown />
             </div>
 
             <article class="content px-4">
@@ -24,11 +31,26 @@
 }
 
 @code {
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
+        CurrentUser.OnChange += StateHasChanged;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (CurrentUser.IsLoading)
+        {
+            return;
+        }
+
         if (!CurrentUser.IsLoggedIn)
         {
             Navigation.NavigateTo("/login");
         }
+    }
+
+    public void Dispose()
+    {
+        CurrentUser.OnChange -= StateHasChanged;
     }
 }

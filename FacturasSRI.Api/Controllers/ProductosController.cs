@@ -1,13 +1,20 @@
 using FacturasSRI.Application.Dtos.Productos;
 using FacturasSRI.Application.Interfaces;
+using FacturasSRI.Application.Mappings;
 using FacturasSRI.Domain.Entities;
-using FacturasSRI.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
+using System;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace FacturasSRI.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ProductosController : ControllerBase
     {
         private readonly IProductoRepository _productoRepository;
@@ -21,26 +28,28 @@ namespace FacturasSRI.Api.Controllers
         public async Task<ActionResult<IEnumerable<ProductoDto>>> GetAll()
         {
             var productos = await _productoRepository.GetAllProductsAsync();
-            return Ok(productos);
+            return Ok(productos.Select(p => p.ToDto()));
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Producto>> GetById(Guid id)
+        public async Task<ActionResult<ProductoDto>> GetById(Guid id)
         {
             var producto = await _productoRepository.GetProductByIdAsync(id);
             if (producto == null)
             {
                 return NotFound();
             }
-            return Ok(producto);
+            return Ok(producto.ToDto());
         }
 
         [HttpPost]
-        public async Task<ActionResult<Producto>> Create([FromBody] CreateProductoDto dto)
+        [Authorize(Roles = "Administrador")]
+        public async Task<ActionResult<ProductoDto>> Create([FromBody] CreateProductoDto dto)
         {
-            if (!ModelState.IsValid)
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
             {
-                return BadRequest(ModelState);
+                return Unauthorized();
             }
 
             var nuevoProducto = new Producto
@@ -51,26 +60,21 @@ namespace FacturasSRI.Api.Controllers
                 Descripcion = dto.Descripcion,
                 PrecioVentaUnitario = dto.PrecioVentaUnitario,
                 TipoImpuestoIVA = dto.TipoImpuestoIVA,
-                Tipo = TipoProducto.Simple, // Asignado por defecto
+                Tipo = Domain.Enums.TipoProducto.Simple,
                 EstaActivo = true,
                 FechaCreacion = DateTime.UtcNow,
-                // TODO: Reemplazar este GUID quemado por el ID del usuario autenticado
-                UsuarioIdCreador = Guid.Parse("00000000-0000-0000-0000-000000000001") 
+                UsuarioIdCreador = Guid.Parse(userId)
             };
 
             await _productoRepository.CreateProductAsync(nuevoProducto);
 
-            return CreatedAtAction(nameof(GetById), new { id = nuevoProducto.Id }, nuevoProducto);
+            return CreatedAtAction(nameof(GetById), new { id = nuevoProducto.Id }, nuevoProducto.ToDto());
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductoDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             var productoExistente = await _productoRepository.GetProductByIdAsync(id);
             if (productoExistente == null)
             {
@@ -86,7 +90,8 @@ namespace FacturasSRI.Api.Controllers
             return NoContent(); 
         }
 
-        [HttpDelete("{id}")]
+        [HttpPatch("{id}/deactivate")]
+        [Authorize(Roles = "Administrador")]
         public async Task<IActionResult> Deactivate(Guid id)
         {
             var producto = await _productoRepository.GetProductByIdAsync(id);
@@ -95,7 +100,7 @@ namespace FacturasSRI.Api.Controllers
                 return NotFound();
             }
 
-            await _productoRepository.DeactivateProductAsync(producto);
+            await _productoRepository.DeactivateProductAsync(id);
             return NoContent();
         }
     }
