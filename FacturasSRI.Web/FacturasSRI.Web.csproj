@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FacturasSRI.Api\FacturasSRI.Api.csproj" />
+    <ProjectReference Include="..\FacturasSRI.Application\FacturasSRI.Application.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
