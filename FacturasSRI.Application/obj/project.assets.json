@@ -27,19 +27,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\villa\\.nuget\\packages\\": {}
+    "C:\\Users\\THINKPAD\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\villa\\Desktop\\FacturasSRI\\FacturasSRI.Application\\FacturasSRI.Application.csproj",
+      "projectUniqueName": "C:\\Users\\THINKPAD\\Desktop\\Metodologias\\FacturasSRI\\FacturasSRI.Application\\FacturasSRI.Application.csproj",
       "projectName": "FacturasSRI.Application",
-      "projectPath": "C:\\Users\\villa\\Desktop\\FacturasSRI\\FacturasSRI.Application\\FacturasSRI.Application.csproj",
-      "packagesPath": "C:\\Users\\villa\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\villa\\Desktop\\FacturasSRI\\FacturasSRI.Application\\obj\\",
+      "projectPath": "C:\\Users\\THINKPAD\\Desktop\\Metodologias\\FacturasSRI\\FacturasSRI.Application\\FacturasSRI.Application.csproj",
+      "packagesPath": "C:\\Users\\THINKPAD\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\THINKPAD\\Desktop\\Metodologias\\FacturasSRI\\FacturasSRI.Application\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\villa\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\THINKPAD\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -51,8 +51,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\villa\\Desktop\\FacturasSRI\\FacturasSRI.Domain\\FacturasSRI.Domain.csproj": {
-              "projectPath": "C:\\Users\\villa\\Desktop\\FacturasSRI\\FacturasSRI.Domain\\FacturasSRI.Domain.csproj"
+            "C:\\Users\\THINKPAD\\Desktop\\Metodologias\\FacturasSRI\\FacturasSRI.Domain\\FacturasSRI.Domain.csproj": {
+              "projectPath": "C:\\Users\\THINKPAD\\Desktop\\Metodologias\\FacturasSRI\\FacturasSRI.Domain\\FacturasSRI.Domain.csproj"
             }
           }
         }

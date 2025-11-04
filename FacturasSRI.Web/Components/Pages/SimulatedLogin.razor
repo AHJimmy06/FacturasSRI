@@ -1,0 +1,96 @@
+@page "/login"
+@layout EmptyLayout
+
+@inject CurrentUserState CurrentUser
+@inject NavigationManager Navigation
+
+@rendermode InteractiveServer
+
+<div class="d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-lg" style="max-width: 400px; width: 100%;">
+        <div class="card-header text-center">
+            <h3>Iniciar Sesión</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin" FormName="login-form">
+                <DataAnnotationsValidator />
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Correo Electrónico</label>
+                    <InputText class="form-control" @bind-Value="loginModel.Email" />
+                    <ValidationMessage For="@(() => loginModel.Email)" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Clave</label>
+                    <InputText type="password" class="form-control" @bind-Value="loginModel.Password" />
+                    <ValidationMessage For="@(() => loginModel.Password)" />
+                </div>
+
+                <div class="form-check mb-3">
+                    <InputCheckbox class="form-check-input" @bind-Value="loginModel.IsAdminLoginAttempt" />
+                    <label class="form-check-label">Elevar a sesión de Administrador</label>
+                </div>
+
+                @if (loginModel.IsAdminLoginAttempt)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Clave de Administrador</label>
+                        <InputText type="password" class="form-control" @bind-Value="loginModel.AdminKey" placeholder="Requiere clave adicional..." />
+                        <ValidationMessage For="@(() => loginModel.AdminKey)" />
+                    </div>
+                }
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Ingresar</button>
+                </div>
+            </EditForm>
+        </div>
+        <div class="card-footer text-muted small">
+             <p class="mb-1"><strong>Cuentas:</strong> user@facturas.com / user123</p>
+             <p class="mb-0"><strong>Clave Admin:</strong> SUPER_SECRET_KEY_123</p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string? errorMessage;
+
+    private void HandleLogin()
+    {
+        errorMessage = null; 
+        bool loginSuccessful;
+        string? adminKeyToSend = loginModel.IsAdminLoginAttempt ? loginModel.AdminKey : null;
+
+        loginSuccessful = CurrentUser.Login(loginModel.Email, loginModel.Password, adminKeyToSend);
+        
+        if (loginSuccessful)
+        {
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            errorMessage = "Credenciales incorrectas. Verifique los datos o la clave de administrador.";
+        }
+    }
+
+    public class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "El correo es requerido.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "La clave es requerida.")]
+        public string Password { get; set; } = "";
+        
+        public bool IsAdminLoginAttempt { get; set; }
+        public string AdminKey { get; set; } = "";
+    }
+}
