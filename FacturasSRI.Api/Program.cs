@@ -12,7 +12,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<FacturasSRIDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Repositories
 builder.Services.AddScoped<IClienteRepository, ClienteRepository>();
+builder.Services.AddScoped<FacturasSRI.Application.Interfaces.ILoteRepository, FacturasSRI.Infrastructure.Repositories.LoteRepository>();
 
 var app = builder.Build();
 

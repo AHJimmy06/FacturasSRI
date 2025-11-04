@@ -317,3 +317,15 @@ C:\Users\THINKPAD\Desktop\Metodologias\FacturasSRI\FacturasSRI.Api\obj\Debug\net
 C:\Users\THINKPAD\Desktop\Metodologias\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\Facturas.4C88F8AB.Up2Date
 C:\Users\THINKPAD\Desktop\Metodologias\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.genruntimeconfig.cache
 C:\Users\THINKPAD\Desktop\Metodologias\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\ref\FacturasSRI.Api.dll
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.csproj.AssemblyReference.cache
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\rpswa.dswa.cache.json
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.AssemblyInfoInputs.cache
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.AssemblyInfo.cs
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.csproj.CoreCompileInputs.cache
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.sourcelink.json
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.dll
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\refint\FacturasSRI.Api.dll
+C:\Users\villa\Desktop\FacturasSRI\FacturasSRI.Api\obj\Debug\net8.0\FacturasSRI.Api.pdb
