@@ -53,7 +53,7 @@ namespace FacturasSRI.Api.Controllers
             
             var cliente = new Cliente
             {
-                TipoIdentificacion = createClienteDto.TipoIdentificacion,
+                TipoIdentificacion = (Domain.Enums.TipoIdentificacion)createClienteDto.TipoIdentificacion,
                 NumeroIdentificacion = createClienteDto.NumeroIdentificacion,
                 RazonSocial = createClienteDto.RazonSocial,
                 Email = createClienteDto.Email ?? string.Empty,
@@ -76,7 +76,8 @@ namespace FacturasSRI.Api.Controllers
                 return NotFound();
             }
 
-            clienteExistente.TipoIdentificacion = updateClienteDto.TipoIdentificacion;
+            // Map and convert types safely
+            clienteExistente.TipoIdentificacion = (Domain.Enums.TipoIdentificacion)updateClienteDto.TipoIdentificacion;
             clienteExistente.NumeroIdentificacion = updateClienteDto.NumeroIdentificacion;
             clienteExistente.RazonSocial = updateClienteDto.RazonSocial;
             clienteExistente.Email = updateClienteDto.Email ?? string.Empty;
