@@ -1,0 +1,16 @@
+using FacturasSRI.Application.Dtos;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace FacturasSRI.Application.Interfaces
+{
+    public interface ICustomerService
+    {
+        Task<List<CustomerDto>> GetCustomersAsync();
+        Task<CustomerDto?> GetCustomerByIdAsync(Guid id);
+        Task<CustomerDto> CreateCustomerAsync(CustomerDto customer);
+        Task UpdateCustomerAsync(CustomerDto customer);
+        Task DeleteCustomerAsync(Guid id);
+    }
+}

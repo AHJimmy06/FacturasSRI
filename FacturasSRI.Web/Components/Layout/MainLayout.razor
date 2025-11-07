@@ -1,73 +1,24 @@
 ﻿@inherits LayoutComponentBase
-@inject CurrentUserState CurrentUser
-@inject NavigationManager Navigation
-@implements IDisposable
 
-@if (CurrentUser.IsLoading)
-{
-    <div class="page">
-        <main class="content px-4">
-            <p>Cargando sesión...</p>
-        </main>
-    </div>
-}
-else if (CurrentUser.IsLoggedIn)
-{
-    <div class="page">
-        <div class="sidebar">
-            <NavMenu />
-        </div>
-
-        <main>
-            <div class="top-row px-4 d-flex justify-content-end">
-                <UserProfileDropdown />
+<div class="d-flex">
+    
+    <AuthorizeView>
+        <Authorized>
+            <div class="sidebar vh-100">
+                <NavMenu />
             </div>
+        </Authorized>
+        </AuthorizeView>
 
-            <article class="content px-4">
-                @Body
-            </article>
-        </main>
-    </div>
-}
-else
-{
-    <div class="page">
-        <main class="content px-4">
-            <p>No ha iniciado sesión. Redirigiendo al login...</p>
-        </main>
-    </div>
-}
+    <main class="main-content flex-grow-1">
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
 
-@code {
-    protected override void OnInitialized()
-    {
-        Console.WriteLine("--- MainLayout: OnInitialized (Suscrito a OnChange) ---");
-        CurrentUser.OnChange += StateHasChanged;
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        Console.WriteLine($"--- MainLayout: OnAfterRender (IsLoading: {CurrentUser.IsLoading}, IsLoggedIn: {CurrentUser.IsLoggedIn}) ---");
-
-        if (CurrentUser.IsLoading)
-        {
-            Console.WriteLine("--- MainLayout: Aún cargando, esperando... ---");
-            return;
-        }
-
-        if (!CurrentUser.IsLoggedIn)
-        {
-            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-            if (uri.AbsolutePath != "/login")
-            {
-                Console.WriteLine("--- MainLayout: No logueado. REDIRIGIENDO a /login ---");
-                Navigation.NavigateTo("/login");
-            }
-        }
-    }
-
-    public void Dispose()
-    {
-        CurrentUser.OnChange -= StateHasChanged;
-    }
-}
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

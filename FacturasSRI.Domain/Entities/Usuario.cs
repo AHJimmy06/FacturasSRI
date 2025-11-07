@@ -1,5 +1,5 @@
-using FacturasSRI.Domain.Enums;
 using System;
+using System.Collections.Generic;
 
 namespace FacturasSRI.Domain.Entities
 {
@@ -12,7 +12,8 @@ namespace FacturasSRI.Domain.Entities
         public string? SegundoApellido { get; set; }
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
-        public RolUsuario Rol { get; set; }
         public bool EstaActivo { get; set; } = true;
+
+        public virtual ICollection<UsuarioRol> UsuarioRoles { get; set; } = new List<UsuarioRol>();
     }
 }

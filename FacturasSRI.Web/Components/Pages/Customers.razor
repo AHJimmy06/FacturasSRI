@@ -1,0 +1,94 @@
+@page "/customers"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject ICustomerService CustomerService
+
+<PageTitle>Clientes</PageTitle>
+
+<h1>Clientes</h1>
+
+<div class="mb-3">
+    <EditForm Model="@newCustomer" OnValidSubmit="@HandleAddCustomer">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="razonSocial" class="form-label">Razón Social</label>
+                    <InputText id="razonSocial" class="form-control" @bind-Value="newCustomer.RazonSocial" />
+                    <ValidationMessage For="@(() => newCustomer.RazonSocial)" />
+                </div>
+                <div class="mb-3">
+                    <label for="numeroIdentificacion" class="form-label">Número de Identificación</label>
+                    <InputText id="numeroIdentificacion" class="form-control" @bind-Value="newCustomer.NumeroIdentificacion" />
+                    <ValidationMessage For="@(() => newCustomer.NumeroIdentificacion)" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Correo Electrónico</label>
+                    <InputText id="email" class="form-control" @bind-Value="newCustomer.Email" />
+                    <ValidationMessage For="@(() => newCustomer.Email)" />
+                </div>
+                <div class="mb-3">
+                    <label for="direccion" class="form-label">Dirección</label>
+                    <InputText id="direccion" class="form-control" @bind-Value="newCustomer.Direccion" />
+                    <ValidationMessage For="@(() => newCustomer.Direccion)" />
+                </div>
+                <div class="mb-3">
+                    <label for="telefono" class="form-label">Teléfono</label>
+                    <InputText id="telefono" class="form-control" @bind-Value="newCustomer.Telefono" />
+                    <ValidationMessage For="@(() => newCustomer.Telefono)" />
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Añadir Cliente</button>
+    </EditForm>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Razón Social</th>
+            <th>Número de Identificación</th>
+            <th>Correo Electrónico</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var customer in customers)
+        {
+            <tr>
+                <td>@customer.RazonSocial</td>
+                <td>@customer.NumeroIdentificacion</td>
+                <td>@customer.Email</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteCustomer(customer.Id)">Desactivar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<CustomerDto> customers = new();
+    private CustomerDto newCustomer = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        customers = await CustomerService.GetCustomersAsync();
+    }
+
+    private async Task HandleAddCustomer()
+    {
+        await CustomerService.CreateCustomerAsync(newCustomer);
+        newCustomer = new();
+        customers = await CustomerService.GetCustomersAsync();
+    }
+
+    private async Task HandleDeleteCustomer(Guid id)
+    {
+        await CustomerService.DeleteCustomerAsync(id);
+        customers = await CustomerService.GetCustomersAsync();
+    }
+}

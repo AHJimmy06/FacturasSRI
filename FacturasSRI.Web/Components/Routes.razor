@@ -1,37 +1,6 @@
-﻿@using FacturasSRI.Web.Services
-@inject LocalStorageService LocalStorage
-@inject CurrentUserState CurrentUser
-
-<Router AppAssembly="typeof(Program).Assembly">
+﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
-    <NotFound>
-        <PageTitle>No Encontrado</PageTitle>
-        <LayoutView Layout="typeof(Layout.EmptyLayout)">
-            <FacturasSRI.Web.Components.Pages.NotFoundPage />
-        </LayoutView>
-    </NotFound>
 </Router>
-
-@code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            Console.WriteLine("--- Routes.razor: OnAfterRenderAsync - Buscando token en LocalStorage... ---");
-            var token = await LocalStorage.GetItemAsync("authToken");
-            if (!string.IsNullOrEmpty(token))
-            {
-                Console.WriteLine($"--- Routes.razor: Token encontrado. Llamando a CurrentUser.SetUser. ---");
-                CurrentUser.SetUser(token);
-            }
-            else
-            {
-                Console.WriteLine("--- Routes.razor: No se encontró token. Llamando a FinishLoading. ---");
-                CurrentUser.FinishLoading();
-            }
-        }
-    }
-}

@@ -11,12 +11,15 @@ namespace FacturasSRI.Domain.Entities
         public string Nombre { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
         public decimal PrecioVentaUnitario { get; set; }
-        public TipoImpuestoIVA TipoImpuestoIVA { get; set; }
         public TipoProducto Tipo { get; set; } = TipoProducto.Simple;
+        public bool ManejaInventario { get; set; } = true;
+        public bool ManejaLotes { get; set; } = true;
         public bool EstaActivo { get; set; } = true;
-        public Guid UsuarioIdCreador { get; set; }
+        public Guid UsuarioIdCreador { get; set;}
         public DateTime FechaCreacion { get; set; }
+
         public virtual ICollection<Lote> Lotes { get; set; } = new List<Lote>();
         public virtual ICollection<ProductoComponente> Componentes { get; set; } = new List<ProductoComponente>();
+        public virtual ICollection<ProductoImpuesto> ProductoImpuestos { get; set; } = new List<ProductoImpuesto>();
     }
 }
