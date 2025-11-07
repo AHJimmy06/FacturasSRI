@@ -1,0 +1,228 @@
+@page "/users"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IUserService UserService
+@inject IRoleService RoleService
+
+<PageTitle>Usuarios</PageTitle>
+
+<h1>Gestión de Usuarios</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Crear Nuevo Usuario
+    </div>
+    <div class="card-body">
+        <EditForm Model="@newUser" OnValidSubmit="@HandleAddUser">
+            <DataAnnotationsValidator />
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Primer Nombre</label>
+                    <InputText class="form-control" @bind-Value="newUser.PrimerNombre" />
+                    <ValidationMessage For="@(() => newUser.PrimerNombre)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Segundo Nombre</label>
+                    <InputText class="form-control" @bind-Value="newUser.SegundoNombre" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Primer Apellido</label>
+                    <InputText class="form-control" @bind-Value="newUser.PrimerApellido" />
+                    <ValidationMessage For="@(() => newUser.PrimerApellido)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Segundo Apellido</label>
+                    <InputText class="form-control" @bind-Value="newUser.SegundoApellido" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Correo Electrónico</label>
+                    <InputText type="email" class="form-control" @bind-Value="newUser.Email" />
+                    <ValidationMessage For="@(() => newUser.Email)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <InputText type="password" class="form-control" @bind-Value="newUser.Password" />
+                    <ValidationMessage For="@(() => newUser.Password)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Rol</label>
+                    @if (allRoles.Any())
+                    {
+                        <InputSelect class="form-select" @bind-Value="selectedRoleId">
+                            <option value="@Guid.Empty">Seleccione un rol...</option>
+                            @foreach (var rol in allRoles)
+                            {
+                                <option value="@rol.Id">@rol.Nombre</option>
+                            }
+                        </InputSelect>
+                    }
+                    else
+                    {
+                        <p>Cargando roles...</p>
+                    }
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Añadir Usuario</button>
+        </EditForm>
+    </div>
+</div>
+
+<table class="table table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Nombre Completo</th>
+            <th>Correo Electrónico</th>
+            <th>Roles</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in users)
+        {
+            <tr>
+                <td>@user.PrimerNombre @user.SegundoNombre @user.PrimerApellido @user.SegundoApellido</td>
+                <td>@user.Email</td>
+                <td>@string.Join(", ", user.Roles)</td>
+                <td>
+                    <button class="btn btn-sm btn-warning me-2" @onclick="() => OpenEditModal(user.Id)">Editar</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteUser(user.Id)">Desactivar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (showEditModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Usuario: @editingUser.PrimerNombre @editingUser.PrimerApellido</h5>
+                    <button type-="button" class="btn-close" @onclick="CloseEditModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@editingUser" OnValidSubmit="@HandleUpdateUser">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Primer Nombre</label>
+                                <InputText class="form-control" @bind-Value="editingUser.PrimerNombre" />
+                                <ValidationMessage For="@(() => editingUser.PrimerNombre)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Segundo Nombre</label>
+                                <InputText class="form-control" @bind-Value="editingUser.SegundoNombre" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Primer Apellido</label>
+                                <InputText class="form-control" @bind-Value="editingUser.PrimerApellido" />
+                                <ValidationMessage For="@(() => editingUser.PrimerApellido)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Segundo Apellido</label>
+                                <InputText class="form-control" @bind-Value="editingUser.SegundoApellido" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Correo Electrónico</label>
+                                <InputText type="email" class="form-control" @bind-Value="editingUser.Email" />
+                                <ValidationMessage For="@(() => editingUser.Email)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Rol</label>
+                                @if (allRoles.Any())
+                                {
+                                    <InputSelect class="form-select" @bind-Value="editingUserRoleId">
+                                        @foreach (var rol in allRoles)
+                                        {
+                                            <option value="@rol.Id">@rol.Nombre</option>
+                                        }
+                                    </InputSelect>
+                                }
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Nueva Contraseña</label>
+                                <InputText type="password" class="form-control" @bind-Value="editingUser.Password" placeholder="Dejar en blanco para no cambiar" />
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    private List<UserDto> users = new();
+    private List<RoleDto> allRoles = new();
+    
+    private UserDto newUser = new();
+    private Guid selectedRoleId;
+
+    private bool showEditModal = false;
+    private UserDto editingUser = new();
+    private Guid editingUserRoleId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        users = await UserService.GetUsersAsync();
+        allRoles = await RoleService.GetRolesAsync();
+        if (allRoles.Any())
+        {
+            selectedRoleId = allRoles.First().Id;
+        }
+    }
+
+    private async Task HandleAddUser()
+    {
+        newUser.RolesId = new List<Guid> { selectedRoleId };
+        await UserService.CreateUserAsync(newUser);
+        newUser = new();
+        selectedRoleId = allRoles.First().Id;
+        await LoadData();
+    }
+
+    private async Task OpenEditModal(Guid userId)
+    {
+        var userFromDb = await UserService.GetUserByIdAsync(userId);
+        if (userFromDb != null)
+        {
+            editingUser = userFromDb;
+            editingUserRoleId = editingUser.RolesId.FirstOrDefault();
+            showEditModal = true;
+        }
+    }
+
+    private void CloseEditModal()
+    {
+        showEditModal = false;
+        editingUser = new();
+        editingUserRoleId = Guid.Empty;
+    }
+
+    private async Task HandleUpdateUser()
+    {
+        editingUser.RolesId = new List<Guid> { editingUserRoleId };
+        await UserService.UpdateUserAsync(editingUser);
+        CloseEditModal();
+        await LoadData();
+    }
+
+    private async Task HandleDeleteUser(Guid id)
+    {
+        await UserService.DeleteUserAsync(id);
+        await LoadData();
+    }
+}

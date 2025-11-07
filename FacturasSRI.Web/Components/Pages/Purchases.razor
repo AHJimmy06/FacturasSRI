@@ -1,0 +1,69 @@
+@page "/purchases"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IPurchaseService PurchaseService
+@inject IProductService ProductService
+
+<PageTitle>Registrar Compra</PageTitle>
+
+<h1>Registrar Compra</h1>
+
+<div class="mb-3">
+    <EditForm Model="@newPurchase" OnValidSubmit="@HandleAddPurchase">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="product" class="form-label">Producto</label>
+                    <InputSelect id="product" class="form-select" @bind-Value="newPurchase.ProductoId">
+                        <option value="">Seleccione un producto</option>
+                        @foreach (var product in products)
+                        {
+                            <option value="@product.Id">@product.Nombre</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">Cantidad</label>
+                    <InputNumber id="cantidad" class="form-control" @bind-Value="newPurchase.Cantidad" />
+                </div>
+                <div class="mb-3">
+                    <label for="precioCosto" class="form-label">Precio de Costo</label>
+                    <InputNumber id="precioCosto" class="form-control" @bind-Value="newPurchase.PrecioCosto" />
+                </div>
+                <div class="mb-3">
+                    <label for="fechaCaducidad" class="form-label">Fecha de Caducidad</label>
+                    <InputDate id="fechaCaducidad" class="form-control" @bind-Value="newPurchase.FechaCaducidad" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="proveedor" class="form-label">Proveedor</label>
+                    <InputText id="proveedor" class="form-control" @bind-Value="newPurchase.Proveedor" />
+                </div>
+                <div class="mb-3">
+                    <label for="numeroFactura" class="form-label">Número de Factura</label>
+                    <InputText id="numeroFactura" class="form-control" @bind-Value="newPurchase.NumeroFactura" />
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Registrar Compra</button>
+    </EditForm>
+</div>
+
+@code {
+    private List<ProductDto> products = new();
+    private PurchaseDto newPurchase = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await ProductService.GetProductsAsync();
+    }
+
+    private async Task HandleAddPurchase()
+    {
+        await PurchaseService.CreatePurchaseAsync(newPurchase);
+        newPurchase = new();
+    }
+}

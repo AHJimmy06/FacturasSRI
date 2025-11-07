@@ -17,7 +17,7 @@ namespace FacturasSRI.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.4")
+                .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -97,6 +97,122 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.ToTable("Clientes");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.CuentaPorPagar", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FechaEmision")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FechaVencimiento")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("MontoTotal")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("NumeroFactura")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Pagada")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Proveedor")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("SaldoPendiente")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("UsuarioIdCreador")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoteId");
+
+                    b.ToTable("CuentasPorPagar");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Empresa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContribuyenteEspecial")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DireccionMatriz")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EstaActiva")
+                        .HasColumnType("boolean");
+
+                    b.Property<byte[]>("Logo")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("NombreComercial")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ObligadoContabilidad")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RazonSocial")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Ruc")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Empresas");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Establecimiento", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Direccion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("EstaActivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.ToTable("Establecimientos");
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Factura", b =>
                 {
                     b.Property<Guid>("Id")
@@ -120,16 +236,16 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<decimal>("SubtotalSinImpuestos")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("TotalDescuento")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("TotalIVA")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("UsuarioIdCreador")
                         .HasColumnType("uuid");
@@ -151,25 +267,25 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("CostoTotal")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("Descuento")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("FacturaId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("PrecioVentaUnitario")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProductoId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Subtotal")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("ValorIVA")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.HasKey("Id");
 
@@ -235,6 +351,31 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.ToTable("FacturasSRI");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Impuesto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodigoSRI")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EstaActivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Porcentaje")
+                        .HasColumnType("numeric");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Impuestos");
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Lote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -257,7 +398,7 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("PrecioCompraUnitario")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProductoId")
                         .HasColumnType("uuid");
@@ -302,13 +443,13 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<decimal>("SubtotalSinImpuestos")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("TotalIVA")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("UsuarioIdCreador")
                         .HasColumnType("uuid");
@@ -332,22 +473,22 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("DescuentoAplicado")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("NotaDeCreditoId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("PrecioVentaUnitario")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProductoId")
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Subtotal")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("ValorIVA")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.HasKey("Id");
 
@@ -389,6 +530,57 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.ToTable("NotasDeCreditoSRI");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Permiso", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Permisos");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("01f6f2c8-2a1e-4c74-8a8f-b9d5c6a1b2d3"),
+                            Descripcion = "Acceso a la gestión de clientes",
+                            Nombre = "gestionar-clientes"
+                        },
+                        new
+                        {
+                            Id = new Guid("b2d0b8c0-3e7a-4f5c-8b1d-9e6a0c7f1a2b"),
+                            Descripcion = "Acceso a la creación de facturas",
+                            Nombre = "crear-facturas"
+                        },
+                        new
+                        {
+                            Id = new Guid("c3e1a9d0-4b8f-4e6c-9a1d-8f7b0c6e2d1a"),
+                            Descripcion = "Acceso para ver productos",
+                            Nombre = "ver-productos"
+                        },
+                        new
+                        {
+                            Id = new Guid("d4f2b8a1-5c9e-4a6b-8c1d-7e6f0a5b3c2d"),
+                            Descripcion = "Acceso a la gestión de inventario y lotes",
+                            Nombre = "gestionar-inventario"
+                        },
+                        new
+                        {
+                            Id = new Guid("e5a3c7b2-6d0f-4b8a-9d2e-6f5b1c4a3e1f"),
+                            Descripcion = "Acceso a la gestión de productos",
+                            Nombre = "gestionar-productos"
+                        });
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.PrecioEspecial", b =>
                 {
                     b.Property<Guid>("Id")
@@ -399,7 +591,7 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<decimal>("Precio")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProductoId")
                         .HasColumnType("uuid");
@@ -429,17 +621,20 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("ManejaInventario")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ManejaLotes")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal>("PrecioVentaUnitario")
-                        .HasColumnType("decimal(18, 2)");
+                        .HasColumnType("numeric");
 
                     b.Property<int>("Tipo")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TipoImpuestoIVA")
                         .HasColumnType("integer");
 
                     b.Property<Guid>("UsuarioIdCreador")
@@ -474,6 +669,72 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.ToTable("ProductoComponentes");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.ProductoImpuesto", b =>
+                {
+                    b.Property<Guid>("ProductoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ImpuestoId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ProductoId", "ImpuestoId");
+
+                    b.HasIndex("ImpuestoId");
+
+                    b.ToTable("ProductoImpuestos");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.PuntoEmision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EstaActivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("EstablecimientoId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SecuencialFactura")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SecuencialNotaCredito")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstablecimientoId");
+
+                    b.ToTable("PuntosEmision");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Rol", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("EstaActivo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Roles");
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Usuario", b =>
                 {
                     b.Property<Guid>("Id")
@@ -499,9 +760,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Rol")
-                        .HasColumnType("integer");
-
                     b.Property<string>("SegundoApellido")
                         .HasColumnType("text");
 
@@ -511,17 +769,67 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Usuarios");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.UsuarioRol", b =>
+                {
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RolId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UsuarioId", "RolId");
+
+                    b.HasIndex("RolId");
+
+                    b.ToTable("UsuarioRoles");
+                });
+
+            modelBuilder.Entity("RolPermisos", b =>
+                {
+                    b.Property<Guid>("PermisosId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RolesId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("PermisosId", "RolesId");
+
+                    b.HasIndex("RolesId");
+
+                    b.ToTable("RolPermisos");
 
                     b.HasData(
                         new
                         {
-                            Id = new Guid("00000000-0000-0000-0000-000000000001"),
-                            Email = "admin@facturassri.com",
-                            EstaActivo = true,
-                            PasswordHash = "$2a$11$KnYr45JSbCoMg4Jtkg0GXegC7SegKYTidLxFYYljNwtLH0l024qLG",
-                            PrimerApellido = "Sistema",
-                            PrimerNombre = "Admin",
-                            Rol = 1
+                            PermisosId = new Guid("01f6f2c8-2a1e-4c74-8a8f-b9d5c6a1b2d3"),
+                            RolesId = new Guid("e2a87c46-e5b3-4f9e-8c6e-1f2a3b4c5d6e")
+                        },
+                        new
+                        {
+                            PermisosId = new Guid("b2d0b8c0-3e7a-4f5c-8b1d-9e6a0c7f1a2b"),
+                            RolesId = new Guid("e2a87c46-e5b3-4f9e-8c6e-1f2a3b4c5d6e")
+                        },
+                        new
+                        {
+                            PermisosId = new Guid("c3e1a9d0-4b8f-4e6c-9a1d-8f7b0c6e2d1a"),
+                            RolesId = new Guid("e2a87c46-e5b3-4f9e-8c6e-1f2a3b4c5d6e")
+                        },
+                        new
+                        {
+                            PermisosId = new Guid("d4f2b8a1-5c9e-4a6b-8c1d-7e6f0a5b3c2d"),
+                            RolesId = new Guid("f5b8c9d0-1a2b-3c4d-5e6f-7a8b9c0d1e2f")
+                        },
+                        new
+                        {
+                            PermisosId = new Guid("e5a3c7b2-6d0f-4b8a-9d2e-6f5b1c4a3e1f"),
+                            RolesId = new Guid("f5b8c9d0-1a2b-3c4d-5e6f-7a8b9c0d1e2f")
+                        },
+                        new
+                        {
+                            PermisosId = new Guid("c3e1a9d0-4b8f-4e6c-9a1d-8f7b0c6e2d1a"),
+                            RolesId = new Guid("f5b8c9d0-1a2b-3c4d-5e6f-7a8b9c0d1e2f")
                         });
                 });
 
@@ -534,6 +842,26 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Lote");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.CuentaPorPagar", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Lote", "Lote")
+                        .WithMany()
+                        .HasForeignKey("LoteId");
+
+                    b.Navigation("Lote");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Establecimiento", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Empresa", "Empresa")
+                        .WithMany("Establecimientos")
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Factura", b =>
@@ -675,11 +1003,85 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Navigation("ProductoKit");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.ProductoImpuesto", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Impuesto", "Impuesto")
+                        .WithMany("ProductoImpuestos")
+                        .HasForeignKey("ImpuestoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacturasSRI.Domain.Entities.Producto", "Producto")
+                        .WithMany("ProductoImpuestos")
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Impuesto");
+
+                    b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.PuntoEmision", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Establecimiento", "Establecimiento")
+                        .WithMany("PuntosEmision")
+                        .HasForeignKey("EstablecimientoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Establecimiento");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.UsuarioRol", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Rol", "Rol")
+                        .WithMany("UsuarioRoles")
+                        .HasForeignKey("RolId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacturasSRI.Domain.Entities.Usuario", "Usuario")
+                        .WithMany("UsuarioRoles")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Rol");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("RolPermisos", b =>
+                {
+                    b.HasOne("FacturasSRI.Domain.Entities.Permiso", null)
+                        .WithMany()
+                        .HasForeignKey("PermisosId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacturasSRI.Domain.Entities.Rol", null)
+                        .WithMany()
+                        .HasForeignKey("RolesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Cliente", b =>
                 {
                     b.Navigation("Facturas");
 
                     b.Navigation("NotasDeCredito");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Empresa", b =>
+                {
+                    b.Navigation("Establecimientos");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Establecimiento", b =>
+                {
+                    b.Navigation("PuntosEmision");
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Factura", b =>
@@ -694,6 +1096,11 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Navigation("ConsumosDeLote");
                 });
 
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Impuesto", b =>
+                {
+                    b.Navigation("ProductoImpuestos");
+                });
+
             modelBuilder.Entity("FacturasSRI.Domain.Entities.NotaDeCredito", b =>
                 {
                     b.Navigation("Detalles");
@@ -706,6 +1113,18 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Navigation("Componentes");
 
                     b.Navigation("Lotes");
+
+                    b.Navigation("ProductoImpuestos");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Rol", b =>
+                {
+                    b.Navigation("UsuarioRoles");
+                });
+
+            modelBuilder.Entity("FacturasSRI.Domain.Entities.Usuario", b =>
+                {
+                    b.Navigation("UsuarioRoles");
                 });
 #pragma warning restore 612, 618
         }

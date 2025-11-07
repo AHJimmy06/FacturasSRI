@@ -1,0 +1,117 @@
+@page "/products"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IProductService ProductService
+
+<PageTitle>Productos</PageTitle>
+
+<h1>Productos</h1>
+
+<div class="mb-3">
+    <EditForm Model="@newProduct" OnValidSubmit="@HandleAddProduct">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <InputText id="nombre" class="form-control" @bind-Value="newProduct.Nombre" />
+                    <ValidationMessage For="@(() => newProduct.Nombre)" />
+                </div>
+                <div class="mb-3">
+                    <label for="codigoPrincipal" class="form-label">Código Principal</label>
+                    <InputText id="codigoPrincipal" class="form-control" @bind-Value="newProduct.CodigoPrincipal" />
+                    <ValidationMessage For="@(() => newProduct.CodigoPrincipal)" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <InputText id="descripcion" class="form-control" @bind-Value="newProduct.Descripcion" />
+                    <ValidationMessage For="@(() => newProduct.Descripcion)" />
+                </div>
+                <div class="mb-3">
+                    <label for="precioVentaUnitario" class="form-label">Precio de Venta Unitario</label>
+                    <InputNumber id="precioVentaUnitario" class="form-control" @bind-Value="newProduct.PrecioVentaUnitario" />
+                    <ValidationMessage For="@(() => newProduct.PrecioVentaUnitario)" />
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox id="manejaInventario" class="form-check-input" @bind-Value="newProduct.ManejaInventario" />
+                    <label for="manejaInventario" class="form-check-label">Maneja Inventario</label>
+                </div>
+                <div class="mb-3 form-check">
+                    <InputCheckbox id="manejaLotes" class="form-check-input" @bind-Value="newProduct.ManejaLotes" />
+                    <label for="manejaLotes" class="form-check-label">Maneja Lotes</label>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Añadir Producto</button>
+    </EditForm>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Código Principal</th>
+            <th>Precio de Venta Unitario</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var product in products)
+        {
+            <tr>
+                <td>@product.Nombre</td>
+                <td>@product.CodigoPrincipal</td>
+                <td>@product.PrecioVentaUnitario</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" @onclick="() => OpenAssignTaxesModal(product)">Administrar Impuestos</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteProduct(product.Id)">Desactivar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (selectedProduct != null)
+{
+    <AssignTaxesModal Product="selectedProduct" IsVisible="isAssignTaxesModalVisible" OnClose="CloseAssignTaxesModal" />
+}
+
+@code {
+    private List<ProductDto> products = new();
+    private ProductDto newProduct = new();
+    private ProductDto? selectedProduct;
+    private bool isAssignTaxesModalVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await ProductService.GetProductsAsync();
+    }
+
+    private async Task HandleAddProduct()
+    {
+        await ProductService.CreateProductAsync(newProduct);
+        newProduct = new();
+        products = await ProductService.GetProductsAsync();
+    }
+
+    private async Task HandleDeleteProduct(Guid id)
+    {
+        await ProductService.DeleteProductAsync(id);
+        products = await ProductService.GetProductsAsync();
+    }
+
+    private void OpenAssignTaxesModal(ProductDto product)
+    {
+        selectedProduct = product;
+        isAssignTaxesModalVisible = true;
+    }
+
+    private void CloseAssignTaxesModal()
+    {
+        isAssignTaxesModalVisible = false;
+        selectedProduct = null;
+    }
+}

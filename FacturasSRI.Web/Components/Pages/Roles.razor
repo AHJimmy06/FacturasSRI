@@ -1,0 +1,75 @@
+@page "/roles"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IRoleService RoleService
+
+<PageTitle>Roles</PageTitle>
+
+<h1>Roles</h1>
+
+<div class="mb-3">
+    <EditForm Model="@newRole" OnValidSubmit="@HandleAddRole">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <InputText id="nombre" class="form-control" @bind-Value="newRole.Nombre" />
+                    <ValidationMessage For="@(() => newRole.Nombre)" />
+                </div>
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <InputText id="descripcion" class="form-control" @bind-Value="newRole.Descripcion" />
+                    <ValidationMessage For="@(() => newRole.Descripcion)" />
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Añadir Rol</button>
+    </EditForm>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var role in roles)
+        {
+            <tr>
+                <td>@role.Nombre</td>
+                <td>@role.Descripcion</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteRole(role.Id)">Desactivar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<RoleDto> roles = new();
+    private RoleDto newRole = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        roles = await RoleService.GetRolesAsync();
+    }
+
+    private async Task HandleAddRole()
+    {
+        await RoleService.CreateRoleAsync(newRole);
+        newRole = new();
+        roles = await RoleService.GetRolesAsync();
+    }
+
+    private async Task HandleDeleteRole(Guid id)
+    {
+        await RoleService.DeleteRoleAsync(id);
+        roles = await RoleService.GetRolesAsync();
+    }
+}
