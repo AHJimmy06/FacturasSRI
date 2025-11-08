@@ -1,0 +1,99 @@
+@page "/taxes"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject ITaxService TaxService
+@inject NavigationManager Navigation
+
+<PageTitle>Lista de Impuestos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Impuestos</h1>
+    <button class="btn btn-primary" @onclick="GoToCreateTax">
+        <i class="bi bi-plus-circle-fill me-2"></i>Crear Nuevo Impuesto
+    </button>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Código SRI</th>
+            <th>Porcentaje</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var tax in taxes)
+        {
+            <tr>
+                <td>@tax.Nombre</td>
+                <td>@tax.CodigoSRI</td>
+                <td>@tax.Porcentaje</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => OpenEditModal(tax)">Editar</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteTax(tax.Id)">Desactivar</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (taxToEdit != null)
+{
+    <EditTaxModal Tax="taxToEdit" IsVisible="isEditModalVisible" OnSave="HandleUpdateTax" OnClose="CloseEditModal" />
+}
+
+@code {
+    private List<TaxDto> taxes = new();
+    private TaxDto? taxToEdit;
+    private bool isEditModalVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTaxes();
+    }
+
+    private async Task LoadTaxes()
+    {
+        taxes = await TaxService.GetTaxesAsync();
+    }
+
+    private async Task HandleDeleteTax(Guid id)
+    {
+        await TaxService.DeleteTaxAsync(id);
+        await LoadTaxes();
+    }
+
+    private async Task HandleUpdateTax(TaxDto tax)
+    {
+        await TaxService.UpdateTaxAsync(tax);
+        isEditModalVisible = false;
+        taxToEdit = null;
+        await LoadTaxes();
+    }
+
+    private void OpenEditModal(TaxDto tax)
+    {
+        taxToEdit = new TaxDto
+        {
+            Id = tax.Id,
+            Nombre = tax.Nombre,
+            CodigoSRI = tax.CodigoSRI,
+            Porcentaje = tax.Porcentaje,
+            EstaActivo = tax.EstaActivo
+        };
+        isEditModalVisible = true;
+    }
+
+    private void CloseEditModal()
+    {
+        isEditModalVisible = false;
+        taxToEdit = null;
+    }
+
+    private void GoToCreateTax()
+    {
+        Navigation.NavigateTo("/taxes/create");
+    }
+}

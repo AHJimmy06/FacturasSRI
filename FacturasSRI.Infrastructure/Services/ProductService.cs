@@ -19,7 +19,7 @@ namespace FacturasSRI.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<ProductDto> CreateProductAsync(ProductDto productDto, Guid userId)
+        public async Task<ProductDto> CreateProductAsync(ProductDto productDto)
         {
             var product = new Producto
             {
@@ -30,7 +30,6 @@ namespace FacturasSRI.Infrastructure.Services
                 PrecioVentaUnitario = productDto.PrecioVentaUnitario,
                 ManejaInventario = productDto.ManejaInventario,
                 ManejaLotes = productDto.ManejaLotes,
-                UsuarioIdCreador = userId,
                 FechaCreacion = DateTime.UtcNow
             };
             _context.Productos.Add(product);

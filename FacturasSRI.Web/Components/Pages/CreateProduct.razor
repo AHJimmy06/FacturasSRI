@@ -1,0 +1,93 @@
+@page "/products/create"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IProductService ProductService
+@inject NavigationManager Navigation
+
+<PageTitle>Crear Producto</PageTitle>
+
+<div class="page-header">
+    <h1>Crear Nuevo Producto</h1>
+    <p>Rellene los detalles para añadir un nuevo producto al catálogo.</p>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")">@statusMessage</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@newProduct" OnValidSubmit="@HandleAddProduct">
+            <DataAnnotationsValidator />
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <InputText id="nombre" class="form-control" @bind-Value="newProduct.Nombre" />
+                        <ValidationMessage For="@(() => newProduct.Nombre)" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="codigoPrincipal" class="form-label">Código Principal</label>
+                        <InputText id="codigoPrincipal" class="form-control" @bind-Value="newProduct.CodigoPrincipal" />
+                        <ValidationMessage For="@(() => newProduct.CodigoPrincipal)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <InputText id="descripcion" class="form-control" @bind-Value="newProduct.Descripcion" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="precioVentaUnitario" class="form-label">Precio de Venta Unitario</label>
+                        <InputNumber id="precioVentaUnitario" class="form-control" @bind-Value="newProduct.PrecioVentaUnitario" />
+                        <ValidationMessage For="@(() => newProduct.PrecioVentaUnitario)" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox id="manejaInventario" class="form-check-input" @bind-Value="newProduct.ManejaInventario" />
+                        <label for="manejaInventario" class="form-check-label">Maneja Inventario</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <InputCheckbox id="manejaLotes" class="form-check-input" @bind-Value="newProduct.ManejaLotes" />
+                        <label for="manejaLotes" class="form-check-label">Maneja Lotes</label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                 <button type="button" class="btn btn-secondary" @onclick="GoToList">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Producto</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private ProductDto newProduct = new();
+    private string? statusMessage;
+    private bool isSuccess;
+    
+    private async Task HandleAddProduct()
+    {
+        statusMessage = null;
+        try
+        {
+            await ProductService.CreateProductAsync(newProduct);
+            Navigation.NavigateTo("/products");
+        }
+        catch (Exception)
+        {
+            isSuccess = false;
+            statusMessage = "Error al crear el producto.";
+        }
+    }
+
+    private void GoToList()
+    {
+        Navigation.NavigateTo("/products");
+    }
+}

@@ -1,75 +1,28 @@
 @page "/products"
 @attribute [Authorize]
-
-@using System.Net.Http.Json
 @using FacturasSRI.Application.Dtos
-@using FacturasSRI.Web.Services
-@inject ApiClient ApiClient
+@using FacturasSRI.Application.Interfaces
+@inject IProductService ProductService
+@inject NavigationManager Navigation
 
-<PageTitle>Productos</PageTitle>
+<PageTitle>Lista de Productos</PageTitle>
 
-<div class="page-header">
-    <h1>Gestión de Productos</h1>
-    <p>Añade, edita y administra tus productos.</p>
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1>Gestión de Productos</h1>
+        <p class="text-muted">Edita y administra tus productos existentes.</p>
+    </div>
+    <button class="btn btn-primary" @onclick="GoToCreateProduct">
+        <i class="bi bi-plus-circle-fill me-2"></i>Crear Nuevo Producto
+    </button>
 </div>
+
 
 @if (!string.IsNullOrEmpty(errorMessage))
 {
     <div class="alert alert-danger">@errorMessage</div>
 }
 
-<div class="card mb-4">
-    <div class="card-header">
-        <h3>Añadir Nuevo Producto</h3>
-    </div>
-    <div class="card-body">
-        <EditForm Model="@newProduct" OnValidSubmit="@HandleAddProduct">
-            <DataAnnotationsValidator />
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="nombre" class="form-label">Nombre</label>
-                        <InputText id="nombre" class="form-control" @bind-Value="newProduct.Nombre" />
-                        <ValidationMessage For="@(() => newProduct.Nombre)" />
-                    </div>
-                    <div class="mb-3">
-                        <label for="codigoPrincipal" class="form-label">Código Principal</label>
-                        <InputText id="codigoPrincipal" class="form-control" @bind-Value="newProduct.CodigoPrincipal" />
-                        <ValidationMessage For="@(() => newProduct.CodigoPrincipal)" />
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="descripcion" class="form-label">Descripción</label>
-                        <InputText id="descripcion" class="form-control" @bind-Value="newProduct.Descripcion" />
-                    </div>
-                    <div class="mb-3">
-                        <label for="precioVentaUnitario" class="form-label">Precio de Venta Unitario</label>
-                        <InputNumber id="precioVentaUnitario" class="form-control" @bind-Value="newProduct.PrecioVentaUnitario" />
-                        <ValidationMessage For="@(() => newProduct.PrecioVentaUnitario)" />
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="form-check form-check-inline">
-                        <InputCheckbox id="manejaInventario" class="form-check-input" @bind-Value="newProduct.ManejaInventario" />
-                        <label for="manejaInventario" class="form-check-label">Maneja Inventario</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <InputCheckbox id="manejaLotes" class="form-check-input" @bind-Value="newProduct.ManejaLotes" />
-                        <label for="manejaLotes" class="form-check-label">Maneja Lotes</label>
-                    </div>
-                </div>
-            </div>
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-plus-circle-fill me-2"></i>Añadir Producto
-                </button>
-            </div>
-        </EditForm>
-    </div>
-</div>
 
 <div class="card">
     <div class="card-header">
@@ -127,7 +80,7 @@
 
 @if (productToEdit != null)
 {
-    <EditProductModal Product="productToEdit" IsVisible="isEditModalVisible" OnClose="CloseEditModal" />
+    <EditProductModal Product="productToEdit" IsVisible="isEditModalVisible" OnSave="HandleUpdateProductInModal" OnClose="CloseEditModal" />
 }
 
 @if (selectedProduct != null)
@@ -136,8 +89,8 @@
 }
 
 @code {
+    public EventCallback<ProductDto> OnSave { get; set; }
     private List<ProductDto>? products;
-    private ProductDto newProduct = new();
     private ProductDto? selectedProduct;
     private bool isAssignTaxesModalVisible = false;
     private string? errorMessage;
@@ -155,35 +108,11 @@
         errorMessage = null;
         try
         {
-            var http = await ApiClient.GetHttpClientAsync();
-            products = await http.GetFromJsonAsync<List<ProductDto>>("api/products");
+            products = await ProductService.GetProductsAsync();
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar productos: {ex.Message}";
-        }
-    }
-
-    private async Task HandleAddProduct()
-    {
-        errorMessage = null;
-        try
-        {
-            var http = await ApiClient.GetHttpClientAsync();
-            var response = await http.PostAsJsonAsync("api/products", newProduct);
-            if (response.IsSuccessStatusCode)
-            {
-                newProduct = new();
-                await LoadProducts();
-            }
-            else
-            {
-                errorMessage = "Error al crear el producto.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al crear producto: {ex.Message}";
         }
     }
 
@@ -192,21 +121,21 @@
         errorMessage = null;
         try
         {
-            var http = await ApiClient.GetHttpClientAsync();
-            var response = await http.DeleteAsync($"api/products/{id}");
-            if (response.IsSuccessStatusCode)
-            {
-                await LoadProducts();
-            }
-            else
-            {
-                errorMessage = "Error al desactivar el producto.";
-            }
+            await ProductService.DeleteProductAsync(id);
+            await LoadProducts();
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al desactivar producto: {ex.Message}";
         }
+    }
+    
+    private async Task HandleUpdateProductInModal(ProductDto product)
+    {
+        await ProductService.UpdateProductAsync(product);
+        isEditModalVisible = false;
+        productToEdit = null;
+        await LoadProducts();
     }
 
     private void OpenAssignTaxesModal(ProductDto product)
@@ -241,6 +170,10 @@
         isEditModalVisible = false;
         productToEdit = null;
         await LoadProducts();
-        StateHasChanged();
+    }
+    
+    private void GoToCreateProduct()
+    {
+        Navigation.NavigateTo("/products/create");
     }
 }

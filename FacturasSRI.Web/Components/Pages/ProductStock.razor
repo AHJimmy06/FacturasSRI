@@ -1,10 +1,8 @@
 @page "/stock/{ProductId:guid}"
 @attribute [Authorize]
-
-@using System.Net.Http.Json
 @using FacturasSRI.Application.Dtos
-@using FacturasSRI.Web.Services
-@inject ApiClient ApiClient
+@using FacturasSRI.Application.Interfaces
+@inject IProductService ProductService
 @inject NavigationManager Navigation
 
 <PageTitle>Stock de Producto</PageTitle>
@@ -69,8 +67,11 @@ else
     {
         try
         {
-            var http = await ApiClient.GetHttpClientAsync();
-            stockDetails = await http.GetFromJsonAsync<ProductStockDto>($"api/products/{ProductId}/stock");
+            stockDetails = await ProductService.GetProductStockDetailsAsync(ProductId);
+            if (stockDetails == null)
+            {
+                errorMessage = "No se encontró el producto solicitado.";
+            }
         }
         catch (Exception ex)
         {

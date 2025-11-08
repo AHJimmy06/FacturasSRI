@@ -30,7 +30,7 @@ namespace FacturasSRI.Web.Controllers
                 return Unauthorized();
             }
 
-            var success = await _purchaseService.CreatePurchaseAsync(purchaseDto, userId);
+            var success = await _purchaseService.CreatePurchaseAsync(purchaseDto);
 
             if (success)
             {

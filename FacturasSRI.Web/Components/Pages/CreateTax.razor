@@ -1,0 +1,58 @@
+@page "/taxes/create"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject ITaxService TaxService
+@inject NavigationManager Navigation
+
+<PageTitle>Crear Impuesto</PageTitle>
+
+<h3>Crear Nuevo Impuesto</h3>
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@newTax" OnValidSubmit="@HandleAddTax">
+            <DataAnnotationsValidator />
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre</label>
+                        <InputText id="nombre" class="form-control" @bind-Value="newTax.Nombre" />
+                        <ValidationMessage For="@(() => newTax.Nombre)" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="codigoSRI" class="form-label">Código SRI</label>
+                        <InputText id="codigoSRI" class="form-control" @bind-Value="newTax.CodigoSRI" />
+                        <ValidationMessage For="@(() => newTax.CodigoSRI)" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="porcentaje" class="form-label">Porcentaje</label>
+                        <InputNumber id="porcentaje" class="form-control" @bind-Value="newTax.Porcentaje" />
+                        <ValidationMessage For="@(() => newTax.Porcentaje)" />
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-secondary" @onclick="GoToList">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Impuesto</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private TaxDto newTax = new();
+
+    private async Task HandleAddTax()
+    {
+        await TaxService.CreateTaxAsync(newTax);
+        Navigation.NavigateTo("/taxes");
+    }
+
+    private void GoToList()
+    {
+        Navigation.NavigateTo("/taxes");
+    }
+}
