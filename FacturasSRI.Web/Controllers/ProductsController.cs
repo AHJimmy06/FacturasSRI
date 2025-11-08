@@ -49,7 +49,7 @@ namespace FacturasSRI.Web.Controllers
                 return Unauthorized();
             }
 
-            var createdProduct = await _productService.CreateProductAsync(productDto, userId);
+            var createdProduct = await _productService.CreateProductAsync(productDto);
             return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
         }
 

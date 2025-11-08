@@ -24,13 +24,14 @@ namespace FacturasSRI.Infrastructure.Services
         }
         
         public async Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceDto invoiceDto)
-{
+        {
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
                     var puntoEmision = await _context.PuntosEmision.Include(p => p.Establecimiento).FirstAsync();
                     var numeroFactura = $"{puntoEmision.Establecimiento.Codigo}-{puntoEmision.Codigo}-{puntoEmision.SecuencialFactura:D9}";
+                    
                     var invoice = new Factura
                     {
                         Id = Guid.NewGuid(),
@@ -38,6 +39,7 @@ namespace FacturasSRI.Infrastructure.Services
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroFactura,
                         Estado = EstadoFactura.Generada,
+                        UsuarioIdCreador = Guid.Parse("1252d27c-ea79-4b10-94ee-607e9bac4658"), // TEMPORAL: Reemplazar con el userId real
                         FechaCreacion = DateTime.UtcNow
                     };
 
@@ -52,7 +54,7 @@ namespace FacturasSRI.Infrastructure.Services
                             .SingleAsync(p => p.Id == item.ProductoId);
 
                         decimal valorIvaItem = 0;
-                        var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.CodigoSRI == "2"); // '2' es el código para IVA
+                        var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.CodigoSRI == "2");
                         if (impuestoIva != null)
                         {
                             valorIvaItem = (producto.PrecioVentaUnitario * (impuestoIva.Impuesto.Porcentaje / 100)) * item.Cantidad;
@@ -69,6 +71,11 @@ namespace FacturasSRI.Infrastructure.Services
                             ValorIVA = valorIvaItem,
                         };
 
+                        if (producto.ManejaInventario)
+                        {
+                            await DescontarStock(detalle, item.Cantidad);
+                        }
+
                         invoice.Detalles.Add(detalle);
                         subtotalSinImpuestos += detalle.Subtotal;
                         totalIva += valorIvaItem;
@@ -77,10 +84,25 @@ namespace FacturasSRI.Infrastructure.Services
                     invoice.SubtotalSinImpuestos = subtotalSinImpuestos;
                     invoice.TotalIVA = totalIva;
                     invoice.Total = subtotalSinImpuestos + totalIva;
-
+                    
+                    var cuentaPorCobrar = new CuentaPorCobrar
+                    {
+                        Id = Guid.NewGuid(),
+                        FacturaId = invoice.Id,
+                        ClienteId = invoice.ClienteId,
+                        FechaEmision = invoice.FechaEmision,
+                        FechaVencimiento = invoice.FechaEmision.AddDays(30), // Asumimos 30 días de crédito
+                        MontoTotal = invoice.Total,
+                        SaldoPendiente = invoice.Total,
+                        Pagada = false,
+                        UsuarioIdCreador = Guid.Parse("1252d27c-ea79-4b10-94ee-607e9bac4658"), // TEMPORAL: Reemplazar
+                        FechaCreacion = DateTime.UtcNow
+                    };
+                    
                     puntoEmision.SecuencialFactura++;
                     _context.Facturas.Add(invoice);
-
+                    _context.CuentasPorCobrar.Add(cuentaPorCobrar);
+                    
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
@@ -94,6 +116,39 @@ namespace FacturasSRI.Infrastructure.Services
                     throw;
                 }
             }   
+        }
+
+        private async Task DescontarStock(FacturaDetalle detalle, int cantidadADescontar)
+        {
+            var lotesDisponibles = await _context.Lotes
+                .Where(l => l.ProductoId == detalle.ProductoId && l.CantidadDisponible > 0)
+                .OrderBy(l => l.FechaCompra)
+                .ToListAsync();
+
+            var stockTotal = lotesDisponibles.Sum(l => l.CantidadDisponible);
+            if (stockTotal < cantidadADescontar)
+            {
+                throw new InvalidOperationException($"No hay stock suficiente para el producto ID {detalle.ProductoId}. Stock disponible: {stockTotal}, se requieren: {cantidadADescontar}.");
+            }
+
+            foreach (var lote in lotesDisponibles)
+            {
+                if (cantidadADescontar <= 0) break;
+
+                int cantidadConsumida = Math.Min(lote.CantidadDisponible, cantidadADescontar);
+                
+                lote.CantidadDisponible -= cantidadConsumida;
+                cantidadADescontar -= cantidadConsumida;
+
+                var consumoDeLote = new FacturaDetalleConsumoLote
+                {
+                    Id = Guid.NewGuid(),
+                    FacturaDetalleId = detalle.Id,
+                    LoteId = lote.Id,
+                    CantidadConsumida = cantidadConsumida
+                };
+                detalle.ConsumosDeLote.Add(consumoDeLote);
+            }
         }
 
         public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid id)

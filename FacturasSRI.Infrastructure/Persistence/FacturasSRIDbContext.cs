@@ -34,6 +34,8 @@ namespace FacturasSRI.Infrastructure.Persistence
         public DbSet<Rol> Roles { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<UsuarioRol> UsuarioRoles { get; set; }
+        public DbSet<CuentaPorCobrar> CuentasPorCobrar { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,6 +59,7 @@ namespace FacturasSRI.Infrastructure.Persistence
             modelBuilder.Entity<PuntoEmision>().ToTable("PuntosEmision");
             modelBuilder.Entity<Rol>().ToTable("Roles");
             modelBuilder.Entity<Usuario>().ToTable("Usuarios");
+            modelBuilder.Entity<CuentaPorCobrar>().ToTable("CuentasPorCobrar");
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(FacturasSRIDbContext).Assembly);
 

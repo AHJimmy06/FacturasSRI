@@ -1,7 +1,4 @@
-@using System.Net.Http.Json
 @using FacturasSRI.Application.Dtos
-@using FacturasSRI.Web.Services
-@inject ApiClient ApiClient
 
 @if (IsVisible && Product != null)
 {
@@ -13,7 +10,7 @@
                     <button type="button" class="btn-close" @onclick="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <EditForm Model="@Product" OnValidSubmit="HandleUpdateProduct">
+                    <EditForm Model="@Product" OnValidSubmit="SaveChanges">
                         <DataAnnotationsValidator />
                         <div class="mb-3">
                             <label class="form-label">Nombre</label>
@@ -43,11 +40,6 @@
                             <label class="form-check-label">Maneja Lotes</label>
                         </div>
 
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="alert alert-danger">@errorMessage</div>
-                        }
-
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" @onclick="Close">Cancelar</button>
                             <button type="submit" class="btn btn-primary">Guardar Cambios</button>
@@ -68,32 +60,16 @@
     public ProductDto? Product { get; set; }
 
     [Parameter]
+    public EventCallback<ProductDto> OnSave { get; set; } // <-- PARÁMETRO AÑADIDO
+
+    [Parameter]
     public EventCallback OnClose { get; set; }
 
-    private string? errorMessage;
-
-    private async Task HandleUpdateProduct()
+    private async Task SaveChanges()
     {
-        errorMessage = null;
-        if (Product == null) return;
-
-        try
+        if (Product != null)
         {
-            var http = await ApiClient.GetHttpClientAsync();
-            var response = await http.PutAsJsonAsync($"api/products/{Product.Id}", Product);
-
-            if (response.IsSuccessStatusCode)
-            {
-                await Close();
-            }
-            else
-            {
-                errorMessage = "Error al actualizar el producto.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error de red: {ex.Message}";
+            await OnSave.InvokeAsync(Product);
         }
     }
 

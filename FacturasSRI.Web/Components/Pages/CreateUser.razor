@@ -1,0 +1,99 @@
+@page "/users/create"
+@attribute [Authorize(Roles = "Administrador")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IUserService UserService
+@inject IRoleService RoleService
+@inject NavigationManager Navigation
+
+<PageTitle>Crear Usuario</PageTitle>
+
+<h3>Crear Nuevo Usuario</h3>
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@newUser" OnValidSubmit="@HandleAddUser">
+            <DataAnnotationsValidator />
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Primer Nombre</label>
+                    <InputText class="form-control" @bind-Value="newUser.PrimerNombre" />
+                    <ValidationMessage For="@(() => newUser.PrimerNombre)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Segundo Nombre</label>
+                    <InputText class="form-control" @bind-Value="newUser.SegundoNombre" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Primer Apellido</label>
+                    <InputText class="form-control" @bind-Value="newUser.PrimerApellido" />
+                    <ValidationMessage For="@(() => newUser.PrimerApellido)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Segundo Apellido</label>
+                    <InputText class="form-control" @bind-Value="newUser.SegundoApellido" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Correo Electrónico</label>
+                    <InputText type="email" class="form-control" @bind-Value="newUser.Email" />
+                    <ValidationMessage For="@(() => newUser.Email)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <InputText type="password" class="form-control" @bind-Value="newUser.Password" />
+                    <ValidationMessage For="@(() => newUser.Password)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Rol</label>
+                    @if (allRoles.Any())
+                    {
+                        <InputSelect class="form-select" @bind-Value="selectedRoleId">
+                            <option value="@Guid.Empty">Seleccione un rol...</option>
+                            @foreach (var rol in allRoles)
+                            {
+                                <option value="@rol.Id">@rol.Nombre</option>
+                            }
+                        </InputSelect>
+                    }
+                    else
+                    {
+                        <p>Cargando roles...</p>
+                    }
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <button type="button" class="btn btn-secondary" @onclick="GoToList">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Usuario</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private List<RoleDto> allRoles = new();
+    private UserDto newUser = new();
+    private Guid selectedRoleId;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        allRoles = await RoleService.GetRolesAsync();
+        if (allRoles.Any())
+        {
+            selectedRoleId = allRoles.First().Id;
+        }
+    }
+
+    private async Task HandleAddUser()
+    {
+        newUser.RolesId = new List<Guid> { selectedRoleId };
+        await UserService.CreateUserAsync(newUser);
+        Navigation.NavigateTo("/users");
+    }
+
+    private void GoToList()
+    {
+        Navigation.NavigateTo("/users");
+    }
+}

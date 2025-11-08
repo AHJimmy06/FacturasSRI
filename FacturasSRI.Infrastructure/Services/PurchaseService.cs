@@ -20,7 +20,7 @@ namespace FacturasSRI.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task<bool> CreatePurchaseAsync(PurchaseDto purchaseDto, Guid userId)
+        public async Task<bool> CreatePurchaseAsync(PurchaseDto purchaseDto)
         {
             _logger.LogInformation("--- Inicio de CreatePurchaseAsync ---");
             using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -36,7 +36,6 @@ namespace FacturasSRI.Infrastructure.Services
                         PrecioCompraUnitario = purchaseDto.PrecioCosto,
                         FechaCompra = DateTime.UtcNow,
                         FechaCaducidad = purchaseDto.FechaCaducidad?.ToUniversalTime(),
-                        UsuarioIdCreador = userId,
                         FechaCreacion = DateTime.UtcNow
                     };
                     _logger.LogInformation("Entidad Lote creada en memoria. ID: {LoteId}", lote.Id);
@@ -52,7 +51,6 @@ namespace FacturasSRI.Infrastructure.Services
                         MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                         SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                         Pagada = false,
-                        UsuarioIdCreador = userId,
                         FechaCreacion = DateTime.UtcNow
                     };
                     _logger.LogInformation("Entidad CuentaPorPagar creada en memoria. ID: {CxpId}", cuentaPorPagar.Id);

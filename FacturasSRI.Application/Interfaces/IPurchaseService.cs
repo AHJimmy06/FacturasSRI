@@ -6,6 +6,6 @@ namespace FacturasSRI.Application.Interfaces
 {
     public interface IPurchaseService
     {
-        Task<bool> CreatePurchaseAsync(PurchaseDto purchase, Guid userId);
+        Task<bool> CreatePurchaseAsync(PurchaseDto purchase);
     }
 }
