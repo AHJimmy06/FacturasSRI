@@ -42,6 +42,7 @@
                             <th>Nombre</th>
                             <th>Código Principal</th>
                             <th>Precio Unitario</th>
+                            <th>Stock Actual</th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -52,9 +53,10 @@
                                 <td>@product.Nombre</td>
                                 <td>@product.CodigoPrincipal</td>
                                 <td>@product.PrecioVentaUnitario.ToString("C")</td>
+                                <td>@product.StockTotal</td>
                                 <td class="text-end">
                                     <div class="btn-group" role="group">
-                                        <a href="@($"stock/{product.Id}")" class="btn btn-sm btn-outline-secondary">
+                                        <a href="@($"stock/{product.Id}")" class="btn btn-sm btn-outline-secondary @(product.ManejaInventario ? "" : "disabled")">
                                             <i class="bi bi-box-seam"></i> Stock
                                         </a>
                                         <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(product)">

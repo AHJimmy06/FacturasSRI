@@ -1,0 +1,171 @@
+@page "/inventory/adjustments"
+@attribute [Authorize(Roles = "Administrador,Bodeguero")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
+@inject IProductService ProductService
+@inject IAjusteInventarioService AjusteInventarioService
+@inject NavigationManager Navigation
+
+<PageTitle>Ajuste de Inventario</PageTitle>
+
+<div class="page-header">
+    <h1>Registrar Ajuste de Inventario</h1>
+    <p>Modifica el stock por merma, sobrante u otros motivos.</p>
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <EditForm Model="@ajusteModel" OnValidSubmit="HandleCreateAdjustment">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">1. Buscar Producto</label>
+                <input type="text" class="form-control" placeholder="Escriba para buscar producto..."
+                       @bind="productSearchTerm" @bind:event="oninput" @onkeyup="SearchProducts" disabled="@(selectedProduct != null)" />
+                @if (productSearchResults.Any())
+                {
+                    <ul class="list-group search-results">
+                        @foreach (var product in productSearchResults)
+                        {
+                            <li class="list-group-item list-group-item-action" @onclick="() => SelectProduct(product)">
+                                @product.Nombre (@product.CodigoPrincipal)
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            @if (selectedProduct != null && selectedProductStock != null)
+            {
+                <div class="alert alert-light selected-item-info mt-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Producto:</strong> @selectedProductStock.ProductName | <strong>Stock Actual:</strong> @selectedProductStock.TotalStock
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearSelectedProduct">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                @if (selectedProduct.ManejaLotes)
+                {
+                    <div class="mb-3">
+                        <label for="lote" class="form-label">2. Seleccionar Lote</label>
+                        <InputSelect id="lote" class="form-select" @bind-Value="ajusteModel.LoteId">
+                            <option value="">-- Elija un lote --</option>
+                            @foreach (var lote in selectedProductStock.Lotes)
+                            {
+                                <option value="@lote.Id">
+                                    Cant: @lote.CantidadDisponible | P. Compra: @lote.PrecioCompraUnitario.ToString("C") | Cad: @(lote.FechaCaducidad?.ToString("yyyy-MM-dd") ?? "N/A")
+                                </option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => ajusteModel.LoteId)" />
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label for="tipo" class="form-label">3. Tipo de Ajuste</label>
+                    <InputSelect id="tipo" class="form-select" @bind-Value="ajusteModel.Tipo">
+                        @foreach (TipoAjusteInventario tipo in Enum.GetValues(typeof(TipoAjusteInventario)))
+                        {
+                            <option value="@tipo">@tipo</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">4. Cantidad a Ajustar</label>
+                    <InputNumber id="cantidad" class="form-control" @bind-Value="ajusteModel.CantidadAjustada" />
+                    <div class="form-text">Para salidas (Daño, Pérdida) es la cantidad que se retira. Para entradas (Conteo, Otro) es la cantidad que se añade.</div>
+                    <ValidationMessage For="@(() => ajusteModel.CantidadAjustada)" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="motivo" class="form-label">5. Motivo</label>
+                    <InputText id="motivo" class="form-control" @bind-Value="ajusteModel.Motivo" />
+                    <ValidationMessage For="@(() => ajusteModel.Motivo)" />
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" disabled="@(selectedProduct.ManejaLotes && (ajusteModel.LoteId == null || ajusteModel.LoteId == Guid.Empty))">Guardar Ajuste</button>
+                </div>
+            }
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private AjusteInventarioDto ajusteModel = new();
+    private List<ProductDto> allProducts = new();
+    private string productSearchTerm = string.Empty;
+    private List<ProductDto> productSearchResults = new();
+    
+    private ProductDto? selectedProduct;
+    private ProductStockDto? selectedProductStock;
+
+    private string? statusMessage;
+    private bool isSuccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        allProducts = await ProductService.GetProductsAsync();
+    }
+
+    private void SearchProducts()
+    {
+        if (string.IsNullOrWhiteSpace(productSearchTerm))
+        {
+            productSearchResults.Clear();
+            return;
+        }
+        productSearchResults = allProducts
+            .Where(p => p.ManejaInventario && 
+                        (p.Nombre.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                         p.CodigoPrincipal.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase)))
+            .Take(5)
+            .ToList();
+    }
+
+    private async Task SelectProduct(ProductDto product)
+    {
+        productSearchTerm = string.Empty;
+        productSearchResults.Clear();
+        selectedProduct = product;
+        ajusteModel.ProductoId = product.Id;
+        selectedProductStock = await ProductService.GetProductStockDetailsAsync(product.Id);
+    }
+    
+    private void ClearSelectedProduct()
+    {
+        selectedProduct = null;
+        selectedProductStock = null;
+        ajusteModel = new();
+    }
+
+    private async Task HandleCreateAdjustment()
+    {
+        statusMessage = null;
+        try
+        {
+            await AjusteInventarioService.CreateAdjustmentAsync(ajusteModel);
+            isSuccess = true;
+            statusMessage = "Ajuste de inventario registrado con éxito.";
+            
+            selectedProductStock = await ProductService.GetProductStockDetailsAsync(ajusteModel.ProductoId);
+            ajusteModel = new() { ProductoId = ajusteModel.ProductoId };
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            statusMessage = $"Error al registrar el ajuste: {ex.Message}";
+        }
+    }
+}

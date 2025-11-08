@@ -1,0 +1,79 @@
+@page "/purchases/list"
+@attribute [Authorize(Roles = "Administrador, Bodeguero")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IPurchaseService PurchaseService
+
+<PageTitle>Historial de Compras</PageTitle>
+
+<div class="page-header">
+    <h1>Historial de Compras</h1>
+    <p>Consulta todos los lotes de productos que han sido ingresados al inventario.</p>
+</div>
+
+@if (isLoading)
+{
+    <p><em>Cargando historial de compras...</em></p>
+}
+else if (purchases.Any())
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha de Compra</th>
+                            <th>Producto</th>
+                            <th>Proveedor</th>
+                            <th class="text-end">Cant. Comprada</th>
+                            <th class="text-end">Cant. Disponible</th>
+                            <th class="text-end">Precio Unit.</th>
+                            <th class="text-end">Valor Total</th>
+                            <th>Fecha Caducidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var purchase in purchases)
+                        {
+                            <tr>
+                                <td>@purchase.FechaCompra.ToLocalTime().ToString("g")</td>
+                                <td>@purchase.ProductName</td>
+                                <td>@purchase.Proveedor</td>
+                                <td class="text-end">@purchase.CantidadComprada</td>
+                                <td class="text-end fw-bold">@purchase.CantidadDisponible</td>
+                                <td class="text-end">@purchase.PrecioCompraUnitario.ToString("C")</td>
+                                <td class="text-end">@purchase.ValorTotalCompra.ToString("C")</td>
+                                <td>@(purchase.FechaCaducidad?.ToLocalTime().ToString("d") ?? "N/A")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <p>No se han registrado compras todavía.</p>
+}
+
+@code {
+    private List<PurchaseListItemDto> purchases = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            purchases = await PurchaseService.GetPurchasesAsync();
+        }
+        catch (Exception)
+        {
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

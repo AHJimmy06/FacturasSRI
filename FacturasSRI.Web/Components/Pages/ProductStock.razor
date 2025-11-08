@@ -26,33 +26,42 @@ else
         </div>
     </div>
 
-    <h3>Detalle de Lotes</h3>
-
-    @if (!stockDetails.Lotes.Any())
+    @if (stockDetails.ManejaLotes)
     {
-        <div class="alert alert-info">No hay lotes con stock disponible para este producto.</div>
+        <h3>Detalle de Lotes</h3>
+
+        @if (!stockDetails.Lotes.Any())
+        {
+            <div class="alert alert-info">No hay lotes con stock disponible para este producto.</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Cantidad Disponible</th>
+                        <th>Precio de Costo</th>
+                        <th>Fecha de Caducidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var lote in stockDetails.Lotes)
+                    {
+                        <tr>
+                            <td>@lote.CantidadDisponible</td>
+                            <td>@lote.PrecioCompraUnitario.ToString("C")</td>
+                            <td>@(lote.FechaCaducidad?.ToString("dd/MM/yyyy") ?? "N/A")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
     }
     else
     {
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Cantidad Disponible</th>
-                    <th>Precio de Costo</th>
-                    <th>Fecha de Caducidad</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var lote in stockDetails.Lotes)
-                {
-                    <tr>
-                        <td>@lote.CantidadDisponible</td>
-                        <td>@lote.PrecioCompraUnitario.ToString("C")</td>
-                        <td>@(lote.FechaCaducidad?.ToString("dd/MM/yyyy") ?? "N/A")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="alert alert-info">
+            Este producto no maneja lotes. El stock se gestiona como una cantidad total.
+        </div>
     }
 }
 

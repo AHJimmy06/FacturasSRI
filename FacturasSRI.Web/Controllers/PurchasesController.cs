@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -38,6 +39,13 @@ namespace FacturasSRI.Web.Controllers
             }
 
             return BadRequest("No se pudo registrar la compra.");
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<List<PurchaseListItemDto>>> GetPurchases()
+        {
+            var purchases = await _purchaseService.GetPurchasesAsync();
+            return Ok(purchases);
         }
     }
 }
