@@ -86,7 +86,8 @@
     {
         try
         {
-            products = await ProductService.GetProductsAsync();
+            var allProducts = await ProductService.GetProductsAsync();
+            products = allProducts.Where(p => p.ManejaInventario).ToList();
         }
         catch (Exception)
         {
@@ -102,11 +103,19 @@
 
         try
         {
-            await PurchaseService.CreatePurchaseAsync(newPurchase);
-            isSuccess = true;
-            statusMessage = "¡Compra registrada exitosamente!";
-            newPurchase = new();
-            StateHasChanged();
+            var success = await PurchaseService.CreatePurchaseAsync(newPurchase);
+            if(success)
+            {
+                isSuccess = true;
+                statusMessage = "¡Compra registrada exitosamente!";
+                newPurchase = new();
+                StateHasChanged();
+            }
+            else
+            {
+                isSuccess = false;
+                statusMessage = "Ocurrió un error al registrar la compra. Verifique los datos.";
+            }
         }
         catch (Exception)
         {

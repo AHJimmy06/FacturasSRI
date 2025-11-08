@@ -5,9 +5,9 @@
 
 <div class="nav-menu">
     <div class="nav-header">
-        <a class="navbar-brand" href="">
-            <i class="bi bi-receipt-cutoff"></i>
-            <span>FacturasSRI</span>
+        <a class="navbar-brand d-flex align-items-center" href="">
+            <img src="logo.png" alt="Logo Aether Tech" style="height: 40px; margin-right: 10px;" />
+            <span>Aether Tech</span>
         </a>
     </div>
 
@@ -79,6 +79,7 @@
                 {
                     <ul class="nav-submenu">
                         <li><NavLink href="purchases" Match="NavLinkMatch.All">Registrar Compra</NavLink></li>
+                        <li><NavLink href="purchases/list" Match="NavLinkMatch.All">Listar Compras</NavLink></li>
                     </ul>
                 }
             </div>
@@ -93,6 +94,22 @@
                     <ul class="nav-submenu">
                         <li><NavLink href="taxes/create">Crear Impuesto</NavLink></li>
                         <li><NavLink href="taxes" Match="NavLinkMatch.All">Listar Impuestos</NavLink></li>
+                    </ul>
+                }
+            </div>
+        </AuthorizeView>
+        
+        <AuthorizeView Roles="Administrador, Bodeguero">
+            <div class="nav-section">
+                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isInventarioOpen)">
+                    <i class="bi bi-clipboard-data-fill"></i>
+                    <span>Inventario</span>
+                    <i class="bi @(isInventarioOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                </div>
+                @if (isInventarioOpen)
+                {
+                    <ul class="nav-submenu">
+                        <li><NavLink href="inventory/adjustments">Ajustes de Inventario</NavLink></li>
                     </ul>
                 }
             </div>
@@ -124,6 +141,7 @@
     private bool isComprasOpen;
     private bool isImpuestosOpen;
     private bool isUsuariosOpen;
+    private bool isInventarioOpen;
 
     private void ToggleSubMenu(ref bool subMenuState)
     {
