@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Web.Components.Shared // Added this line
 @inject ITaxService TaxService
 @inject NavigationManager Navigation
 
@@ -32,7 +33,9 @@
                 <td>@tax.Porcentaje</td>
                 <td>
                     <button class="btn btn-sm btn-secondary" @onclick="() => OpenEditModal(tax)">Editar</button>
-                    <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteTax(tax.Id)">Desactivar</button>
+                    <button class="btn btn-sm @(tax.EstaActivo ? "btn-danger" : "btn-success")" @onclick="() => HandleDeleteTax(tax.Id)">
+                        @(tax.EstaActivo ? "Desactivar" : "Activar")
+                    </button>
                 </td>
             </tr>
         }
@@ -44,10 +47,22 @@
     <EditTaxModal Tax="taxToEdit" IsVisible="isEditModalVisible" OnSave="HandleUpdateTax" OnClose="CloseEditModal" />
 }
 
+<ConfirmationModal IsVisible="showConfirmationModal"
+                   Title="@confirmationModalTitle"
+                   Message="@confirmationModalMessage"
+                   OnConfirm="ConfirmToggleTaxStatus"
+                   OnCancel="CancelToggleTaxStatus" />
+
 @code {
     private List<TaxDto> taxes = new();
     private TaxDto? taxToEdit;
     private bool isEditModalVisible = false;
+
+    // Confirmation Modal State
+    private bool showConfirmationModal = false;
+    private string confirmationModalTitle = string.Empty;
+    private string confirmationModalMessage = string.Empty;
+    private Guid taxToToggleId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -59,10 +74,40 @@
         taxes = await TaxService.GetTaxesAsync();
     }
 
-    private async Task HandleDeleteTax(Guid id)
+    private void HandleDeleteTax(Guid id)
     {
-        await TaxService.DeleteTaxAsync(id);
-        await LoadTaxes();
+        var taxToToggle = taxes.FirstOrDefault(t => t.Id == id);
+        if (taxToToggle == null) return;
+
+        taxToToggleId = id;
+        confirmationModalTitle = "Confirmar Acción";
+        confirmationModalMessage = $"¿Está seguro de que desea {(taxToToggle.EstaActivo ? "desactivar" : "activar")} el impuesto {taxToToggle.Nombre}?";
+        showConfirmationModal = true;
+    }
+
+    private async Task ConfirmToggleTaxStatus()
+    {
+        showConfirmationModal = false; // Hide the modal
+
+        var taxToToggle = taxes.FirstOrDefault(t => t.Id == taxToToggleId);
+        if (taxToToggle == null) return;
+
+        try
+        {
+            await TaxService.DeleteTaxAsync(taxToToggleId);
+            await LoadTaxes();
+        }
+        catch (Exception ex)
+        {
+            // Handle error, e.g., display an error message
+            Console.WriteLine($"Error al toggling tax status: {ex.Message}");
+        }
+    }
+
+    private void CancelToggleTaxStatus()
+    {
+        showConfirmationModal = false; // Hide the modal
+        taxToToggleId = Guid.Empty;
     }
 
     private async Task HandleUpdateTax(TaxDto tax)
