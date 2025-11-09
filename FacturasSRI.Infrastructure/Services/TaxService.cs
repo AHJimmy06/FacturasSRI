@@ -40,7 +40,7 @@ namespace FacturasSRI.Infrastructure.Services
             var tax = await _context.Impuestos.FindAsync(id);
             if (tax != null)
             {
-                tax.EstaActivo = false;
+                tax.EstaActivo = !tax.EstaActivo; // Toggle the active status
                 await _context.SaveChangesAsync();
             }
         }
@@ -63,6 +63,18 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
         public async Task<List<TaxDto>> GetTaxesAsync()
+        {
+            return await _context.Impuestos.Select(tax => new TaxDto
+            {
+                Id = tax.Id,
+                Nombre = tax.Nombre,
+                CodigoSRI = tax.CodigoSRI,
+                Porcentaje = tax.Porcentaje,
+                EstaActivo = tax.EstaActivo
+            }).ToListAsync();
+        }
+
+        public async Task<List<TaxDto>> GetActiveTaxesAsync()
         {
             return await _context.Impuestos.Where(t => t.EstaActivo).Select(tax => new TaxDto
             {

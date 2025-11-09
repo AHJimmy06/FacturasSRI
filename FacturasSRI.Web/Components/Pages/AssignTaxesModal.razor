@@ -44,7 +44,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        allTaxes = await TaxService.GetTaxesAsync();
+        allTaxes = await TaxService.GetActiveTaxesAsync();
     }
 
     protected override void OnParametersSet()
