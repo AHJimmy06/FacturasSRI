@@ -20,6 +20,7 @@
             <th>Razón Social</th>
             <th>Número de Identificación</th>
             <th>Correo Electrónico</th>
+            <th>Creado Por</th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -30,6 +31,7 @@
                 <td>@customer.RazonSocial</td>
                 <td>@customer.NumeroIdentificacion</td>
                 <td>@customer.Email</td>
+                <td>@customer.CreadoPor</td>
                 <td>
                     <button class="btn btn-sm btn-secondary" @onclick="() => OpenEditModal(customer)">Editar</button>
                     <button class="btn btn-sm btn-danger" @onclick="() => HandleDeleteCustomer(customer.Id)">Desactivar</button>

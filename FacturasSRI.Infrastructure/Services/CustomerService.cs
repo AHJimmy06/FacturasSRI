@@ -30,6 +30,7 @@ namespace FacturasSRI.Infrastructure.Services
                 Email = customerDto.Email,
                 Direccion = customerDto.Direccion,
                 Telefono = customerDto.Telefono,
+                UsuarioIdCreador = customerDto.UsuarioIdCreador,
                 FechaCreacion = DateTime.UtcNow
             };
             _context.Clientes.Add(customer);
@@ -70,17 +71,22 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<List<CustomerDto>> GetCustomersAsync()
         {
-            return await _context.Clientes.Where(c => c.EstaActivo).Select(customer => new CustomerDto
-            {
-                Id = customer.Id,
-                TipoIdentificacion = customer.TipoIdentificacion,
-                NumeroIdentificacion = customer.NumeroIdentificacion,
-                RazonSocial = customer.RazonSocial,
-                Email = customer.Email,
-                Direccion = customer.Direccion,
-                Telefono = customer.Telefono,
-                EstaActivo = customer.EstaActivo
-            }).ToListAsync();
+            return await (from customer in _context.Clientes
+                          join usuario in _context.Usuarios on customer.UsuarioIdCreador equals usuario.Id into usuarioJoin
+                          from usuario in usuarioJoin.DefaultIfEmpty()
+                          where customer.EstaActivo
+                          select new CustomerDto
+                          {
+                              Id = customer.Id,
+                              TipoIdentificacion = customer.TipoIdentificacion,
+                              NumeroIdentificacion = customer.NumeroIdentificacion,
+                              RazonSocial = customer.RazonSocial,
+                              Email = customer.Email,
+                              Direccion = customer.Direccion,
+                              Telefono = customer.Telefono,
+                              EstaActivo = customer.EstaActivo,
+                              CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
+                          }).ToListAsync();
         }
 
         public async Task UpdateCustomerAsync(CustomerDto customerDto)

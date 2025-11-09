@@ -13,6 +13,7 @@ namespace FacturasSRI.Application.Dtos
         public decimal TotalDescuento { get; set; }
         public decimal TotalIVA { get; set; }
         public decimal Total { get; set; }
+        public string CreadoPor { get; set; } = string.Empty;
         public List<InvoiceDetailDto> Detalles { get; set; } = new();
     }
 }

@@ -59,7 +59,7 @@ namespace FacturasSRI.Infrastructure.Services
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroFactura,
                         Estado = EstadoFactura.Generada,
-                        UsuarioIdCreador = Guid.Parse("1252d27c-ea79-4b10-94ee-607e9bac4658"), 
+                        UsuarioIdCreador = invoiceDto.UsuarioIdCreador, 
                         FechaCreacion = DateTime.UtcNow
                     };
 
@@ -121,7 +121,7 @@ namespace FacturasSRI.Infrastructure.Services
                         FechaVencimiento = invoice.FechaEmision.AddDays(30),
                         MontoTotal = invoice.Total,
                         SaldoPendiente = invoice.Total,
-                        UsuarioIdCreador = Guid.Parse("1252d27c-ea79-4b10-94ee-607e9bac4658"),
+                        UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
                         FechaCreacion = DateTime.UtcNow
                     };
                     
@@ -221,16 +221,19 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<List<InvoiceDto>> GetInvoicesAsync()
         {
-            return await _context.Facturas
-                .OrderByDescending(i => i.FechaCreacion)
-                .Select(invoice => new InvoiceDto
-                {
-                    Id = invoice.Id,
-                    FechaEmision = invoice.FechaEmision,
-                    NumeroFactura = invoice.NumeroFactura,
-                    ClienteId = invoice.ClienteId,
-                    Total = invoice.Total
-                }).ToListAsync();
+            return await (from invoice in _context.Facturas
+                          join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
+                          from usuario in usuarioJoin.DefaultIfEmpty()
+                          orderby invoice.FechaCreacion descending
+                          select new InvoiceDto
+                          {
+                              Id = invoice.Id,
+                              FechaEmision = invoice.FechaEmision,
+                              NumeroFactura = invoice.NumeroFactura,
+                              ClienteId = invoice.ClienteId,
+                              Total = invoice.Total,
+                              CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
+                          }).ToListAsync();
         }
     }
 }

@@ -5,6 +5,8 @@
 @inject IPurchaseService PurchaseService
 @inject IProductService ProductService
 @inject NavigationManager Navigation
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Registrar Compra</PageTitle>
 
@@ -100,6 +102,20 @@
     {
         isSubmitting = true;
         statusMessage = null;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            isSuccess = false;
+            statusMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+            isSubmitting = false;
+            return;
+        }
+
+        newPurchase.UsuarioIdCreador = Guid.Parse(userId);
 
         try
         {

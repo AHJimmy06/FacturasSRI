@@ -4,6 +4,8 @@
 @using FacturasSRI.Application.Interfaces
 @inject IProductService ProductService
 @inject NavigationManager Navigation
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Crear Producto</PageTitle>
 
@@ -74,6 +76,20 @@
     private async Task HandleAddProduct()
     {
         statusMessage = null;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            isSuccess = false;
+            statusMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+            return;
+        }
+
+        newProduct.UsuarioIdCreador = Guid.Parse(userId);
+
         try
         {
             await ProductService.CreateProductAsync(newProduct);
