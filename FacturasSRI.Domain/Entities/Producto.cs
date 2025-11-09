@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FacturasSRI.Domain.Enums;
 
 namespace FacturasSRI.Domain.Entities
 {
@@ -16,6 +17,8 @@ namespace FacturasSRI.Domain.Entities
         public bool EstaActivo { get; set; } = true;
         public Guid UsuarioIdCreador { get; set;}
         public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
+        public TipoProducto TipoProducto { get; set; }
 
         public virtual ICollection<Lote> Lotes { get; set; } = new List<Lote>();
         public virtual ICollection<ProductoImpuesto> ProductoImpuestos { get; set; } = new List<ProductoImpuesto>();

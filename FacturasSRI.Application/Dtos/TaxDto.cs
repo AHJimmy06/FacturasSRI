@@ -16,5 +16,7 @@ namespace FacturasSRI.Application.Dtos
         [Range(0, 100, ErrorMessage = "El porcentaje debe estar entre 0 y 100.")]
         public decimal Porcentaje { get; set; }
         public bool EstaActivo { get; set; } = true;
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
     }
 }

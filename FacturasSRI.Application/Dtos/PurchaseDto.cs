@@ -16,7 +16,7 @@ namespace FacturasSRI.Application.Dtos
         public DateTime? FechaCaducidad { get; set; }
 
         [Required]
-        public string Proveedor { get; set; } = string.Empty;
+        public Guid ProveedorId { get; set; } // Changed from string Proveedor
 
         [Required]
         public string NumeroFactura { get; set; } = string.Empty;

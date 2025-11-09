@@ -4,6 +4,7 @@
 @using FacturasSRI.Application.Interfaces
 @inject IPurchaseService PurchaseService
 @inject IProductService ProductService
+@inject IProveedorService ProveedorService // Added
 @inject NavigationManager Navigation
 @using System.Security.Claims
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -53,8 +54,14 @@
             <div class="col-md-6">
                 <div class="mb-3">
                     <label for="proveedor" class="form-label">Proveedor</label>
-                    <InputText id="proveedor" class="form-control" @bind-Value="newPurchase.Proveedor" disabled="@isSubmitting" />
-                    <ValidationMessage For="@(() => newPurchase.Proveedor)" />
+                    <InputSelect id="proveedor" class="form-select" @bind-Value="newPurchase.ProveedorId" disabled="@isSubmitting">
+                        <option value="">Seleccione un proveedor</option>
+                        @foreach (var prov in proveedores)
+                        {
+                            <option value="@prov.Id">@prov.RazonSocial</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => newPurchase.ProveedorId)" />
                 </div>
                 <div class="mb-3">
                     <label for="numeroFactura" class="form-label">Número de Factura</label>
@@ -79,6 +86,7 @@
 
 @code {
     private List<ProductDto> products = new();
+    private List<ProveedorDto> proveedores = new(); // Added
     private PurchaseDto newPurchase = new();
     private string? statusMessage;
     private bool isSuccess;
@@ -90,10 +98,12 @@
         {
             var allProducts = await ProductService.GetActiveProductsAsync();
             products = allProducts.Where(p => p.ManejaInventario).ToList();
+
+            proveedores = await ProveedorService.GetProveedoresAsync(); // Added
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            statusMessage = "Error al cargar la lista de productos.";
+            statusMessage = $"Error al cargar datos: {ex.Message}"; // Modified
             isSuccess = false;
         }
     }
@@ -133,10 +143,10 @@
                 statusMessage = "Ocurrió un error al registrar la compra. Verifique los datos.";
             }
         }
-        catch (Exception)
+        catch (Exception ex) // Modified
         {
             isSuccess = false;
-            statusMessage = "Ocurrió un error al registrar la compra. Verifique los datos.";
+            statusMessage = $"Ocurrió un error al registrar la compra: {ex.Message}"; // Modified
         }
         finally
         {

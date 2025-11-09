@@ -3,6 +3,7 @@ using System;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FacturasSRI.Infrastructure.Migrations
 {
     [DbContext(typeof(FacturasSRIDbContext))]
-    partial class FacturasSRIDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251109232348_AddProveedorAndLinkToLoteNullable")]
+    partial class AddProveedorAndLinkToLoteNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -75,9 +78,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("FechaModificacion")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NumeroIdentificacion")
@@ -341,12 +341,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Property<bool>("EstaActivo")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("FechaModificacion")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("text");
@@ -538,9 +532,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Property<DateTime>("FechaCreacion")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("FechaModificacion")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<bool>("ManejaInventario")
                         .HasColumnType("boolean");
 
@@ -625,21 +616,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Proveedores", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"),
-                            Direccion = "N/A",
-                            Email = "proveedor.general@example.com",
-                            EstaActivo = true,
-                            FechaCreacion = new DateTime(2025, 11, 9, 23, 37, 14, 72, DateTimeKind.Utc).AddTicks(5685),
-                            RUC = "9999999999001",
-                            RazonSocial = "Proveedor General",
-                            Telefono = "N/A",
-                            UsuarioIdCreador = new Guid("a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b")
-                        });
+                    b.ToTable("Proveedor");
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Rol", b =>
@@ -722,12 +699,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                     b.Property<bool>("EstaActivo")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("FechaModificacion")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -756,7 +727,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                             Id = new Guid("a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b"),
                             Email = "admin@facturassri.com",
                             EstaActivo = true,
-                            FechaCreacion = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             PasswordHash = "$2a$11$KnYr45JSbCoMg4Jtkg0GXegC7SegKYTidLxFYYljNwtLH0l024qLG",
                             PrimerApellido = "Aether",
                             PrimerNombre = "Admin"
