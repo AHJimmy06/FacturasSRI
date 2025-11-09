@@ -7,6 +7,8 @@
 @inject ICustomerService CustomerService
 @inject IProductService ProductService
 @inject NavigationManager Navigation
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Crear Factura</PageTitle>
 
@@ -303,9 +305,21 @@
         return;
     }
 
+    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+    var user = authState.User;
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    if (string.IsNullOrEmpty(userId))
+    {
+        errorMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+        isSubmitting = false;
+        return;
+    }
+
     var createDto = new CreateInvoiceDto
     {
         ClienteId = selectedCustomer.Id,
+        UsuarioIdCreador = Guid.Parse(userId),
         Items = invoiceItems.Select(i => new InvoiceItemDto
         {
             ProductoId = i.ProductoId,

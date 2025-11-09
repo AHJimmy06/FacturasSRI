@@ -43,6 +43,7 @@ namespace FacturasSRI.Infrastructure.Services
                             PrecioCompraUnitario = purchaseDto.PrecioCosto,
                             FechaCompra = DateTime.UtcNow,
                             FechaCaducidad = purchaseDto.FechaCaducidad?.ToUniversalTime(),
+                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                             FechaCreacion = DateTime.UtcNow
                         };
                         _context.Lotes.Add(lote);
@@ -50,13 +51,9 @@ namespace FacturasSRI.Infrastructure.Services
                         var cuentaPorPagarLote = new CuentaPorPagar
                         {
                             Id = Guid.NewGuid(),
-                            LoteId = lote.Id,
-                            Proveedor = purchaseDto.Proveedor,
-                            NumeroFactura = purchaseDto.NumeroFactura,
-                            FechaEmision = DateTime.UtcNow,
-                            FechaVencimiento = DateTime.UtcNow.AddDays(30),
                             MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                             SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
+                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                             FechaCreacion = DateTime.UtcNow
                         };
                         _context.CuentasPorPagar.Add(cuentaPorPagarLote);
@@ -75,6 +72,7 @@ namespace FacturasSRI.Infrastructure.Services
                             FechaVencimiento = DateTime.UtcNow.AddDays(30),
                             MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                             SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
+                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                             FechaCreacion = DateTime.UtcNow
                         };
                         _context.CuentasPorPagar.Add(cuentaPorPagarGeneral);
@@ -95,27 +93,26 @@ namespace FacturasSRI.Infrastructure.Services
         
         public async Task<List<PurchaseListItemDto>> GetPurchasesAsync()
         {
-            var purchases = await _context.Lotes
-                .Include(lote => lote.Producto)
-                .Select(lote => new 
-                {
-                    Lote = lote,
-                    CuentaPorPagar = _context.CuentasPorPagar.FirstOrDefault(c => c.LoteId == lote.Id)
-                })
-                .OrderByDescending(x => x.Lote.FechaCompra)
-                .Select(x => new PurchaseListItemDto
-                {
-                    LoteId = x.Lote.Id,
-                    ProductName = x.Lote.Producto.Nombre,
-                    CantidadComprada = x.Lote.CantidadComprada,
-                    CantidadDisponible = x.Lote.CantidadDisponible,
-                    PrecioCompraUnitario = x.Lote.PrecioCompraUnitario,
-                    ValorTotalCompra = x.Lote.CantidadComprada * x.Lote.PrecioCompraUnitario,
-                    FechaCompra = x.Lote.FechaCompra,
-                    FechaCaducidad = x.Lote.FechaCaducidad,
-                    Proveedor = x.CuentaPorPagar != null ? x.CuentaPorPagar.Proveedor : "N/A"
-                })
-                .ToListAsync();
+            var purchases = await (from lote in _context.Lotes
+                                   join producto in _context.Productos on lote.ProductoId equals producto.Id
+                                   join cuentaPorPagar in _context.CuentasPorPagar on lote.Id equals cuentaPorPagar.LoteId into cpps
+                                   from cpp in cpps.DefaultIfEmpty()
+                                   join usuario in _context.Usuarios on lote.UsuarioIdCreador equals usuario.Id into usuarioJoin
+                                   from usuario in usuarioJoin.DefaultIfEmpty()
+                                   orderby lote.FechaCompra descending
+                                   select new PurchaseListItemDto
+                                   {
+                                       LoteId = lote.Id,
+                                       ProductName = producto.Nombre,
+                                       CantidadComprada = lote.CantidadComprada,
+                                       CantidadDisponible = lote.CantidadDisponible,
+                                       PrecioCompraUnitario = lote.PrecioCompraUnitario,
+                                       ValorTotalCompra = lote.CantidadComprada * lote.PrecioCompraUnitario,
+                                       FechaCompra = lote.FechaCompra,
+                                       FechaCaducidad = lote.FechaCaducidad,
+                                       Proveedor = cpp != null ? cpp.Proveedor : "N/A",
+                                       CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
+                                   }).ToListAsync();
 
             return purchases;
         }

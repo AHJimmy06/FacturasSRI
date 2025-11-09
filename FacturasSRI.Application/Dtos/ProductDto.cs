@@ -12,5 +12,7 @@ namespace FacturasSRI.Application.Dtos
         public bool ManejaInventario { get; set; } = true;
         public bool ManejaLotes { get; set; } = true;
         public int StockTotal { get; set; }
+        public string CreadoPor { get; set; } = string.Empty;
+        public Guid UsuarioIdCreador { get; set; }
     }
 }

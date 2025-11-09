@@ -322,7 +322,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasKey("FacturaId");
 
-                    b.ToTable("FacturasSRI");
+                    b.ToTable("FacturasSRI", (string)null);
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Impuesto", b =>
@@ -501,7 +501,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasKey("NotaDeCreditoId");
 
-                    b.ToTable("NotasDeCreditoSRI");
+                    b.ToTable("NotasDeCreditoSRI", (string)null);
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Producto", b =>
@@ -560,7 +560,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasIndex("ImpuestoId");
 
-                    b.ToTable("ProductoImpuestos");
+                    b.ToTable("ProductoImpuestos", (string)null);
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Rol", b =>
@@ -689,7 +689,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasIndex("RolId");
 
-                    b.ToTable("UsuarioRoles");
+                    b.ToTable("UsuarioRoles", (string)null);
 
                     b.HasData(
                         new

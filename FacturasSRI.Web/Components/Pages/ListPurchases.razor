@@ -31,6 +31,7 @@ else if (purchases.Any())
                             <th class="text-end">Precio Unit.</th>
                             <th class="text-end">Valor Total</th>
                             <th>Fecha Caducidad</th>
+                            <th>Creado Por</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -45,6 +46,7 @@ else if (purchases.Any())
                                 <td class="text-end">@purchase.PrecioCompraUnitario.ToString("C")</td>
                                 <td class="text-end">@purchase.ValorTotalCompra.ToString("C")</td>
                                 <td>@(purchase.FechaCaducidad?.ToLocalTime().ToString("d") ?? "N/A")</td>
+                                <td>@purchase.CreadoPor</td>
                             </tr>
                         }
                     </tbody>

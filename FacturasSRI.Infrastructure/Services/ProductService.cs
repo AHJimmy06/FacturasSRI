@@ -30,6 +30,7 @@ namespace FacturasSRI.Infrastructure.Services
                 PrecioVentaUnitario = productDto.PrecioVentaUnitario,
                 ManejaInventario = productDto.ManejaInventario,
                 ManejaLotes = productDto.ManejaLotes,
+                UsuarioIdCreador = productDto.UsuarioIdCreador,
                 FechaCreacion = DateTime.UtcNow
             };
             _context.Productos.Add(product);
@@ -59,19 +60,21 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<List<ProductDto>> GetProductsAsync()
         {
-            return await _context.Productos
-                .Include(p => p.Lotes)
-                .Select(product => new ProductDto
-                {
-                    Id = product.Id,
-                    CodigoPrincipal = product.CodigoPrincipal,
-                    Nombre = product.Nombre,
-                    Descripcion = product.Descripcion,
-                    PrecioVentaUnitario = product.PrecioVentaUnitario,
-                    ManejaInventario = product.ManejaInventario,
-                    ManejaLotes = product.ManejaLotes,
-                    StockTotal = product.ManejaLotes ? product.Lotes.Sum(l => l.CantidadDisponible) : product.StockTotal
-                }).ToListAsync();
+            return await (from product in _context.Productos
+                          join usuario in _context.Usuarios on product.UsuarioIdCreador equals usuario.Id into usuarioJoin
+                          from usuario in usuarioJoin.DefaultIfEmpty()
+                          select new ProductDto
+                          {
+                              Id = product.Id,
+                              CodigoPrincipal = product.CodigoPrincipal,
+                              Nombre = product.Nombre,
+                              Descripcion = product.Descripcion,
+                              PrecioVentaUnitario = product.PrecioVentaUnitario,
+                              ManejaInventario = product.ManejaInventario,
+                              ManejaLotes = product.ManejaLotes,
+                              StockTotal = product.ManejaLotes ? product.Lotes.Sum(l => l.CantidadDisponible) : product.StockTotal,
+                              CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
+                          }).ToListAsync();
         }
 
         public async Task UpdateProductAsync(ProductDto productDto)
