@@ -26,5 +26,7 @@ namespace FacturasSRI.Application.Dtos
         public bool EstaActivo { get; set; } = true;
         public string CreadoPor { get; set; } = string.Empty;
         public Guid UsuarioIdCreador { get; set; }
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
     }
 }

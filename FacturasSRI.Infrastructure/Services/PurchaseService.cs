@@ -38,6 +38,7 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             Id = Guid.NewGuid(),
                             ProductoId = purchaseDto.ProductoId,
+                            ProveedorId = purchaseDto.ProveedorId, // Added
                             CantidadComprada = purchaseDto.Cantidad,
                             CantidadDisponible = purchaseDto.Cantidad,
                             PrecioCompraUnitario = purchaseDto.PrecioCosto,
@@ -48,9 +49,17 @@ namespace FacturasSRI.Infrastructure.Services
                         };
                         _context.Lotes.Add(lote);
 
+                        var proveedor = await _context.Proveedores.FindAsync(purchaseDto.ProveedorId); // Fetch Proveedor
+                        var proveedorRazonSocial = proveedor?.RazonSocial ?? "Desconocido";
+
                         var cuentaPorPagarLote = new CuentaPorPagar
                         {
                             Id = Guid.NewGuid(),
+                            LoteId = lote.Id, // Link to the new Lote
+                            Proveedor = proveedorRazonSocial, // Populate Proveedor with RazonSocial
+                            NumeroFactura = purchaseDto.NumeroFactura, // Populate NumeroFactura
+                            FechaEmision = DateTime.UtcNow,
+                            FechaVencimiento = DateTime.UtcNow.AddDays(30),
                             MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                             SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
                             UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
@@ -62,11 +71,14 @@ namespace FacturasSRI.Infrastructure.Services
                     {
                         producto.StockTotal += purchaseDto.Cantidad;
                         
+                        var proveedor = await _context.Proveedores.FindAsync(purchaseDto.ProveedorId); // Fetch Proveedor
+                        var proveedorRazonSocial = proveedor?.RazonSocial ?? "Desconocido";
+
                         var cuentaPorPagarGeneral = new CuentaPorPagar
                         {
                             Id = Guid.NewGuid(),
                             LoteId = null,
-                            Proveedor = purchaseDto.Proveedor,
+                            Proveedor = proveedorRazonSocial, // Populate Proveedor with RazonSocial
                             NumeroFactura = purchaseDto.NumeroFactura,
                             FechaEmision = DateTime.UtcNow,
                             FechaVencimiento = DateTime.UtcNow.AddDays(30),
@@ -95,10 +107,12 @@ namespace FacturasSRI.Infrastructure.Services
         {
             var purchases = await (from lote in _context.Lotes
                                    join producto in _context.Productos on lote.ProductoId equals producto.Id
+                                   join proveedor in _context.Proveedores on lote.ProveedorId equals proveedor.Id into proveedorJoin // Added
+                                   from prov in proveedorJoin.DefaultIfEmpty() // Added
                                    join cuentaPorPagar in _context.CuentasPorPagar on lote.Id equals cuentaPorPagar.LoteId into cpps
                                    from cpp in cpps.DefaultIfEmpty()
                                    join usuario in _context.Usuarios on lote.UsuarioIdCreador equals usuario.Id into usuarioJoin
-                                   from usuario in usuarioJoin.DefaultIfEmpty()
+                                   from user in usuarioJoin.DefaultIfEmpty() // Changed alias to user to avoid conflict
                                    orderby lote.FechaCompra descending
                                    select new PurchaseListItemDto
                                    {
@@ -110,8 +124,8 @@ namespace FacturasSRI.Infrastructure.Services
                                        ValorTotalCompra = lote.CantidadComprada * lote.PrecioCompraUnitario,
                                        FechaCompra = lote.FechaCompra,
                                        FechaCaducidad = lote.FechaCaducidad,
-                                       Proveedor = cpp != null ? cpp.Proveedor : "N/A",
-                                       CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
+                                       Proveedor = prov != null ? prov.RazonSocial : "N/A", // Modified
+                                       CreadoPor = user != null ? user.PrimerNombre + " " + user.PrimerApellido : "Usuario no encontrado" // Modified
                                    }).ToListAsync();
 
             return purchases;

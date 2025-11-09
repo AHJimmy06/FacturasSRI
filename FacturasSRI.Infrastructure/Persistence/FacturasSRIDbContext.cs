@@ -30,7 +30,7 @@ namespace FacturasSRI.Infrastructure.Persistence
         public DbSet<Secuencial> Secuenciales { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<UsuarioRol> UsuarioRoles { get; set; }
-
+        public DbSet<Proveedor> Proveedores { get; set; } // Added
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -51,6 +51,7 @@ namespace FacturasSRI.Infrastructure.Persistence
             modelBuilder.Entity<Rol>().ToTable("Roles");
             modelBuilder.Entity<Secuencial>().ToTable("Secuenciales");
             modelBuilder.Entity<Usuario>().ToTable("Usuarios");
+            modelBuilder.Entity<Proveedor>().ToTable("Proveedores"); // Added
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(FacturasSRIDbContext).Assembly);
             
@@ -58,6 +59,7 @@ namespace FacturasSRI.Infrastructure.Persistence
             var vendedorRoleId = new Guid("e2a87c46-e5b3-4f9e-8c6e-1f2a3b4c5d6e");
             var bodegueroRoleId = new Guid("f5b8c9d0-1a2b-3c4d-5e6f-7a8b9c0d1e2f");
             var adminUserId = new Guid("a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b");
+            var defaultProveedorId = new Guid("c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"); // New GUID for default supplier
 
             modelBuilder.Entity<Rol>().HasData(
                 new Rol {
@@ -94,6 +96,19 @@ namespace FacturasSRI.Infrastructure.Persistence
             {
                 UsuarioId = adminUserId,
                 RolId = adminRoleId
+            });
+
+            modelBuilder.Entity<Proveedor>().HasData(new Proveedor // Added default supplier
+            {
+                Id = defaultProveedorId,
+                RUC = "9999999999001",
+                RazonSocial = "Proveedor General",
+                Direccion = "N/A",
+                Telefono = "N/A",
+                Email = "proveedor.general@example.com",
+                EstaActivo = true,
+                FechaCreacion = DateTime.UtcNow,
+                UsuarioIdCreador = adminUserId // Assuming admin user created this
             });
         }
     }

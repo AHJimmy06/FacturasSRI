@@ -3,6 +3,7 @@ using System;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FacturasSRI.Infrastructure.Migrations
 {
     [DbContext(typeof(FacturasSRIDbContext))]
-    partial class FacturasSRIDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251109233156_AddAuditFieldsToEntitiesFinalCorrectedV2")]
+    partial class AddAuditFieldsToEntitiesFinalCorrectedV2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -625,21 +628,7 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Proveedores", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("c1d2e3f4-5a6b-7c8d-9e0f-1a2b3c4d5e6f"),
-                            Direccion = "N/A",
-                            Email = "proveedor.general@example.com",
-                            EstaActivo = true,
-                            FechaCreacion = new DateTime(2025, 11, 9, 23, 37, 14, 72, DateTimeKind.Utc).AddTicks(5685),
-                            RUC = "9999999999001",
-                            RazonSocial = "Proveedor General",
-                            Telefono = "N/A",
-                            UsuarioIdCreador = new Guid("a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b")
-                        });
+                    b.ToTable("Proveedor");
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Rol", b =>

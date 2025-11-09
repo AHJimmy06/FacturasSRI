@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using FacturasSRI.Domain.Enums;
 
 namespace FacturasSRI.Application.Dtos
 {
@@ -24,5 +25,10 @@ namespace FacturasSRI.Application.Dtos
         public string CreadoPor { get; set; } = string.Empty;
         public Guid UsuarioIdCreador { get; set; }
         public bool IsActive { get; set; } = true;
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
+        public TipoProducto TipoProducto { get; set; }
+        public string ImpuestoPrincipalNombre { get; set; } = "N/A"; // Added
+        public decimal ImpuestoPrincipalPorcentaje { get; set; } = 0; // Added
     }
 }

@@ -46,6 +46,8 @@
                         <tr>
                             <th>Nombre</th>
                             <th>Código Principal</th>
+                            <th>Descripción</th>
+                            <th>Impuesto</th>
                             <th>Precio Unitario</th>
                             <th>Stock Actual</th>
                             <th>Creado Por</th>
@@ -58,6 +60,8 @@
                             <tr>
                                 <td>@product.Nombre</td>
                                 <td>@product.CodigoPrincipal</td>
+                                <td>@product.Descripcion</td>
+                                <td>@product.ImpuestoPrincipalNombre (@product.ImpuestoPrincipalPorcentaje.ToString("F2"))%</td>
                                 <td>@product.PrecioVentaUnitario.ToString("C")</td>
                                 <td>@product.StockTotal</td>
                                 <td>@product.CreadoPor</td>

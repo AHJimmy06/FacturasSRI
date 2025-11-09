@@ -24,6 +24,8 @@ namespace FacturasSRI.Application.Dtos
         [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
         public string? Password { get; set; }
         public bool EstaActivo { get; set; } = true;
+        public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
 
         public List<Guid> RolesId { get; set; } = new List<Guid>();
         public List<string> Roles { get; set; } = new List<string>();

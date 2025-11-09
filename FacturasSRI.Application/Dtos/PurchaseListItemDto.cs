@@ -12,6 +12,7 @@ namespace FacturasSRI.Application.Dtos
         public decimal ValorTotalCompra { get; set; }
         public DateTime FechaCompra { get; set; }
         public DateTime? FechaCaducidad { get; set; }
+        public Guid ProveedorId { get; set; } // Added
         public string Proveedor { get; set; } = string.Empty;
         public string CreadoPor { get; set; } = string.Empty;
     }
