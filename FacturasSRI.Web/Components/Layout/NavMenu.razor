@@ -83,20 +83,6 @@
                     </ul>
                 }
             </div>
-             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isImpuestosOpen)">
-                    <i class="bi bi-cash-coin"></i>
-                    <span>Impuestos</span>
-                    <i class="bi @(isImpuestosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
-                </div>
-                @if (isImpuestosOpen)
-                {
-                    <ul class="nav-submenu">
-                        <li><NavLink href="taxes/create">Crear Impuesto</NavLink></li>
-                        <li><NavLink href="taxes" Match="NavLinkMatch.All">Listar Impuestos</NavLink></li>
-                    </ul>
-                }
-            </div>
         </AuthorizeView>
         
         <AuthorizeView Roles="Administrador, Bodeguero">
@@ -116,6 +102,20 @@
         </AuthorizeView>
 
         <AuthorizeView Roles="Administrador">
+            <div class="nav-section">
+                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isImpuestosOpen)">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Impuestos</span>
+                    <i class="bi @(isImpuestosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                </div>
+                @if (isImpuestosOpen)
+                {
+                    <ul class="nav-submenu">
+                        <li><NavLink href="taxes/create">Crear Impuesto</NavLink></li>
+                        <li><NavLink href="taxes" Match="NavLinkMatch.All">Listar Impuestos</NavLink></li>
+                    </ul>
+                }
+            </div>
             <div class="nav-section">
                 <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isUsuariosOpen)">
                     <i class="bi bi-person-fill-gear"></i>
