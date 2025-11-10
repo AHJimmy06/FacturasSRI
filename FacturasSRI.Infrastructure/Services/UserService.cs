@@ -102,7 +102,8 @@ namespace FacturasSRI.Infrastructure.Services
                     SegundoApellido = user.SegundoApellido,
                     Email = user.Email,
                     EstaActivo = user.EstaActivo,
-                    Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList()
+                    Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList(),
+                    RolesId = user.UsuarioRoles.Select(ur => ur.RolId).ToList()
                 }).ToListAsync();
         }
 
@@ -122,7 +123,8 @@ namespace FacturasSRI.Infrastructure.Services
                     SegundoApellido = user.SegundoApellido,
                     Email = user.Email,
                     EstaActivo = user.EstaActivo,
-                    Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList()
+                    Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList(),
+                    RolesId = user.UsuarioRoles.Select(ur => ur.RolId).ToList()
                 }).ToListAsync();
         }
 

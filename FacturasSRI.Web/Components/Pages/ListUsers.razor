@@ -105,12 +105,14 @@
                                 <label class="form-label">Rol</label>
                                 @if (allRoles.Any())
                                 {
-                                    <InputSelect class="form-select" @bind-Value="editingUserRoleId">
+                                    <InputSelect class="form-select" @bind-Value="editingUserModel.RoleId">
+                                        <option value="@Guid.Empty">Seleccione un rol...</option>
                                         @foreach (var rol in allRoles)
                                         {
                                             <option value="@rol.Id">@rol.Nombre</option>
                                         }
                                     </InputSelect>
+                                    <ValidationMessage For="@(() => editingUserModel.RoleId)" />
                                 }
                             </div>
                             <div class="col-md-6 mb-3">
@@ -153,7 +155,6 @@
     
     private bool showEditModal = false;
     private EditUserModel editingUserModel = new();
-    private Guid editingUserRoleId;
 
     private bool showConfirmationModal = false;
     private string confirmationModalTitle = string.Empty;
@@ -190,9 +191,9 @@
             PrimerApellido = user.PrimerApellido,
             SegundoApellido = user.SegundoApellido,
             Email = user.Email,
-            EstaActivo = user.EstaActivo
+            EstaActivo = user.EstaActivo,
+            RoleId = user.RolesId.FirstOrDefault()
         };
-        editingUserRoleId = user.RolesId.FirstOrDefault();
         showEditModal = true;
     }
 
@@ -200,7 +201,6 @@
     {
         showEditModal = false;
         editingUserModel = new();
-        editingUserRoleId = Guid.Empty;
     }
 
     private async Task HandleUpdateUser()
@@ -214,7 +214,7 @@
             SegundoApellido = editingUserModel.SegundoApellido,
             Email = editingUserModel.Email,
             EstaActivo = editingUserModel.EstaActivo,
-            RolesId = new List<Guid> { editingUserRoleId }
+            RolesId = new List<Guid> { editingUserModel.RoleId }
         };
 
         if (!string.IsNullOrWhiteSpace(editingUserModel.Password))
@@ -287,6 +287,8 @@
         public string? ConfirmPassword { get; set; }
 
         public bool EstaActivo { get; set; }
+        
+        public Guid RoleId { get; set; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -304,6 +306,13 @@
                         "La contraseña y la confirmación de contraseña no coinciden.",
                         new[] { nameof(ConfirmPassword) });
                 }
+            }
+
+            if (RoleId == Guid.Empty)
+            {
+                yield return new ValidationResult(
+                    "El rol es requerido.",
+                    new[] { nameof(RoleId) });
             }
         }
     }
