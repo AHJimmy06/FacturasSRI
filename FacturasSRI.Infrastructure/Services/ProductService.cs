@@ -41,22 +41,34 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<ProductDto?> GetProductByIdAsync(Guid id)
         {
-            var product = await _context.Productos.FindAsync(id);
-            if (product == null)
-            {
-                return null;
-            }
-            return new ProductDto
-            {
-                Id = product.Id,
-                CodigoPrincipal = product.CodigoPrincipal,
-                Nombre = product.Nombre,
-                Descripcion = product.Descripcion,
-                PrecioVentaUnitario = product.PrecioVentaUnitario,
-                ManejaInventario = product.ManejaInventario,
-                ManejaLotes = product.ManejaLotes,
-                IsActive = product.EstaActivo // Map EstaActivo to IsActive
-            };
+            return await (from product in _context.Productos
+                          where product.Id == id
+                          join usuario in _context.Usuarios on product.UsuarioIdCreador equals usuario.Id into usuarioJoin
+                          from usuario in usuarioJoin.DefaultIfEmpty()
+                          // Left join with ProductoImpuesto to get associated taxes
+                          join pi in _context.ProductoImpuestos on product.Id equals pi.ProductoId into productTaxes
+                          from pi in productTaxes.DefaultIfEmpty()
+                          // Left join with Impuesto to get tax details
+                          join tax in _context.Impuestos on pi.ImpuestoId equals tax.Id into taxDetails
+                          from tax in taxDetails.DefaultIfEmpty()
+                          group new { product, usuario, tax } by product.Id into g // Group by product to handle multiple taxes
+                          select new ProductDto
+                          {
+                              Id = g.Key,
+                              CodigoPrincipal = g.First().product.CodigoPrincipal,
+                              Nombre = g.First().product.Nombre,
+                              Descripcion = g.First().product.Descripcion,
+                              PrecioVentaUnitario = g.First().product.PrecioVentaUnitario,
+                              ManejaInventario = g.First().product.ManejaInventario,
+                              ManejaLotes = g.First().product.ManejaLotes,
+                              StockTotal = g.First().product.ManejaLotes ? g.First().product.Lotes.Sum(l => l.CantidadDisponible) : g.First().product.StockTotal,
+                              CreadoPor = g.First().usuario != null ? g.First().usuario.PrimerNombre + " " + g.First().usuario.PrimerApellido : "Usuario no encontrado",
+                              IsActive = g.First().product.EstaActivo,
+                              FechaCreacion = g.First().product.FechaCreacion,
+                              FechaModificacion = g.First().product.FechaModificacion,
+                              ImpuestoPrincipalNombre = g.Where(x => x.tax != null).Select(x => x.tax!.Nombre).FirstOrDefault() ?? "N/A", // Get first tax name
+                              ImpuestoPrincipalPorcentaje = g.Where(x => x.tax != null).Select(x => x.tax!.Porcentaje).FirstOrDefault() // Get first tax percentage
+                          }).FirstOrDefaultAsync();
         }
 
         public async Task<List<ProductDto>> GetProductsAsync()

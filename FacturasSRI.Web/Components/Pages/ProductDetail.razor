@@ -1,0 +1,112 @@
+@page "/products/details/{ProductId:guid}"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IProductService ProductService
+@inject NavigationManager Navigation
+
+<PageTitle>Detalles del Producto</PageTitle>
+
+@if (productDetails == null && !string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (productDetails == null)
+{
+    <p><em>Cargando detalles del producto...</em></p>
+}
+else
+{
+    <h1>Detalles de: @productDetails.Nombre</h1>
+    <p class="text-muted">Código Principal: @productDetails.CodigoPrincipal</p>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Información General
+        </div>
+        <div class="card-body">
+            <p><strong>Descripción:</strong> @productDetails.Descripcion</p>
+            <p><strong>Precio Unitario:</strong> @productDetails.PrecioVentaUnitario.ToString("C")</p>
+            <p><strong>Impuesto Principal:</strong> @productDetails.ImpuestoPrincipalNombre (@productDetails.ImpuestoPrincipalPorcentaje.ToString("F2"))%</p>
+            <p><strong>Creado Por:</strong> @productDetails.CreadoPor</p>
+            <p><strong>Fecha de Creación:</strong> @productDetails.FechaCreacion.ToLocalTime().ToString("g")</p>
+        </div>
+    </div>
+
+    @if (productDetails.ManejaInventario) // Conditional rendering for inventory-managed products
+    {
+        <div class="card my-4">
+            <div class="card-body">
+                <h5 class="card-title">Stock Total Disponible</h5>
+                <p class="card-text display-4">@stockDetails?.TotalStock</p>
+            </div>
+        </div>
+
+        @if (stockDetails != null && stockDetails.ManejaLotes)
+        {
+            <h3>Detalle de Lotes</h3>
+
+            @if (!stockDetails.Lotes.Any())
+            {
+                <div class="alert alert-info">No hay lotes con stock disponible para este producto.</div>
+            }
+            else
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Cantidad Disponible</th>
+                            <th>Precio de Costo</th>
+                            <th>Fecha de Caducidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lote in stockDetails.Lotes)
+                        {
+                            <tr>
+                                <td>@lote.CantidadDisponible</td>
+                                <td>@lote.PrecioCompraUnitario.ToString("C")</td>
+                                <td>@(lote.FechaCaducidad?.ToString("dd/MM/yyyy") ?? "N/A")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        }
+        else if (stockDetails != null)
+        {
+            <div class="alert alert-info">
+                Este producto no maneja lotes. El stock se gestiona como una cantidad total.
+            </div>
+        }
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid ProductId { get; set; }
+
+    private ProductDto? productDetails; // Added
+    private ProductStockDto? stockDetails;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            productDetails = await ProductService.GetProductByIdAsync(ProductId); // Fetch full product details
+            if (productDetails == null)
+            {
+                errorMessage = "No se encontró el producto solicitado.";
+                return;
+            }
+
+            stockDetails = await ProductService.GetProductStockDetailsAsync(ProductId);
+            // stockDetails can be null if product doesn't manage inventory, handle gracefully in UI
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar los detalles del producto o el stock: {ex.Message}";
+        }
+    }
+}
