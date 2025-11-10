@@ -61,7 +61,8 @@ namespace FacturasSRI.Infrastructure.Services
                             FechaEmision = DateTime.UtcNow,
                             FechaVencimiento = DateTime.UtcNow.AddDays(30),
                             MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
-                            SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
+                            SaldoPendiente = 0, // Set to 0 as it's paid
+                            Pagada = true, // Set to true as per requirement
                             UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                             FechaCreacion = DateTime.UtcNow
                         };
@@ -83,7 +84,8 @@ namespace FacturasSRI.Infrastructure.Services
                             FechaEmision = DateTime.UtcNow,
                             FechaVencimiento = DateTime.UtcNow.AddDays(30),
                             MontoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
-                            SaldoPendiente = purchaseDto.Cantidad * purchaseDto.PrecioCosto,
+                            SaldoPendiente = 0, // Set to 0 as it's paid
+                            Pagada = true, // Set to true as per requirement
                             UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                             FechaCreacion = DateTime.UtcNow
                         };

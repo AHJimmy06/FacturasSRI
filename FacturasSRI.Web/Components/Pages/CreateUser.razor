@@ -1,5 +1,6 @@
 @page "/users/create"
 @attribute [Authorize(Roles = "Administrador")]
+@using System.ComponentModel.DataAnnotations
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
 @inject IUserService UserService
@@ -12,37 +13,42 @@
 
 <div class="card">
     <div class="card-body">
-        <EditForm Model="@newUser" OnValidSubmit="@HandleAddUser">
+        <EditForm Model="@createUserModel" OnValidSubmit="@HandleAddUser">
             <DataAnnotationsValidator />
 
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Primer Nombre</label>
-                    <InputText class="form-control" @bind-Value="newUser.PrimerNombre" />
-                    <ValidationMessage For="@(() => newUser.PrimerNombre)" />
+                    <InputText class="form-control" @bind-Value="createUserModel.PrimerNombre" />
+                    <ValidationMessage For="@(() => createUserModel.PrimerNombre)" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Segundo Nombre</label>
-                    <InputText class="form-control" @bind-Value="newUser.SegundoNombre" />
+                    <InputText class="form-control" @bind-Value="createUserModel.SegundoNombre" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Primer Apellido</label>
-                    <InputText class="form-control" @bind-Value="newUser.PrimerApellido" />
-                    <ValidationMessage For="@(() => newUser.PrimerApellido)" />
+                    <InputText class="form-control" @bind-Value="createUserModel.PrimerApellido" />
+                    <ValidationMessage For="@(() => createUserModel.PrimerApellido)" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Segundo Apellido</label>
-                    <InputText class="form-control" @bind-Value="newUser.SegundoApellido" />
+                    <InputText class="form-control" @bind-Value="createUserModel.SegundoApellido" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Correo Electrónico</label>
-                    <InputText type="email" class="form-control" @bind-Value="newUser.Email" />
-                    <ValidationMessage For="@(() => newUser.Email)" />
+                    <InputText type="email" class="form-control" @bind-Value="createUserModel.Email" />
+                    <ValidationMessage For="@(() => createUserModel.Email)" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Contraseña</label>
-                    <InputText type="password" class="form-control" @bind-Value="newUser.Password" />
-                    <ValidationMessage For="@(() => newUser.Password)" />
+                    <InputText type="password" class="form-control" @bind-Value="createUserModel.Password" />
+                    <ValidationMessage For="@(() => createUserModel.Password)" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Confirmar Contraseña</label>
+                    <InputText type="password" class="form-control" @bind-Value="createUserModel.ConfirmPassword" />
+                    <ValidationMessage For="@(() => createUserModel.ConfirmPassword)" />
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Rol</label>
@@ -73,7 +79,7 @@
 
 @code {
     private List<RoleDto> allRoles = new();
-    private UserDto newUser = new();
+    private CreateUserModel createUserModel = new();
     private Guid selectedRoleId;
     
     protected override async Task OnInitializedAsync()
@@ -87,7 +93,17 @@
 
     private async Task HandleAddUser()
     {
-        newUser.RolesId = new List<Guid> { selectedRoleId };
+        var newUser = new UserDto
+        {
+            PrimerNombre = createUserModel.PrimerNombre,
+            SegundoNombre = createUserModel.SegundoNombre,
+            PrimerApellido = createUserModel.PrimerApellido,
+            SegundoApellido = createUserModel.SegundoApellido,
+            Email = createUserModel.Email,
+            Password = createUserModel.Password,
+            RolesId = new List<Guid> { selectedRoleId }
+        };
+        
         await UserService.CreateUserAsync(newUser);
         Navigation.NavigateTo("/users");
     }
@@ -95,5 +111,24 @@
     private void GoToList()
     {
         Navigation.NavigateTo("/users");
+    }
+
+    public class CreateUserModel
+    {
+        [Required(ErrorMessage = "El primer nombre es requerido.")]
+        public string PrimerNombre { get; set; } = string.Empty;
+        public string SegundoNombre { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El primer apellido es requerido.")]
+        public string PrimerApellido { get; set; } = string.Empty;
+        public string SegundoApellido { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El correo electrónico es requerido.")]
+        [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
+        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "La contraseña es requerida.")]
+        [StringLength(100, ErrorMessage = "La contraseña debe tener al menos {2} caracteres.", MinimumLength = 6)]
+        public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "La confirmación de contraseña es requerida.")]
+        [Compare("Password", ErrorMessage = "La contraseña y la confirmación de contraseña no coinciden.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

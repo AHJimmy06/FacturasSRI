@@ -1,5 +1,6 @@
 @page "/users"
 @attribute [Authorize(Roles = "Administrador")]
+@using System.ComponentModel.DataAnnotations
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Web.Components.Shared
@@ -47,7 +48,7 @@
                             <td>@string.Join(", ", user.Roles)</td>
                             <td class="text-end">
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(user.Id)">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(user)">
                                         <i class="bi bi-pencil-square"></i> Editar
                                     </button>
                                     <button class="btn btn-sm @(user.EstaActivo ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => HandleDeleteUser(user.Id)">
@@ -70,35 +71,35 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Editar Usuario: @editingUser.PrimerNombre @editingUser.PrimerApellido</h5>
+                    <h5 class="modal-title">Editar Usuario: @editingUserModel.PrimerNombre @editingUserModel.PrimerApellido</h5>
                     <button type="button" class="btn-close" @onclick="CloseEditModal"></button>
                 </div>
                 <div class="modal-body">
-                    <EditForm Model="@editingUser" OnValidSubmit="@HandleUpdateUser">
+                    <EditForm Model="@editingUserModel" OnValidSubmit="@HandleUpdateUser">
                         <DataAnnotationsValidator />
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Primer Nombre</label>
-                                <InputText class="form-control" @bind-Value="editingUser.PrimerNombre" />
-                                <ValidationMessage For="@(() => editingUser.PrimerNombre)" />
+                                <InputText class="form-control" @bind-Value="editingUserModel.PrimerNombre" />
+                                <ValidationMessage For="@(() => editingUserModel.PrimerNombre)" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Segundo Nombre</label>
-                                <InputText class="form-control" @bind-Value="editingUser.SegundoNombre" />
+                                <InputText class="form-control" @bind-Value="editingUserModel.SegundoNombre" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Primer Apellido</label>
-                                <InputText class="form-control" @bind-Value="editingUser.PrimerApellido" />
-                                <ValidationMessage For="@(() => editingUser.PrimerApellido)" />
+                                <InputText class="form-control" @bind-Value="editingUserModel.PrimerApellido" />
+                                <ValidationMessage For="@(() => editingUserModel.PrimerApellido)" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Segundo Apellido</label>
-                                <InputText class="form-control" @bind-Value="editingUser.SegundoApellido" />
+                                <InputText class="form-control" @bind-Value="editingUserModel.SegundoApellido" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Correo Electrónico</label>
-                                <InputText type="email" class="form-control" @bind-Value="editingUser.Email" />
-                                <ValidationMessage For="@(() => editingUser.Email)" />
+                                <InputText type="email" class="form-control" @bind-Value="editingUserModel.Email" />
+                                <ValidationMessage For="@(() => editingUserModel.Email)" />
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Rol</label>
@@ -112,12 +113,18 @@
                                     </InputSelect>
                                 }
                             </div>
-                            <div class="col-md-12 mb-3">
+                            <div class="col-md-6 mb-3">
                                 <label class="form-label">Nueva Contraseña</label>
-                                <InputText type="password" class="form-control" @bind-Value="editingUser.Password" placeholder="Dejar en blanco para no cambiar" />
+                                <InputText type="password" class="form-control" @bind-Value="editingUserModel.Password" placeholder="Dejar en blanco para no cambiar" />
+                                <ValidationMessage For="@(() => editingUserModel.Password)" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Confirmar Nueva Contraseña</label>
+                                <InputText type="password" class="form-control" @bind-Value="editingUserModel.ConfirmPassword" />
+                                <ValidationMessage For="@(() => editingUserModel.ConfirmPassword)" />
                             </div>
                             <div class="col-md-6 mb-3 form-check">
-                                <InputCheckbox class="form-check-input" @bind-Value="editingUser.EstaActivo" />
+                                <InputCheckbox class="form-check-input" @bind-Value="editingUserModel.EstaActivo" />
                                 <label class="form-check-label">Está Activo</label>
                             </div>
                         </div>
@@ -141,20 +148,19 @@
                    OnCancel="CancelToggleUserStatus" />
 
 @code {
-    private List<UserDto> allUsers = new(); // Holds all users
+    private List<UserDto> allUsers = new();
     private List<RoleDto> allRoles = new();
     
     private bool showEditModal = false;
-    private UserDto editingUser = new();
+    private EditUserModel editingUserModel = new();
     private Guid editingUserRoleId;
 
-    // Confirmation Modal State
     private bool showConfirmationModal = false;
     private string confirmationModalTitle = string.Empty;
     private string confirmationModalMessage = string.Empty;
     private Guid userToToggleId;
 
-    private string searchTerm = string.Empty; // New property for search
+    private string searchTerm = string.Empty;
 
     private List<UserDto> FilteredUsers => string.IsNullOrWhiteSpace(searchTerm)
         ? allUsers
@@ -170,32 +176,53 @@
 
     private async Task LoadData()
     {
-        allUsers = await UserService.GetUsersAsync(); // Load all users
+        allUsers = await UserService.GetUsersAsync();
         allRoles = await RoleService.GetRolesAsync();
     }
 
-    private async Task OpenEditModal(Guid userId)
+    private void OpenEditModal(UserDto user)
     {
-        var userFromDb = await UserService.GetUserByIdAsync(userId);
-        if (userFromDb != null)
+        editingUserModel = new EditUserModel
         {
-            editingUser = userFromDb;
-            editingUserRoleId = editingUser.RolesId.FirstOrDefault();
-            showEditModal = true;
-        }
+            Id = user.Id,
+            PrimerNombre = user.PrimerNombre,
+            SegundoNombre = user.SegundoNombre,
+            PrimerApellido = user.PrimerApellido,
+            SegundoApellido = user.SegundoApellido,
+            Email = user.Email,
+            EstaActivo = user.EstaActivo
+        };
+        editingUserRoleId = user.RolesId.FirstOrDefault();
+        showEditModal = true;
     }
 
     private void CloseEditModal()
     {
         showEditModal = false;
-        editingUser = new();
+        editingUserModel = new();
         editingUserRoleId = Guid.Empty;
     }
 
     private async Task HandleUpdateUser()
     {
-        editingUser.RolesId = new List<Guid> { editingUserRoleId };
-        await UserService.UpdateUserAsync(editingUser);
+        var userToUpdate = new UserDto
+        {
+            Id = editingUserModel.Id,
+            PrimerNombre = editingUserModel.PrimerNombre,
+            SegundoNombre = editingUserModel.SegundoNombre,
+            PrimerApellido = editingUserModel.PrimerApellido,
+            SegundoApellido = editingUserModel.SegundoApellido,
+            Email = editingUserModel.Email,
+            EstaActivo = editingUserModel.EstaActivo,
+            RolesId = new List<Guid> { editingUserRoleId }
+        };
+
+        if (!string.IsNullOrWhiteSpace(editingUserModel.Password))
+        {
+            userToUpdate.Password = editingUserModel.Password;
+        }
+
+        await UserService.UpdateUserAsync(userToUpdate);
         CloseEditModal();
         await LoadData();
     }
@@ -213,7 +240,7 @@
 
     private async Task ConfirmToggleUserStatus()
     {
-        showConfirmationModal = false; // Hide the modal
+        showConfirmationModal = false;
 
         var userToToggle = allUsers.FirstOrDefault(u => u.Id == userToToggleId);
         if (userToToggle == null) return;
@@ -225,19 +252,59 @@
         }
         catch (Exception ex)
         {
-            // Handle error, e.g., display an error message
             Console.WriteLine($"Error al toggling user status: {ex.Message}");
         }
     }
 
     private void CancelToggleUserStatus()
     {
-        showConfirmationModal = false; // Hide the modal
+        showConfirmationModal = false;
         userToToggleId = Guid.Empty;
     }
 
     private void GoToCreateUser()
     {
         Navigation.NavigateTo("/users/create");
+    }
+
+    public class EditUserModel : IValidatableObject
+    {
+        public Guid Id { get; set; }
+
+        [Required(ErrorMessage = "El primer nombre es requerido.")]
+        public string PrimerNombre { get; set; } = string.Empty;
+        public string? SegundoNombre { get; set; }
+
+        [Required(ErrorMessage = "El primer apellido es requerido.")]
+        public string PrimerApellido { get; set; } = string.Empty;
+        public string? SegundoApellido { get; set; }
+
+        [Required(ErrorMessage = "El correo electrónico es requerido.")]
+        [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        public string? Password { get; set; }
+        public string? ConfirmPassword { get; set; }
+
+        public bool EstaActivo { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (!string.IsNullOrWhiteSpace(Password))
+            {
+                if (string.IsNullOrWhiteSpace(ConfirmPassword))
+                {
+                    yield return new ValidationResult(
+                        "La confirmación de contraseña es requerida cuando se establece una nueva contraseña.",
+                        new[] { nameof(ConfirmPassword) });
+                }
+                else if (Password != ConfirmPassword)
+                {
+                    yield return new ValidationResult(
+                        "La contraseña y la confirmación de contraseña no coinciden.",
+                        new[] { nameof(ConfirmPassword) });
+                }
+            }
+        }
     }
 }
