@@ -46,11 +46,9 @@
                         <tr>
                             <th>Nombre</th>
                             <th>Código Principal</th>
-                            <th>Descripción</th>
                             <th>Impuesto</th>
                             <th>Precio Unitario</th>
                             <th>Stock Actual</th>
-                            <th>Creado Por</th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -60,15 +58,13 @@
                             <tr>
                                 <td>@product.Nombre</td>
                                 <td>@product.CodigoPrincipal</td>
-                                <td>@product.Descripcion</td>
                                 <td>@product.ImpuestoPrincipalNombre (@product.ImpuestoPrincipalPorcentaje.ToString("F2"))%</td>
                                 <td>@product.PrecioVentaUnitario.ToString("C")</td>
                                 <td>@product.StockTotal</td>
-                                <td>@product.CreadoPor</td>
                                 <td class="text-end">
                                     <div class="btn-group" role="group">
-                                        <a href="@($"stock/{product.Id}")" class="btn btn-sm btn-outline-secondary @(product.ManejaInventario ? "" : "disabled")">
-                                            <i class="bi bi-box-seam"></i> Stock
+                                        <a href="@($"/products/details/{product.Id}")" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-eye-fill"></i> Ver detalles
                                         </a>
                                         <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(product)">
                                             <i class="bi bi-pencil-square"></i> Editar
@@ -201,10 +197,11 @@
         isAssignTaxesModalVisible = true;
     }
 
-    private void CloseAssignTaxesModal()
+    private async Task CloseAssignTaxesModal()
     {
         isAssignTaxesModalVisible = false;
         selectedProduct = null;
+        await LoadProducts(); // Reload products to reflect tax changes
     }
 
     private void OpenEditModal(ProductDto product)
