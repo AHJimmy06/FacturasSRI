@@ -10,104 +10,84 @@
 @using System.Security.Claims
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<PageTitle>Crear Factura</PageTitle>
+<PageTitle>Crear Nueva Factura</PageTitle>
 
-<div class="page-header">
-    <h1>Crear Nueva Factura</h1>
-    <p>Sigue los pasos para emitir una nueva factura electrónica.</p>
-</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header mb-4">
+                <h1 class="page-title">Crear Nueva Factura</h1>
+                <p class="text-muted">Emite una nueva factura electrónica de forma rápida y sencilla.</p>
+            </div>
+        </div>
+    </div>
 
-@if (errorMessage != null)
-{
-    <div class="alert alert-danger">@errorMessage</div>
-}
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            @errorMessage
+        </div>
+    }
 
-<div class="card">
-    <div class="card-body">
-        <EditForm Model="@invoiceModel" OnValidSubmit="@HandleCreateInvoice">
-            <DataAnnotationsValidator />
+    <EditForm Model="@invoiceModel" OnValidSubmit="@HandleCreateInvoice">
+        <DataAnnotationsValidator />
 
-            <div class="step-section">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                    <h4 class="step-title">Buscar Cliente</h4>
-                    <input type="text" class="form-control" placeholder="Escriba para buscar cliente por nombre o RUC..." 
-                           @bind="customerSearchTerm" @bind:event="oninput" @onkeyup="SearchCustomers" />
-
-                    @if (customerSearchResults.Any())
-                    {
-                        <ul class="list-group search-results">
-                            @foreach (var customer in customerSearchResults)
-                            {
-                                <li class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)">
-                                    @customer.RazonSocial (@customer.NumeroIdentificacion)
-                                </li>
-                            }
-                        </ul>
-                    }
-
-                    @if (selectedCustomer != null)
-                    {
-                        <div class="alert alert-light selected-item-info mt-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>Cliente Seleccionado:</strong> @selectedCustomer.RazonSocial<br/>
-                                    <small>@selectedCustomer.NumeroIdentificacion | @selectedCustomer.Email</small>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="ClearCustomer">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-box-seam me-2"></i>Productos de la Factura</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Buscar Producto</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Escriba para buscar producto por nombre o código..." 
+                                       @bind="productSearchTerm" @bind:event="oninput" @onkeyup="SearchProducts" disabled="@(selectedCustomer == null)"/>
                             </div>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <hr/>
-
-            <div class="step-section">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <h4 class="step-title">Añadir Productos</h4>
-                    <input type="text" class="form-control" placeholder="Escriba para buscar producto por nombre o código..." 
-                           @bind="productSearchTerm" @bind:event="oninput" @onkeyup="SearchProducts" disabled="@(selectedCustomer == null)"/>
-
-                    @if (productSearchResults.Any())
-                    {
-                         <ul class="list-group search-results">
-                            @foreach (var product in productSearchResults)
+                             @if (productSearchResults.Any())
                             {
-                                <li class="list-group-item list-group-item-action" @onclick="() => AddItem(product)">
-                                    @product.Nombre (@product.CodigoPrincipal) - <strong>@product.PrecioVentaUnitario.ToString("C")</strong>
-                                </li>
+                                <ul class="list-group position-absolute w-100" style="z-index: 1000;">
+                                    @foreach (var product in productSearchResults)
+                                    {
+                                        <li class="list-group-item list-group-item-action" @onclick="() => AddItem(product)">
+                                            @product.Nombre (@product.CodigoPrincipal) - <strong>@product.PrecioVentaUnitario.ToString("C")</strong>
+                                        </li>
+                                    }
+                                </ul>
                             }
-                        </ul>
-                    }
-                </div>
-            </div>
-        
-            @if (invoiceItems.Any())
-            {
-                <div class="step-section">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h4 class="step-title">Resumen de Factura</h4>
+                        </div>
+
                         <div class="table-responsive">
-                            <table class="table invoice-items-table">
-                                <thead>
+                            <table class="table table-hover">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Producto</th>
                                         <th style="width: 120px;">Cantidad</th>
                                         <th class="text-end">Precio Unit.</th>
                                         <th class="text-end">Subtotal</th>
-                                        <th class="text-center">Quitar</th>
+                                        <th class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @if (!invoiceItems.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">
+                                                <i class="bi bi-cart-x" style="font-size: 2rem;"></i>
+                                                <p class="mb-0">Aún no has añadido productos.</p>
+                                            </td>
+                                        </tr>
+                                    }
                                     @foreach (var item in invoiceItems)
                                     {
                                         <tr>
-                                            <td>@item.ProductName</td>
+                                            <td>
+                                                <strong>@item.ProductName</strong><br/>
+                                                <small class="text-muted">@string.Join(", ", item.Taxes.Select(t => t.Nombre))</small>
+                                            </td>
                                             <td>
                                                 <InputNumber class="form-control form-control-sm" 
                                                              @bind-Value="item.Cantidad"
@@ -116,7 +96,7 @@
                                                 <ValidationMessage For="@(() => item.Cantidad)" />
                                             </td>
                                             <td class="text-end">@item.PrecioVentaUnitario.ToString("C")</td>
-                                            <td class="text-end">@((item.Cantidad * item.PrecioVentaUnitario).ToString("C")))</td>
+                                            <td class="text-end">@((item.Cantidad * item.PrecioVentaUnitario).ToString("C"))</td>
                                             <td class="text-center">
                                                 <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => RemoveItem(item.ProductoId)">
                                                     <i class="bi bi-trash"></i>
@@ -127,39 +107,93 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        <div class="row justify-content-end">
-                            <div class="col-md-5">
-                                <ul class="list-group">
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        Subtotal
-                                        <span>@subtotal.ToString("C")</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        IVA (12%)
-                                        <span>@iva.ToString("C")</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center active">
-                                        <strong>Total</strong>
-                                        <strong>@total.ToString("C")</strong>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
                     </div>
                 </div>
-            }
-        
-            <hr/>
+            </div>
 
-            <div class="d-flex justify-content-end mt-4">
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-person-circle me-2"></i>Información del Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Buscar Cliente</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Nombre o RUC..." 
+                                       @bind="customerSearchTerm" @bind:event="oninput" @onkeyup="SearchCustomers" />
+                            </div>
+                            @if (customerSearchResults.Any())
+                            {
+                                <ul class="list-group position-absolute w-100" style="z-index: 1000;">
+                                    @foreach (var customer in customerSearchResults)
+                                    {
+                                        <li class="list-group-item list-group-item-action" @onclick="() => SelectCustomer(customer)">
+                                            @customer.RazonSocial (@customer.NumeroIdentificacion)
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+
+                        @if (selectedCustomer != null)
+                        {
+                            <div class="alert alert-info">
+                                <strong>@selectedCustomer.RazonSocial</strong><br/>
+                                <i class="bi bi-card-text"></i> @selectedCustomer.NumeroIdentificacion<br/>
+                                <i class="bi bi-envelope"></i> @selectedCustomer.Email
+                                <button type="button" class="btn btn-sm btn-outline-danger float-end" @onclick="ClearCustomer">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-circle me-2"></i>
+                                Por favor, selecciona un cliente.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-receipt-cutoff me-2"></i>Resumen de la Factura</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Subtotal
+                                <span>@subtotal.ToString("C")</span>
+                            </li>
+                            @foreach (var taxSummary in taxSummaries)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    @taxSummary.TaxName (@taxSummary.TaxRate.ToString("0.##")%)
+                                    <span>@taxSummary.Amount.ToString("C")</span>
+                                </li>
+                            }
+                            <li class="list-group-item d-flex justify-content-between align-items-center fs-5 fw-bold bg-light">
+                                Total
+                                <span>@total.ToString("C")</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12 d-flex justify-content-end">
                 <button type="button" class="btn btn-secondary me-2" @onclick='() => Navigation.NavigateTo("/invoices")'>
                     <i class="bi bi-x-circle me-2"></i>Cancelar
                 </button>
                 <button type="submit" class="btn btn-primary" disabled="@(!invoiceItems.Any() || selectedCustomer == null || isSubmitting)">
                      @if (isSubmitting)
                     {
-                        <span class="spinner-border spinner-border-sm me-2"></span> 
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
                         <span>Generando...</span>
                     }
                     else
@@ -169,11 +203,9 @@
                     }
                 </button>
             </div>
-            
-        </EditForm>
-    </div>
+        </div>
+    </EditForm>
 </div>
-
 
 @code {
     private string? errorMessage;
@@ -193,8 +225,8 @@
     private object invoiceModel = new();
     
     private decimal subtotal = 0;
-    private decimal iva = 0;
     private decimal total = 0;
+    private List<TaxSummary> taxSummaries = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -218,7 +250,7 @@
         }
         customerSearchResults = allCustomers
             .Where(c => c.RazonSocial.Contains(customerSearchTerm, StringComparison.OrdinalIgnoreCase) || 
-                        c.NumeroIdentificacion.Contains(customerSearchTerm))
+                        c.NumeroIdentificacion.Contains(customerSearchTerm, StringComparison.OrdinalIgnoreCase))
             .Take(5)
             .ToList();
     }
@@ -249,7 +281,7 @@
             .ToList();
     }
 
-    private void AddItem(ProductDto product)
+    private async Task AddItem(ProductDto product)
     {
         var existingItem = invoiceItems.FirstOrDefault(i => i.ProductoId == product.Id);
         if (existingItem != null)
@@ -258,13 +290,18 @@
         }
         else
         {
-            invoiceItems.Add(new InvoiceItemViewModel
+            var productDetails = await ProductService.GetProductDetailsByIdAsync(product.Id);
+            if (productDetails != null)
             {
-                ProductoId = product.Id,
-                ProductName = product.Nombre,
-                Cantidad = 1,
-                PrecioVentaUnitario = product.PrecioVentaUnitario
-            });
+                invoiceItems.Add(new InvoiceItemViewModel
+                {
+                    ProductoId = productDetails.Id,
+                    ProductName = productDetails.Nombre,
+                    Cantidad = 1,
+                    PrecioVentaUnitario = productDetails.PrecioVentaUnitario,
+                    Taxes = productDetails.Taxes
+                });
+            }
         }
         
         productSearchTerm = string.Empty;
@@ -286,65 +323,77 @@
     {
         subtotal = invoiceItems.Sum(i => i.Cantidad * i.PrecioVentaUnitario);
         
-        // This is a simplified IVA calculation. A real implementation would check each product's taxes.
-        iva = subtotal * 0.12m; 
+        taxSummaries = invoiceItems
+            .SelectMany(item => item.Taxes.Select(tax => new {
+                item.Cantidad,
+                item.PrecioVentaUnitario,
+                TaxName = tax.Nombre,
+                TaxRate = tax.Porcentaje
+            }))
+            .GroupBy(t => new { t.TaxName, t.TaxRate })
+            .Select(g => new TaxSummary {
+                TaxName = g.Key.TaxName,
+                TaxRate = g.Key.TaxRate,
+                Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.TaxRate / 100))
+            })
+            .ToList();
 
-        total = subtotal + iva;
+        total = subtotal + taxSummaries.Sum(ts => ts.Amount);
         StateHasChanged();
     }
 
     private async Task HandleCreateInvoice()
-{
-    isSubmitting = true;
-    errorMessage = null;
-
-    if (selectedCustomer == null || !invoiceItems.Any())
     {
-        errorMessage = "Debe seleccionar un cliente y añadir al menos un producto.";
-        isSubmitting = false;
-        return;
-    }
+        isSubmitting = true;
+        errorMessage = null;
 
-    var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-    var user = authState.User;
-    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-
-    if (string.IsNullOrEmpty(userId))
-    {
-        errorMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
-        isSubmitting = false;
-        return;
-    }
-
-    var createDto = new CreateInvoiceDto
-    {
-        ClienteId = selectedCustomer.Id,
-        UsuarioIdCreador = Guid.Parse(userId),
-        Items = invoiceItems.Select(i => new InvoiceItemDto
+        if (selectedCustomer == null || !invoiceItems.Any())
         {
-            ProductoId = i.ProductoId,
-            Cantidad = i.Cantidad
-        }).ToList()
-    };
+            errorMessage = "Debe seleccionar un cliente y añadir al menos un producto.";
+            isSubmitting = false;
+            return;
+        }
 
-    try
-    {
-        await InvoiceService.CreateInvoiceAsync(createDto);
-        Navigation.NavigateTo("/invoices");
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            errorMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+            isSubmitting = false;
+            return;
+        }
+
+        var createDto = new CreateInvoiceDto
+        {
+            ClienteId = selectedCustomer.Id,
+            UsuarioIdCreador = Guid.Parse(userId),
+            Items = invoiceItems.Select(i => new InvoiceItemDto
+            {
+                ProductoId = i.ProductoId,
+                Cantidad = i.Cantidad
+            }).ToList()
+        };
+
+        try
+        {
+            await InvoiceService.CreateInvoiceAsync(createDto);
+            Navigation.NavigateTo("/invoices");
+        }
+        catch (InvalidOperationException stockEx)
+        {
+            errorMessage = stockEx.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado al generar la factura: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
-    catch (InvalidOperationException stockEx)
-    {
-        errorMessage = stockEx.Message;
-    }
-    catch (Exception ex)
-    {
-        errorMessage = $"Error inesperado al generar la factura: {ex.Message}";
-    }
-    finally
-    {
-        isSubmitting = false;
-    }
-}
 
     public class InvoiceItemViewModel
     {
@@ -355,5 +404,13 @@
         public int Cantidad { get; set; }
         
         public decimal PrecioVentaUnitario { get; set; }
+        public List<TaxDto> Taxes { get; set; } = new();
+    }
+
+    public class TaxSummary
+    {
+        public string TaxName { get; set; } = string.Empty;
+        public decimal TaxRate { get; set; }
+        public decimal Amount { get; set; }
     }
 }
