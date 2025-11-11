@@ -212,5 +212,33 @@ namespace FacturasSRI.Infrastructure.Services
                 EstaActivo = firstProductTax.Impuesto.EstaActivo
             };
         }
+
+        public async Task<ProductDetailDto?> GetProductDetailsByIdAsync(Guid id)
+        {
+            var product = await _context.Productos
+                .Where(p => p.Id == id)
+                .Select(p => new ProductDetailDto
+                {
+                    Id = p.Id,
+                    CodigoPrincipal = p.CodigoPrincipal,
+                    Nombre = p.Nombre,
+                    Descripcion = p.Descripcion,
+                    PrecioVentaUnitario = p.PrecioVentaUnitario,
+                    ManejaInventario = p.ManejaInventario,
+                    ManejaLotes = p.ManejaLotes,
+                    IsActive = p.EstaActivo,
+                    StockTotal = p.ManejaLotes ? p.Lotes.Sum(l => l.CantidadDisponible) : p.StockTotal,
+                    Taxes = p.ProductoImpuestos.Select(pi => new TaxDto
+                    {
+                        Id = pi.Impuesto.Id,
+                        Nombre = pi.Impuesto.Nombre,
+                        CodigoSRI = pi.Impuesto.CodigoSRI,
+                        Porcentaje = pi.Impuesto.Porcentaje,
+                        EstaActivo = pi.Impuesto.EstaActivo
+                    }).ToList()
+                }).FirstOrDefaultAsync();
+
+            return product;
+        }
     }
 }

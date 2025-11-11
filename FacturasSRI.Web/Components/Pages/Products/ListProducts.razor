@@ -175,7 +175,7 @@
     {
         try
         {
-            allTaxes = await TaxService.GetTaxesAsync();
+            allTaxes = await TaxService.GetActiveTaxesAsync();
         }
         catch (Exception ex)
         {
