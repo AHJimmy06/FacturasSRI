@@ -4,17 +4,20 @@
 @inject NavigationManager Navigation
 @inject ILogger<MainLayout> Logger
 
-<div class="page">
+<div class="page @(isNavMenuCollapsed ? "nav-menu-collapsed" : "")">
     <AuthorizeView>
         <Authorized>
             <div class="sidebar">
-                <NavMenu />
+                <NavMenu IsCollapsed="isNavMenuCollapsed" />
             </div>
         </Authorized>
     </AuthorizeView>
 
     <main class="main-content">
         <div class="top-bar">
+            <button class="btn btn-link nav-menu-toggle" @onclick="ToggleNavMenu">
+                <i class="bi @(isNavMenuCollapsed ? "bi-list" : "bi-x-lg")"></i>
+            </button>
             <AuthorizeView>
                 <Authorized>
                     <div class="dropdown">
@@ -70,10 +73,16 @@
 
 @code {
     private ErrorBoundary? errorBoundary;
+    private bool isNavMenuCollapsed = false;
 
     protected override void OnParametersSet()
     {
         errorBoundary?.Recover();
+    }
+
+    private void ToggleNavMenu()
+    {
+        isNavMenuCollapsed = !isNavMenuCollapsed;
     }
 
     private async Task HandleLogout()
