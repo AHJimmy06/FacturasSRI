@@ -41,7 +41,7 @@ html, body {
 
 .sidebar {
     width: 260px;
-    background-color: var(--primary-dark);
+    background-color: #34495e; /* Softer dark blue-gray */
     color: var(--white);
     display: flex;
     flex-direction: column;
@@ -119,7 +119,7 @@ html, body {
     align-items: center;
     padding: 0.8rem 1rem;
     border-radius: 0.5rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9); /* Adjusted text color */
     font-weight: 500;
     transition: background-color 0.2s, color 0.2s;
     text-decoration: none;
@@ -135,7 +135,7 @@ html, body {
     font-size: 1.2rem;
     width: 24px;
     text-align: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.7); /* Adjusted icon color */
     transition: color 0.2s;
 }
 
@@ -151,20 +151,20 @@ html, body {
 }
 
 .nav-item .nav-link.active {
-    background-color: var(--accent-color);
-    color: var(--white);
+    background-color: var(--primary-light); /* Softer active background */
+    color: var(--primary-dark); /* Darker text for active link */
     font-weight: 600;
 }
 
 .nav-item .nav-link.active i {
-    color: var(--white);
+    color: var(--primary-dark); /* Darker icon for active link */
 }
 
 .nav-submenu {
     list-style: none;
     padding: 0.5rem 0 0.5rem 1rem;
     margin: 0;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 0, 0, 0.1); /* Softer submenu background */
     border-radius: 0.5rem;
     overflow: hidden;
 }
@@ -172,7 +172,7 @@ html, body {
 .nav-submenu li a {
     display: block;
     padding: 0.7rem 1rem 0.7rem 3rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.8); /* Adjusted submenu text color */
     border-radius: 0.375rem;
     text-decoration: none;
     position: relative;
@@ -181,7 +181,7 @@ html, body {
 }
 
 .nav-submenu a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05); /* Softer submenu hover */
     color: var(--white);
 }
 
