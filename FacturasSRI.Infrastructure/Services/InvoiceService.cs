@@ -235,5 +235,70 @@ namespace FacturasSRI.Infrastructure.Services
                               CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
                           }).ToListAsync();
         }
+
+        public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
+        {
+            var invoice = await _context.Facturas
+                .Include(i => i.Cliente)
+                .Include(i => i.Detalles)
+                    .ThenInclude(d => d.Producto)
+                        .ThenInclude(p => p.ProductoImpuestos)
+                            .ThenInclude(pi => pi.Impuesto)
+                .Where(i => i.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (invoice == null)
+            {
+                return null;
+            }
+
+            var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
+            {
+                ProductoId = d.ProductoId,
+                ProductName = d.Producto.Nombre,
+                Cantidad = d.Cantidad,
+                PrecioVentaUnitario = d.PrecioVentaUnitario,
+                Subtotal = d.Subtotal,
+                Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto
+                {
+                    Id = pi.Impuesto.Id,
+                    Nombre = pi.Impuesto.Nombre,
+                    CodigoSRI = pi.Impuesto.CodigoSRI,
+                    Porcentaje = pi.Impuesto.Porcentaje,
+                    EstaActivo = pi.Impuesto.EstaActivo
+                }).ToList()
+            }).ToList();
+
+            var taxSummaries = items
+                .SelectMany(item => item.Taxes.Select(tax => new {
+                    item.Cantidad,
+                    item.PrecioVentaUnitario,
+                    TaxName = tax.Nombre,
+                    TaxRate = tax.Porcentaje
+                }))
+                .GroupBy(t => new { t.TaxName, t.TaxRate })
+                .Select(g => new Application.Dtos.TaxSummary { // Use the DTO version of TaxSummary
+                    TaxName = g.Key.TaxName,
+                    TaxRate = g.Key.TaxRate,
+                    Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.TaxRate / 100))
+                })
+                .ToList();
+
+            return new InvoiceDetailViewDto
+            {
+                Id = invoice.Id,
+                NumeroFactura = invoice.NumeroFactura,
+                FechaEmision = invoice.FechaEmision,
+                ClienteNombre = invoice.Cliente.RazonSocial,
+                ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion,
+                ClienteDireccion = invoice.Cliente.Direccion,
+                ClienteEmail = invoice.Cliente.Email,
+                SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
+                TotalIVA = invoice.TotalIVA,
+                Total = invoice.Total,
+                Items = items,
+                TaxSummaries = taxSummaries
+            };
+        }
     }
 }
