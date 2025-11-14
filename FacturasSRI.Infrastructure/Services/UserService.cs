@@ -13,17 +13,29 @@ namespace FacturasSRI.Infrastructure.Services
     public class UserService : IUserService
     {
         private readonly FacturasSRIDbContext _context;
-        public UserService(FacturasSRIDbContext context)
+        private readonly IEmailService _emailService;
+
+        public UserService(FacturasSRIDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
+        }
+
+        private string GenerateTemporaryPassword(int length = 12)
+        {
+            const string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()";
+            var random = new Random();
+            var password = new char[length];
+            for (int i = 0; i < length; i++)
+            {
+                password[i] = validChars[random.Next(validChars.Length)];
+            }
+            return new string(password);
         }
 
         public async Task<UserDto> CreateUserAsync(UserDto userDto)
         {
-            if (string.IsNullOrWhiteSpace(userDto.Password))
-            {
-                throw new ArgumentException("La contraseña es obligatoria para crear un usuario.");
-            }
+            var temporaryPassword = GenerateTemporaryPassword();
 
             var user = new Usuario
             {
@@ -33,7 +45,7 @@ namespace FacturasSRI.Infrastructure.Services
                 PrimerApellido = userDto.PrimerApellido,
                 SegundoApellido = userDto.SegundoApellido,
                 Email = userDto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(temporaryPassword),
                 EstaActivo = userDto.EstaActivo
             };
 
@@ -44,9 +56,10 @@ namespace FacturasSRI.Infrastructure.Services
 
             _context.Usuarios.Add(user);
             await _context.SaveChangesAsync();
+
+            await _emailService.SendWelcomeEmailAsync(user.Email, user.PrimerNombre, temporaryPassword);
             
             userDto.Id = user.Id;
-            userDto.Password = null;
             return userDto;
         }
 
@@ -142,11 +155,6 @@ namespace FacturasSRI.Infrastructure.Services
                 user.SegundoApellido = userDto.SegundoApellido;
                 user.Email = userDto.Email;
                 user.EstaActivo = userDto.EstaActivo;
-
-                if (!string.IsNullOrWhiteSpace(userDto.Password))
-                {
-                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
-                }
 
                 _context.UsuarioRoles.RemoveRange(user.UsuarioRoles);
                 foreach (var rolId in userDto.RolesId)
