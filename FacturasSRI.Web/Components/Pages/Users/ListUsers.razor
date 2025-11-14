@@ -98,7 +98,7 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Correo Electrónico</label>
-                                <InputText type="email" class="form-control" @bind-Value="editingUserModel.Email" />
+                                <InputText type="email" class="form-control" @bind-Value="editingUserModel.Email" readonly />
                                 <ValidationMessage For="@(() => editingUserModel.Email)" />
                             </div>
                             <div class="col-md-6 mb-3">
@@ -114,16 +114,6 @@
                                     </InputSelect>
                                     <ValidationMessage For="@(() => editingUserModel.RoleId)" />
                                 }
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Nueva Contraseña</label>
-                                <InputText type="password" class="form-control" @bind-Value="editingUserModel.Password" placeholder="Dejar en blanco para no cambiar" />
-                                <ValidationMessage For="@(() => editingUserModel.Password)" />
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Confirmar Nueva Contraseña</label>
-                                <InputText type="password" class="form-control" @bind-Value="editingUserModel.ConfirmPassword" />
-                                <ValidationMessage For="@(() => editingUserModel.ConfirmPassword)" />
                             </div>
                             <div class="col-md-6 mb-3 form-check">
                                 <InputCheckbox class="form-check-input" @bind-Value="editingUserModel.EstaActivo" />
@@ -217,11 +207,6 @@
             RolesId = new List<Guid> { editingUserModel.RoleId }
         };
 
-        if (!string.IsNullOrWhiteSpace(editingUserModel.Password))
-        {
-            userToUpdate.Password = editingUserModel.Password;
-        }
-
         await UserService.UpdateUserAsync(userToUpdate);
         CloseEditModal();
         await LoadData();
@@ -283,31 +268,12 @@
         [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
         public string Email { get; set; } = string.Empty;
 
-        public string? Password { get; set; }
-        public string? ConfirmPassword { get; set; }
-
         public bool EstaActivo { get; set; }
         
         public Guid RoleId { get; set; }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (!string.IsNullOrWhiteSpace(Password))
-            {
-                if (string.IsNullOrWhiteSpace(ConfirmPassword))
-                {
-                    yield return new ValidationResult(
-                        "La confirmación de contraseña es requerida cuando se establece una nueva contraseña.",
-                        new[] { nameof(ConfirmPassword) });
-                }
-                else if (Password != ConfirmPassword)
-                {
-                    yield return new ValidationResult(
-                        "La contraseña y la confirmación de contraseña no coinciden.",
-                        new[] { nameof(ConfirmPassword) });
-                }
-            }
-
             if (RoleId == Guid.Empty)
             {
                 yield return new ValidationResult(

@@ -41,16 +41,6 @@
                     <ValidationMessage For="@(() => createUserModel.Email)" />
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Contraseña</label>
-                    <InputText type="password" class="form-control" @bind-Value="createUserModel.Password" />
-                    <ValidationMessage For="@(() => createUserModel.Password)" />
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Confirmar Contraseña</label>
-                    <InputText type="password" class="form-control" @bind-Value="createUserModel.ConfirmPassword" />
-                    <ValidationMessage For="@(() => createUserModel.ConfirmPassword)" />
-                </div>
-                <div class="col-md-4 mb-3">
                     <label class="form-label">Rol</label>
                     @if (allRoles.Any())
                     {
@@ -100,7 +90,6 @@
             PrimerApellido = createUserModel.PrimerApellido,
             SegundoApellido = createUserModel.SegundoApellido,
             Email = createUserModel.Email,
-            Password = createUserModel.Password,
             RolesId = new List<Guid> { selectedRoleId }
         };
         
@@ -124,11 +113,5 @@
         [Required(ErrorMessage = "El correo electrónico es requerido.")]
         [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
         public string Email { get; set; } = string.Empty;
-        [Required(ErrorMessage = "La contraseña es requerida.")]
-        [StringLength(100, ErrorMessage = "La contraseña debe tener al menos {2} caracteres.", MinimumLength = 6)]
-        public string Password { get; set; } = string.Empty;
-        [Required(ErrorMessage = "La confirmación de contraseña es requerida.")]
-        [Compare("Password", ErrorMessage = "La contraseña y la confirmación de contraseña no coinciden.")]
-        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }

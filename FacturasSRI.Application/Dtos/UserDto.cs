@@ -20,9 +20,6 @@ namespace FacturasSRI.Application.Dtos
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "La contraseña es obligatoria.")]
-        [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
-        public string? Password { get; set; }
         public bool EstaActivo { get; set; } = true;
         public DateTime FechaCreacion { get; set; }
         public DateTime? FechaModificacion { get; set; }
