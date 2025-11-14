@@ -18,7 +18,7 @@
     --border-color: #E0E0E0;
     --success-color: #4CAF50;
     --success-color-rgb: 76, 175, 80;
-    --error-color: #D32F2F;
+    --error-color: #FF5252; /* Changed to match accent color */
     --white: #FFFFFF;
     --font-family-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     --box-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.07);
@@ -527,3 +527,31 @@ html, body {
     -webkit-backdrop-filter: blur(15px);
 }
 
+/* ==========================================================================
+   Formularios y Validación
+   ========================================================================== */
+
+/* Estilo para los mensajes de error (ej: "El primer nombre es requerido") */
+.validation-message {
+    color: var(--error-color); /* <-- Esta es la línea clave */
+    font-size: 0.875rem;       /* Hacemos la fuente un poco más pequeña */
+    margin-top: 0.25rem;
+}
+
+/* Estilo para los inputs que fallan la validación (se les añade la clase .invalid) */
+.form-control.invalid,
+.form-select.invalid,
+textarea.invalid,
+input.invalid {
+    border-color: var(--error-color); /* Borde rojo */
+}
+
+/* Opcional: Estilo para cuando se hace foco en un input inválido */
+.form-control.invalid:focus,
+.form-select.invalid:focus,
+textarea.invalid:focus,
+input.invalid:focus {
+    border-color: var(--error-color);
+    /* Usamos la variable RGB que ya tenías definida para el 'box-shadow' */
+    box-shadow: 0 0 0 0.25rem rgba(var(--accent-color-rgb), 0.25); 
+}
