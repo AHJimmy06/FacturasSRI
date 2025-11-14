@@ -1,139 +1,388 @@
+/* ==========================================================================
+   Global Variables & Reset
+   ========================================================================== */
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --primary-color: #1A237E; /* Indigo 900 */
+    --primary-color: #1A237E;
     --primary-dark: #1A237E;
-    --primary-light: #C5CAE9; /* Indigo 100 */
-    --secondary-color: #F5F5F5; /* Grey 100 */
-    --accent-color: #FF5252; /* Red A200 */
-    --text-color: #212121; /* Grey 900 */
-    --text-color-light: #757575; /* Grey 600 */
+    --primary-dark-rgb: 26, 35, 126;
+    --primary-light: #C5CAE9;
+    --secondary-color: #F5F5F5;
+    --accent-color: #FF5252;
+    --accent-color-rgb: 255, 82, 82;
+    --text-color: #212121;
+    --text-color-light: #757575;
     --background-color: #FFFFFF;
-    --border-color: #E0E0E0; /* Grey 300 */
+    --border-color: #E0E0E0;
     --success-color: #4CAF50;
-    --error-color: #D32F2F;
+    --success-color-rgb: 76, 175, 80;
+    --error-color: #FF5252; /* Changed to match accent color */
     --white: #FFFFFF;
-
-    --font-family-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    
-    --box-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-    --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --font-family-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    --box-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.07);
+    --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 html, body {
     font-family: var(--font-family-sans-serif);
     background-color: var(--secondary-color);
     color: var(--text-color);
+    height: 100%;
 }
 
-a {
-    color: var(--primary-dark);
-    text-decoration: none;
-    transition: color 0.15s ease-in-out;
+/* ==========================================================================
+   Main Layout
+   ========================================================================== */
+
+.page {
+    display: flex;
+    height: 100vh;
 }
 
-a:hover {
-    color: var(--accent-color);
+.sidebar {
+    width: 260px;
+    background-color: var(--background-color); /* Changed to white */
+    color: var(--text-color); /* Changed to dark text */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 1000;
+    box-shadow: var(--box-shadow-lg);
+    border-right: 1px solid var(--border-color); /* Added border */
+    transition: width 0.3s ease; /* Smooth transition for width */
 }
 
-h1, h2, h3, h4, h5, h6 {
-    color: var(--primary-dark);
-    font-weight: 600;
-}
-
-.btn {
-    border-radius: 0.375rem;
-    font-weight: 600;
-    transition: all 0.15s ease-in-out;
-    box-shadow: var(--box-shadow-sm);
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--box-shadow);
-}
-
-.btn-primary {
-    color: var(--white);
-    background-color: var(--primary-dark);
-    border-color: var(--primary-dark);
-}
-
-.btn-primary:hover {
-    background-color: #10164E;
-    border-color: #10164E;
-}
-
-.btn-secondary {
-    background-color: var(--white);
-    border-color: var(--border-color);
-    color: var(--text-color);
-}
-
-.btn-danger {
-    background-color: var(--error-color);
-    border-color: var(--error-color);
-    color: var(--white);
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
-}
-
-h1:focus {
-    outline: none;
-}
-
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid var(--success-color);
-}
-
-.invalid {
-    border-color: var(--error-color);
-    outline: none;
-}
-
-.validation-message {
-    color: var(--error-color);
-    font-size: 0.875em;
-}
-
-.blazor-error-boundary {
-    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZGhjPSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMyNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS4yMzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My4zNzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
-    padding: 1rem 1rem 1rem 3.7rem;
-    color: white;
-}
-
-    .blazor-error-boundary::after {
-        content: "An error has occurred."
-    }
-
-/* General Layout */
 .main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between; /* Changed from flex-end */
+    align-items: center;
+    padding: 0 1.5rem;
+    height: 60px;
+    background-color: var(--background-color);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--box-shadow-sm); /* Added from old MainLayout.razor.css */
+    flex-shrink: 0;
+}
+
+.nav-menu-toggle {
+    font-size: 1.5rem;
+    color: var(--text-color);
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    margin-right: 1rem; /* Add some margin to separate it from content */
+}
+
+.nav-menu-toggle:hover {
+    color: var(--primary-dark);
+}
+
+.top-bar .dropdown .dropdown-toggle {
+    color: var(--text-color); /* Original color from old MainLayout.razor.css */
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.top-bar .dropdown .dropdown-toggle:hover {
+    color: var(--primary-dark); /* Original color from old MainLayout.razor.css */
+}
+
+.content {
     padding: 2rem;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* ==========================================================================
+   NavMenu - Restored Original Styles
+   ========================================================================== */
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     width: 100%;
+    background-color: var(--background-color); /* Ensure white background */
+}
+
+.nav-header {
+    padding: 1rem; /* Original padding */
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color); /* Original border */
+    flex-shrink: 0;
+}
+
+.nav-header .navbar-brand {
+    color: var(--primary-dark); /* Original color */
+    font-weight: 700; /* Original font weight */
+    font-size: 1.25rem; /* Original font size */
+    gap: 0.75rem; /* Original gap */
+}
+
+.nav-header .navbar-brand i {
+    font-size: 1.5rem; /* Original font size */
+    color: var(--accent-color); /* Original color */
+}
+
+.nav-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem 0; /* Original padding */
+    min-height: 0;
+}
+
+.page.nav-menu-collapsed .sidebar {
+    overflow: visible;
+}
+
+.page.nav-menu-collapsed .nav-container {
+    overflow: visible;
+}
+
+.nav-item, .nav-section {
+    padding: 0 1rem; /* Original padding */
+    margin-bottom: 0.25rem; /* Original margin */
+}
+
+.nav-item .nav-link,
+.nav-link-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem; /* Original padding */
+    border-radius: 0.375rem; /* Original border-radius */
+    color: var(--text-color-light); /* Original color */
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+    text-decoration: none;
+}
+
+.nav-link-header {
+    cursor: pointer;
+}
+
+.nav-item .nav-link i,
+.nav-link-header i {
+    margin-right: 1rem;
+    font-size: 1.125rem; /* Original font size */
+    width: 20px; /* Original width */
+    text-align: center;
+    color: var(--text-color-light); /* Original color */
+    transition: color 0.2s;
+}
+
+.nav-submenu li a .submenu-icon {
+    margin-right: 0.75rem; /* Adjust margin for alignment */
+    font-size: 1rem; /* Slightly smaller icon size */
+    color: var(--text-color-light); /* Lighter color */
+}
+
+.nav-item .nav-link:hover,
+.nav-link-header:hover {
+    background-color: var(--primary-light); /* Original hover background */
+    color: var(--primary-dark); /* Original hover color */
+}
+
+.nav-item .nav-link:hover i,
+.nav-link-header:hover i {
+    color: var(--primary-dark); /* Original hover icon color */
+}
+
+.nav-item .nav-link.active {
+    background-color: var(--primary-dark); /* Original active background */
+    color: var(--white); /* Original active color */
+    font-weight: 600;
+}
+
+.nav-item .nav-link.active i {
+    color: var(--white); /* Original active icon color */
+}
+
+.nav-submenu {
+    list-style: none;
+    padding: 0; /* Original padding */
+    margin: 0.5rem 0 0 0; /* Original margin */
+    background-color: transparent; /* Ensure no background */
+    border-radius: 0; /* Ensure no border-radius */
+    overflow: visible; /* Ensure no overflow hidden */
+}
+
+.nav-submenu li a {
+    display: flex; /* Added flex to align icon and text */
+    align-items: center;
+    padding: 0.6rem 1rem 0.6rem calc(1rem + 20px + 1rem); /* Original padding */
+    color: var(--text-color-light); /* Original color */
+    opacity: 0.85; /* Original opacity */
+    border-radius: 0.375rem; /* Original border-radius */
+    text-decoration: none;
+    position: relative;
+    font-size: 0.95rem;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-submenu a:hover {
+    background-color: var(--primary-light); /* Original hover background */
+    color: var(--primary-dark); /* Original hover color */
+    opacity: 1; /* Original opacity */
+}
+
+.nav-submenu a.active {
+    color: var(--primary-dark); /* Original active color */
+    font-weight: 700; /* Original font weight */
+    background-color: var(--primary-light); /* Original active background */
+    opacity: 1; /* Original opacity */
+}
+
+.nav-section:has(.nav-submenu a.active) > .nav-link-header {
+    background-color: var(--primary-light); /* Original background */
+    color: var(--primary-dark); /* Original color */
+    font-weight: 600;
+}
+
+/* Collapsed NavMenu */
+.page.nav-menu-collapsed .sidebar {
+    width: 80px; /* Reduced width for collapsed state */
+}
+
+.page.nav-menu-collapsed .nav-header .navbar-brand span {
+    display: none; /* Hide text */
+}
+
+.page.nav-menu-collapsed .nav-item .nav-link span,
+.page.nav-menu-collapsed .nav-link-header span {
+    display: none; /* Hide text */
+}
+
+.page.nav-menu-collapsed .nav-link-header i.ms-auto {
+    display: none; /* Hide chevron icon */
+}
+
+.page.nav-menu-collapsed .nav-item .nav-link,
+.page.nav-menu-collapsed .nav-link-header {
+    justify-content: center; /* Center icons */
+    padding: 0.8rem 0.5rem; /* Adjust padding */
+}
+
+.page.nav-menu-collapsed .nav-item .nav-link i,
+.page.nav-menu-collapsed .nav-link-header i {
+    margin-right: 0; /* Remove margin */
+}
+
+/* New styles for collapsed submenus */
+.page.nav-menu-collapsed .nav-section {
+    position: relative; /* Make nav-section a positioning context */
+}
+
+.page.nav-menu-collapsed .nav-submenu {
+    position: absolute; /* Position absolutely to overlay content */
+    left: 100%; /* Position to the right of the parent nav-section */
+    
+    /* CAMBIO: Ajustado para mejor alineación */
+    top: -0.25rem; 
+    margin-left: -0.5rem; /* Añade un pequeño espacio */
+    
+    background-color: var(--background-color); /* Background for the overlay submenu */
+    border-radius: 0.5rem;
+    box-shadow: var(--box-shadow-lg);
+    min-width: 200px; /* Ensure it has enough width */
+    z-index: 1001; /* Ensure it's above other content */
+    padding: 0.5rem;
+    
+    /* CAMBIO: Oculto por defecto */
+    display: none; 
+    
+    max-height: calc(100vh - 60px - 1rem); /* Max height for scroll */
+    overflow-y: auto; /* Add scroll for overflow */
+    overflow-x: hidden;
+}
+
+/* CAMBIO: Selector :hover AÑADIDO para mostrar el popover */
+.page.nav-menu-collapsed .nav-section:hover .nav-submenu {
+    display: block; /* Mostrar en hover */
+}
+
+
+.page.nav-menu-collapsed .nav-submenu li a {
+    padding: 0.6rem 1rem; /* Adjust padding for collapsed submenu items */
+    justify-content: flex-start; /* Align text to start */
+}
+
+.page.nav-menu-collapsed .nav-submenu li a .submenu-icon {
+    margin-right: 0.75rem; /* Keep icon margin */
+}
+
+/* ==========================================================================
+   Login Page
+   ========================================================================== */
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    background: linear-gradient(-45deg, #1A237E, #2575fc, #6a11cb, #FF5252);
+    background-size: 400% 400%;
+    animation: gradient-animation 15s ease infinite;
+}
+
+@keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.login-card {
+    max-width: 450px;
+    width: 100%;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+}
+
+/* ==========================================================================
+   General Content Styles
+   ========================================================================== */
+
+.page-title {
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-bottom: 0.5rem;
 }
 
 .card {
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    box-shadow: var(--box-shadow-sm);
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: var(--box-shadow);
     background-color: var(--background-color);
 }
 
 .card-header {
-    background-color: var(--secondary-color);
+    background-color: transparent;
     border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     color: var(--primary-dark);
+    padding: 1rem 1.5rem;
 }
 
-.modal-content {
-    border-radius: 0.5rem;
-    box-shadow: var(--box-shadow-lg);
+.card-body {
+    padding: 1.5rem;
 }
 
 .table {
@@ -142,17 +391,167 @@ h1:focus {
 
 .table thead th {
     background-color: var(--secondary-color);
-    color: var(--primary-dark);
-    border-bottom-width: 2px;
+    color: var(--text-color-light);
+    border-bottom-width: 1px;
     font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
 }
 
-.form-control, .form-select {
+.table tbody tr:hover {
+    background-color: var(--secondary-color);
+}
+
+.btn {
     border-radius: 0.375rem;
-    border-color: var(--border-color);
+    font-weight: 600;
+    transition: all 0.15s ease-in-out;
 }
 
-.form-control:focus, .form-select:focus {
-    border-color: var(--primary-light);
-    box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
+.btn-primary {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.btn-primary:hover {
+    background-color: #10164E;
+    border-color: #10164E;
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow);
+}
+
+#blazor-error-ui {
+    display: none !important;
+}
+
+/* ==========================================================================
+   Dashboard Styles
+   ========================================================================== */
+
+.dashboard-header {
+    margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+    font-weight: 700;
+}
+
+.dashboard-header p {
+    color: var(--text-color-light);
+    font-size: 1.1rem;
+}
+
+.summary-card .card-body {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.summary-card .card-icon {
+    font-size: 2.5rem;
+    color: var(--primary-light);
+    margin-right: 1.5rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(var(--primary-light-rgb), 0.2); /* Example: light background for icon */
+}
+
+.summary-card-invoices .card-icon {
+    color: var(--primary-dark);
+    background-color: rgba(var(--primary-dark-rgb), 0.1);
+}
+
+.summary-card-clients .card-icon {
+    color: var(--success-color);
+    background-color: rgba(var(--success-color-rgb), 0.1);
+}
+
+.summary-card-income .card-icon {
+    color: var(--accent-color);
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+}
+
+.summary-card .card-content h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color-light);
+    margin: 0;
+}
+
+.summary-card .card-content p {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0;
+}
+
+/* ==========================================================================
+   Auth Forms (Login, Reset Password, etc.)
+   ========================================================================== */
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    background: linear-gradient(-45deg, #1A237E, #2575fc, #6a11cb, #FF5252);
+    background-size: 400% 400%;
+    animation: gradient-animation 15s ease infinite;
+}
+
+.auth-card {
+    max-width: 450px;
+    width: 100%;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+}
+
+.login-card {
+    max-width: 450px;
+    width: 100%;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+}
+
+/* ==========================================================================
+   Formularios y Validación
+   ========================================================================== */
+
+/* Estilo para los mensajes de error (ej: "El primer nombre es requerido") */
+.validation-message {
+    color: var(--error-color); /* <-- Esta es la línea clave */
+    font-size: 0.875rem;       /* Hacemos la fuente un poco más pequeña */
+    margin-top: 0.25rem;
+}
+
+/* Estilo para los inputs que fallan la validación (se les añade la clase .invalid) */
+.form-control.invalid,
+.form-select.invalid,
+textarea.invalid,
+input.invalid {
+    border-color: var(--error-color); /* Borde rojo */
+}
+
+/* Opcional: Estilo para cuando se hace foco en un input inválido */
+.form-control.invalid:focus,
+.form-select.invalid:focus,
+textarea.invalid:focus,
+input.invalid:focus {
+    border-color: var(--error-color);
+    /* Usamos la variable RGB que ya tenías definida para el 'box-shadow' */
+    box-shadow: 0 0 0 0.25rem rgba(var(--accent-color-rgb), 0.25); 
 }

@@ -16,6 +16,9 @@ namespace FacturasSRI.Domain.Entities
         public bool EstaActivo { get; set; } = true;
         public Guid UsuarioIdCreador { get; set; }
         public DateTime FechaCreacion { get; set; }
+        public DateTime? FechaModificacion { get; set; }
+        public Guid? UsuarioModificadorId { get; set; }
+        public string? UltimaModificacionPor { get; set; }
         public virtual ICollection<Factura> Facturas { get; set; } = new List<Factura>();
         public virtual ICollection<NotaDeCredito> NotasDeCredito { get; set; } = new List<NotaDeCredito>();
     }

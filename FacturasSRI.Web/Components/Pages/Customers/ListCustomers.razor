@@ -1,0 +1,191 @@
+@page "/customers"
+@attribute [Authorize(Policy = "VendedorPolicy")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Authorization
+@inject ICustomerService CustomerService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUserService UserService
+
+<PageTitle>Lista de Clientes</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Clientes</h1>
+    <button class="btn btn-primary" @onclick="GoToCreateCustomer">
+        <i class="bi bi-plus-circle-fill me-2"></i>Crear Nuevo Cliente
+    </button>
+</div>
+
+<div class="mb-3">
+    <input type="text" class="form-control" placeholder="Buscar clientes por razón social o identificación..." @bind-value="searchTerm" @bind-value:event="oninput" />
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Razón Social</th>
+            <th>Número de Identificación</th>
+            <th>Correo Electrónico</th>
+            <th>Teléfono</th>
+            <th>Creado por</th>
+            <th>Última edición por</th>
+            <th>Fecha de edición</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var customer in FilteredCustomers) // Use FilteredCustomers
+        {
+            <tr>
+                <td>@customer.RazonSocial</td>
+                <td>@customer.NumeroIdentificacion</td>
+                <td>@customer.Email</td>
+                <td>@customer.Telefono</td>
+                <td>@customer.CreadoPor</td>
+                <td>@customer.UltimaModificacionPor</td>
+                <td>@(customer.FechaModificacion.HasValue ? customer.FechaModificacion.Value.ToShortDateString() : "N/A")</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => OpenEditModal(customer)">Editar</button>
+                    <button class="btn btn-sm @(customer.EstaActivo ? "btn-danger" : "btn-success")" @onclick="() => HandleDeleteCustomer(customer.Id)">
+                        @(customer.EstaActivo ? "Desactivar" : "Activar")
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+@if (customerToEdit != null)
+{
+    <EditCustomerModal Customer="customerToEdit" IsVisible="isEditModalVisible" OnSave="HandleUpdateCustomer" OnClose="CloseEditModal" />
+}
+
+
+<ConfirmationModal IsVisible="showConfirmationModal"
+                   Title="@confirmationModalTitle"
+                   Message="@confirmationModalMessage"
+                   OnConfirm="ConfirmToggleCustomerStatus"
+                   OnCancel="CancelToggleCustomerStatus" />
+
+@code {
+    private List<CustomerDto> allCustomers = new(); // Holds all customers
+    private CustomerDto? customerToEdit;
+    private bool isEditModalVisible = false;
+
+    // Confirmation Modal State
+    private bool showConfirmationModal = false;
+    private string confirmationModalTitle = string.Empty;
+    private string confirmationModalMessage = string.Empty;
+    private Guid customerToToggleId;
+
+    private string searchTerm = string.Empty; // New property for search
+
+    private List<CustomerDto> FilteredCustomers => string.IsNullOrWhiteSpace(searchTerm)
+        ? allCustomers
+        : allCustomers.Where(c => c.RazonSocial.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                  c.NumeroIdentificacion.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                      .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+    
+    private async Task LoadCustomers()
+    {
+        allCustomers = await CustomerService.GetCustomersAsync(); // Load all customers
+    }
+
+    private void HandleDeleteCustomer(Guid id)
+    {
+        var customerToToggle = allCustomers.FirstOrDefault(c => c.Id == id);
+        if (customerToToggle == null) return;
+
+        customerToToggleId = id;
+        confirmationModalTitle = "Confirmar Acción";
+        confirmationModalMessage = $"¿Está seguro de que desea {(customerToToggle.EstaActivo ? "desactivar" : "activar")} al cliente {customerToToggle.RazonSocial}?";
+        showConfirmationModal = true;
+    }
+
+    private async Task ConfirmToggleCustomerStatus()
+    {
+        showConfirmationModal = false; // Hide the modal
+
+        var customerToToggle = allCustomers.FirstOrDefault(c => c.Id == customerToToggleId);
+        if (customerToToggle == null) return;
+
+        try
+        {
+            await CustomerService.DeleteCustomerAsync(customerToToggleId);
+            await LoadCustomers();
+        }
+        catch (Exception ex)
+        {
+            // Handle error, e.g., display an error message
+            Console.WriteLine($"Error al toggling customer status: {ex.Message}");
+        }
+    }
+
+    private void CancelToggleCustomerStatus()
+    {
+        showConfirmationModal = false; // Hide the modal
+        customerToToggleId = Guid.Empty;
+    }
+
+    private async Task HandleUpdateCustomer(CustomerDto customer)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var userIdClaim = user.FindFirst(c => c.Type == "sub") ?? user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out Guid currentUserId))
+            {
+                customer.UsuarioIdCreador = currentUserId; // This is actually the modifier's ID
+                var userDto = await UserService.GetUserByIdAsync(currentUserId);
+                if (userDto != null)
+                {
+                    customer.UltimaModificacionPor = $"{userDto.PrimerNombre} {userDto.PrimerApellido}";
+                }
+            }
+        }
+
+        await CustomerService.UpdateCustomerAsync(customer);
+        isEditModalVisible = false;
+        customerToEdit = null;
+        await LoadCustomers();
+    }
+    private void OpenEditModal(CustomerDto customer)
+    {
+        customerToEdit = new CustomerDto
+        {
+            Id = customer.Id,
+            RazonSocial = customer.RazonSocial,
+            NumeroIdentificacion = customer.NumeroIdentificacion,
+            Email = customer.Email,
+            Direccion = customer.Direccion,
+            Telefono = customer.Telefono,
+            TipoIdentificacion = customer.TipoIdentificacion,
+            EstaActivo = customer.EstaActivo,
+            UsuarioIdCreador = customer.UsuarioIdCreador,
+            FechaCreacion = customer.FechaCreacion,
+            FechaModificacion = customer.FechaModificacion,
+            UsuarioModificadorId = customer.UsuarioModificadorId,
+            UltimaModificacionPor = customer.UltimaModificacionPor
+        };
+        isEditModalVisible = true;
+    }
+
+    private void CloseEditModal()
+    {
+        isEditModalVisible = false;
+        customerToEdit = null;
+    }
+
+    private void GoToCreateCustomer()
+    {
+        Navigation.NavigateTo("/customers/create");
+    }
+}

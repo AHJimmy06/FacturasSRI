@@ -1,0 +1,329 @@
+@page "/products"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Web.Components.Shared
+@inject IProductService ProductService
+@inject ITaxService TaxService
+@inject NavigationManager Navigation
+
+<PageTitle>Lista de Productos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1>Gestión de Productos</h1>
+        <p class="text-muted">Edita y administra tus productos existentes.</p>
+    </div>
+    <div class="d-flex align-items-center">
+        <div class="me-3">
+            <span class="text-muted">Impuesto Global:</span>
+            <strong>@(currentGlobalTax?.Nombre ?? "No asignado")</strong>
+        </div>
+        <AuthorizeView Roles="Administrador">
+            <button class="btn btn-outline-primary" @onclick="OpenGlobalTaxModal">
+                <i class="bi bi-pencil-square"></i> Cambiar
+            </button>
+            <button class="btn btn-primary ms-2" @onclick="GoToCreateProduct">
+                <i class="bi bi-plus-circle-fill me-2"></i>Crear Nuevo Producto
+            </button>
+        </AuthorizeView>
+    </div>
+</div>
+
+<div class="mb-3">
+    <input type="text" class="form-control" placeholder="Buscar productos por nombre o código..."
+        @bind-value="searchTerm" @bind-value:event="oninput" />
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+
+<div class="card">
+    <div class="card-header">
+        <h3>Listado de Productos</h3>
+    </div>
+    <div class="card-body">
+        @if (allProducts == null) // Check allProducts for loading state
+        {
+            <p><em>Cargando...</em></p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Código Principal</th>
+                            <th>Marca</th>
+                            <th>Categoría</th>
+                            <th>Precio Unitario</th>
+                            <th>Stock Actual</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in FilteredProducts) // Use FilteredProducts
+                        {
+                            <tr>
+                                <td>@product.Nombre</td>
+                                <td>@product.CodigoPrincipal</td>
+                                <td>@product.Marca</td>
+                                <td>@product.CategoriaNombre</td>
+                                <td>@product.PrecioVentaUnitario.ToString("C")</td>
+                                <td>@product.StockTotal</td>
+                                <td class="text-end">
+                                    <div class="btn-group" role="group">
+                                        <a href="@($"/products/details/{product.Id}")" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-eye-fill"></i> Ver detalles
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEditModal(product)">
+                                            <i class="bi bi-pencil-square"></i> Editar
+                                        </button>
+                                        <button
+                                            class="btn btn-sm @(product.IsActive ? "btn-outline-danger" : "btn-outline-success")"
+                                            @onclick="() => HandleDeleteProduct(product.Id)">
+                                            <i class="bi @(product.IsActive ? "bi-trash" : "bi-check-circle")"></i>
+                                            @(product.IsActive ? "Desactivar" : "Activar")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+
+@if (productToEdit != null)
+{
+    <EditProductModal Product="productToEdit" IsVisible="isEditModalVisible" OnSave="HandleUpdateProductInModal"
+        OnClose="CloseEditModal" />
+}
+
+<ConfirmationModal IsVisible="showConfirmationModal" Title="@confirmationModalTitle" Message="@confirmationModalMessage"
+    OnConfirm="ConfirmToggleProductStatus" OnCancel="CancelToggleProductStatus" />
+
+@if (isGlobalTaxModalVisible)
+{
+    <div class="modal fade show" style="display:block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Administrar Impuesto Global</h5>
+                    <button type="button" class="btn-close" @onclick="CloseGlobalTaxModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Seleccione un impuesto para aplicarlo a todos los productos. Esto reemplazará cualquier impuesto
+                        asignado previamente.</p>
+                    <div class="mb-3">
+                        <label for="globalTax" class="form-label">Impuesto</label>
+                        <InputSelect id="globalTax" class="form-select" @bind-Value="selectedTaxId">
+                            <option value="@Guid.Empty">-- Seleccione un impuesto --</option>
+                            @foreach (var tax in allTaxes)
+                            {
+                                <option value="@tax.Id">@tax.Nombre (@tax.Porcentaje%)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseGlobalTaxModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="ApplyGlobalTax"
+                        disabled="@(selectedTaxId == Guid.Empty)">
+                        <i class="bi bi-arrow-repeat"></i> Aplicar a Todos
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    public EventCallback<ProductDto> OnSave { get; set; }
+    private List<ProductDto>? allProducts; // Holds all products
+    private string? errorMessage;
+
+    private ProductDto? productToEdit;
+    private bool isEditModalVisible = false;
+
+    // Confirmation Modal State
+    private bool showConfirmationModal = false;
+    private string confirmationModalTitle = string.Empty;
+    private string confirmationModalMessage = string.Empty;
+    private Guid productToToggleId;
+
+    private string searchTerm = string.Empty; // New property for search
+
+    private Guid selectedTaxId;
+    private List<TaxDto> allTaxes = new();
+    private TaxDto? currentGlobalTax;
+    private bool isGlobalTaxModalVisible = false;
+
+    private List<ProductDto> FilteredProducts => (allProducts ?? new())
+    .Where(p => p.IsActive &&
+    (string.IsNullOrWhiteSpace(searchTerm) ||
+    p.Nombre.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+    p.CodigoPrincipal.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+    .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+        await LoadTaxes();
+        await LoadCurrentGlobalTax();
+    }
+
+    private async Task LoadTaxes()
+    {
+        try
+        {
+            allTaxes = await TaxService.GetActiveTaxesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar impuestos: {ex.Message}";
+        }
+    }
+
+    private async Task LoadCurrentGlobalTax()
+    {
+        try
+        {
+            currentGlobalTax = await ProductService.GetCurrentGlobalTaxAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar el impuesto global actual: {ex.Message}";
+        }
+    }
+
+    private void OpenGlobalTaxModal()
+    {
+        isGlobalTaxModalVisible = true;
+    }
+
+    private void CloseGlobalTaxModal()
+    {
+        isGlobalTaxModalVisible = false;
+    }
+
+    private async Task ApplyGlobalTax()
+    {
+        if (selectedTaxId == Guid.Empty)
+        {
+            errorMessage = "Por favor, seleccione un impuesto para aplicar.";
+            return;
+        }
+
+        errorMessage = null;
+        try
+        {
+            await ProductService.ApplyTaxToAllProductsAsync(selectedTaxId);
+            CloseGlobalTaxModal();
+            await LoadCurrentGlobalTax();
+            // Optionally, show a success message
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al aplicar el impuesto global: {ex.Message}";
+        }
+    }
+
+    private async Task LoadProducts()
+    {
+        errorMessage = null;
+        try
+        {
+            allProducts = await ProductService.GetProductsAsync(); // Load all products
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar productos: {ex.Message}";
+        }
+    }
+
+    private void HandleDeleteProduct(Guid id)
+    {
+        var productToToggle = allProducts?.FirstOrDefault(p => p.Id == id);
+        if (productToToggle == null) return;
+
+        productToToggleId = id;
+        confirmationModalTitle = "Confirmar Acción";
+        confirmationModalMessage = $"¿Está seguro de que desea {(productToToggle.IsActive ? "desactivar" : "activar")} el producto {productToToggle.Nombre}?";
+        showConfirmationModal = true;
+    }
+
+    private async Task ConfirmToggleProductStatus()
+    {
+        errorMessage = null;
+        showConfirmationModal = false; // Hide the modal
+
+        var productToToggle = allProducts?.FirstOrDefault(p => p.Id == productToToggleId);
+        if (productToToggle == null) return;
+
+        string action = productToToggle.IsActive ? "desactivar" : "activar";
+
+        try
+        {
+            await ProductService.DeleteProductAsync(productToToggleId);
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al {action} producto: {ex.Message}";
+        }
+    }
+
+    private void CancelToggleProductStatus()
+    {
+        showConfirmationModal = false; // Hide the modal
+        productToToggleId = Guid.Empty;
+    }
+
+    private async Task HandleUpdateProductInModal(ProductDto product)
+    {
+        await ProductService.UpdateProductAsync(product);
+        isEditModalVisible = false;
+        productToEdit = null;
+        await LoadProducts();
+    }
+
+    private void OpenEditModal(ProductDto product)
+    {
+        productToEdit = new ProductDto
+        {
+            Id = product.Id,
+            Nombre = product.Nombre,
+            CodigoPrincipal = product.CodigoPrincipal,
+            Descripcion = product.Descripcion,
+            PrecioVentaUnitario = product.PrecioVentaUnitario,
+            ManejaInventario = product.ManejaInventario,
+            ManejaLotes = product.ManejaLotes,
+            IsActive = product.IsActive, // Initialize IsActive
+            Marca = product.Marca,
+            CategoriaId = product.CategoriaId,
+            CategoriaNombre = product.CategoriaNombre
+        };
+        isEditModalVisible = true;
+    }
+
+    private async Task CloseEditModal()
+    {
+        isEditModalVisible = false;
+        productToEdit = null;
+        await LoadProducts();
+    }
+
+    private void GoToCreateProduct()
+    {
+        Navigation.NavigateTo("/products/create");
+    }
+}

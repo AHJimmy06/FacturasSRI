@@ -1,0 +1,110 @@
+@page "/"
+@attribute [Authorize]
+@using System.Net.Http.Json
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Web.Services
+@inject ApiClient ApiClient
+
+<PageTitle>Panel Principal</PageTitle>
+
+<div class="dashboard-header">
+    <h1>Panel Principal</h1>
+    <p>Bienvenido de nuevo, aquí tienes un resumen del estado de la empresa.</p>
+</div>
+
+@if (stats == null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando estadísticas...</span>
+        </div>
+        <p class="mt-3">Cargando estadísticas...</p>
+    </div>
+}
+else
+{
+    <div class="row g-4 mb-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card summary-card summary-card-invoices">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="card-content">
+                        <h4>Facturas Emitidas</h4>
+                        <p>@stats.TotalFacturasEmitidas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card summary-card summary-card-clients">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <div class="card-content">
+                        <h4>Clientes Registrados</h4>
+                        <p>@stats.TotalClientesRegistrados</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <div class="card summary-card summary-card-income">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="card-content">
+                        <h4>Ingresos del Mes</h4>
+                        <p>@stats.IngresosEsteMes.ToString("C")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    Últimas Facturas
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Aquí se mostrarán las últimas facturas.</p>
+                    <a href="/invoices" class="btn btn-outline-primary btn-sm">Ver todas las facturas</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    Productos Más Vendidos
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Aquí se mostrarán los productos más vendidos.</p>
+                    <a href="/products" class="btn btn-outline-primary btn-sm">Ver todos los productos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardStatsDto? stats;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var httpClient = await ApiClient.GetHttpClientAsync();
+            stats = await httpClient.GetFromJsonAsync<DashboardStatsDto>("api/dashboard/stats");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar las estadísticas: {ex.Message}";
+        }
+    }
+}

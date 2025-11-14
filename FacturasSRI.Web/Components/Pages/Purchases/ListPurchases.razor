@@ -1,0 +1,92 @@
+@page "/purchases"
+@attribute [Authorize(Roles = "Administrador, Bodeguero")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IPurchaseService PurchaseService
+
+<PageTitle>Historial de Compras</PageTitle>
+
+<div class="page-header">
+    <h1>Historial de Compras</h1>
+    <p>Consulta todos los lotes de productos que han sido ingresados al inventario.</p>
+</div>
+
+<div class="mb-3">
+    <input type="text" class="form-control" placeholder="Buscar compras por producto o proveedor..." @bind-value="searchTerm" @bind-value:event="oninput" />
+</div>
+
+@if (isLoading)
+{
+    <p><em>Cargando historial de compras...</em></p>
+}
+else if (FilteredPurchases.Any()) // Use FilteredPurchases
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha de Compra</th>
+                            <th>Producto</th>
+                            <th>Proveedor</th>
+                            <th class="text-end">Cant. Comprada</th>
+                            <th class="text-end">Cant. Disponible</th>
+                            <th class="text-end">Precio Unit.</th>
+                            <th class="text-end">Valor Total</th>
+                            <th>Fecha Caducidad</th>
+                            <th>Creado Por</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var purchase in FilteredPurchases) // Use FilteredPurchases
+                        {
+                            <tr>
+                                <td>@purchase.FechaCompra.ToLocalTime().ToString("g")</td>
+                                <td>@purchase.ProductName</td>
+                                <td>@purchase.Proveedor</td>
+                                <td class="text-end">@purchase.CantidadComprada</td>
+                                <td class="text-end fw-bold">@purchase.CantidadDisponible</td>
+                                <td class="text-end">@purchase.PrecioCompraUnitario.ToString("C")</td>
+                                <td class="text-end">@purchase.ValorTotalCompra.ToString("C")</td>
+                                <td>@(purchase.FechaCaducidad?.ToLocalTime().ToString("d") ?? "N/A")</td>
+                                <td>@purchase.CreadoPor</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <p>No se han registrado compras todavía.</p>
+}
+@code {
+    private List<PurchaseListItemDto> allPurchases = new(); // Holds all purchases
+    private bool isLoading = true;
+
+    private string searchTerm = string.Empty; // New property for search
+
+    private List<PurchaseListItemDto> FilteredPurchases => string.IsNullOrWhiteSpace(searchTerm)
+        ? allPurchases
+        : allPurchases.Where(p => p.ProductName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                  p.Proveedor.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                      .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            allPurchases = await PurchaseService.GetPurchasesAsync(); // Load all purchases
+        }
+        catch (Exception)
+        {
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

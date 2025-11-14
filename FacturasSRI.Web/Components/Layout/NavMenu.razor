@@ -5,47 +5,47 @@
 
 <div class="nav-menu">
     <div class="nav-header">
-        <a class="navbar-brand" href="">
-            <i class="bi bi-receipt-cutoff"></i>
-            <span>FacturasSRI</span>
+        <a class="navbar-brand d-flex align-items-center" href="">
+            <img src="logo.png" alt="Logo Aether Tech" style="height: 40px; margin-right: 10px;" />
+            @if (!IsCollapsed) { <span>Aether Tech</span> }
         </a>
     </div>
 
-    <nav class="nav flex-column">
+    <nav class="nav-container">
         <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <i class="bi bi-grid-1x2-fill"></i>
-                <span>Panel Principal</span>
+                @if (!IsCollapsed) { <span>Panel Principal</span> }
             </NavLink>
         </div>
 
         <AuthorizeView Roles="Administrador, Vendedor">
             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isFacturasOpen)">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isFacturasOpen); }">
                     <i class="bi bi-file-earmark-text-fill"></i>
-                    <span>Facturas</span>
-                    <i class="bi @(isFacturasOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                    @if (!IsCollapsed) { <span>Facturas</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isFacturasOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isFacturasOpen)
+                @if (isFacturasOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="invoices/create">Crear Factura</NavLink></li>
-                        <li><NavLink href="invoices" Match="NavLinkMatch.All">Listar Facturas</NavLink></li>
+                        <li><NavLink href="invoices/create"><i class="bi bi-file-earmark-plus submenu-icon"></i><span>Crear Factura</span></NavLink></li>
+                        <li><NavLink href="invoices" Match="NavLinkMatch.All"><i class="bi bi-card-list submenu-icon"></i><span>Listar Facturas</span></NavLink></li>
                     </ul>
                 }
             </div>
 
             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isClientesOpen)">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isClientesOpen); }">
                     <i class="bi bi-people-fill"></i>
-                    <span>Clientes</span>
-                    <i class="bi @(isClientesOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                    @if (!IsCollapsed) { <span>Clientes</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isClientesOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isClientesOpen)
+                @if (isClientesOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="customers/create">Crear Cliente</NavLink></li>
-                        <li><NavLink href="customers" Match="NavLinkMatch.All">Listar Clientes</NavLink></li>
+                        <li><NavLink href="customers/create"><i class="bi bi-person-plus submenu-icon"></i><span>Crear Cliente</span></NavLink></li>
+                        <li><NavLink href="customers" Match="NavLinkMatch.All"><i class="bi bi-people submenu-icon"></i><span>Listar Clientes</span></NavLink></li>
                     </ul>
                 }
             </div>
@@ -53,16 +53,16 @@
 
         <AuthorizeView Roles="Administrador, Vendedor, Bodeguero">
             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isProductosOpen)">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isProductosOpen); }">
                     <i class="bi bi-box-seam-fill"></i>
-                    <span>Productos</span>
-                    <i class="bi @(isProductosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                    @if (!IsCollapsed) { <span>Productos</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isProductosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isProductosOpen)
+                @if (isProductosOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="products/create">Crear Producto</NavLink></li>
-                        <li><NavLink href="products" Match="NavLinkMatch.All">Listar Productos</NavLink></li>
+                        <li><NavLink href="products/create"><i class="bi bi-box-seam submenu-icon"></i><span>Crear Producto</span></NavLink></li>
+                        <li><NavLink href="products" Match="NavLinkMatch.All"><i class="bi bi-boxes submenu-icon"></i><span>Listar Productos</span></NavLink></li>
                     </ul>
                 }
             </div>
@@ -70,29 +70,31 @@
 
         <AuthorizeView Roles="Administrador, Bodeguero">
             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isComprasOpen)">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isComprasOpen); }">
                     <i class="bi bi-cart-plus-fill"></i>
-                    <span>Compras</span>
-                    <i class="bi @(isComprasOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                    @if (!IsCollapsed) { <span>Compras</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isComprasOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isComprasOpen)
+                @if (isComprasOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="purchases" Match="NavLinkMatch.All">Registrar Compra</NavLink></li>
+                        <li><NavLink href="purchases/create" Match="NavLinkMatch.All"><i class="bi bi-cart-plus submenu-icon"></i><span>Registrar Compra</span></NavLink></li>
+                        <li><NavLink href="purchases" Match="NavLinkMatch.All"><i class="bi bi-receipt submenu-icon"></i><span>Listar Compras</span></NavLink></li>
                     </ul>
                 }
             </div>
-             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isImpuestosOpen)">
-                    <i class="bi bi-cash-coin"></i>
-                    <span>Impuestos</span>
-                    <i class="bi @(isImpuestosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+        
+            <div class="nav-section">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isInventarioOpen); }">
+                    <i class="bi bi-clipboard-data-fill"></i>
+                    @if (!IsCollapsed) { <span>Inventario</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isInventarioOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isImpuestosOpen)
+                @if (isInventarioOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="taxes/create">Crear Impuesto</NavLink></li>
-                        <li><NavLink href="taxes" Match="NavLinkMatch.All">Listar Impuestos</NavLink></li>
+                        <li><NavLink href="inventory/adjustments/create" Match="NavLinkMatch.All"><i class="bi bi-arrow-left-right submenu-icon"></i><span>Registrar Ajuste</span></NavLink></li>
+                        <li><NavLink href="inventory/adjustments" Match="NavLinkMatch.All"><i class="bi bi-clipboard-data submenu-icon"></i><span>Listar Ajustes</span></NavLink></li>
                     </ul>
                 }
             </div>
@@ -100,16 +102,30 @@
 
         <AuthorizeView Roles="Administrador">
             <div class="nav-section">
-                <div class="nav-link-header" @onclick="() => ToggleSubMenu(ref isUsuariosOpen)">
-                    <i class="bi bi-person-fill-gear"></i>
-                    <span>Usuarios</span>
-                    <i class="bi @(isUsuariosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i>
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isImpuestosOpen); }">
+                    <i class="bi bi-cash-coin"></i>
+                    @if (!IsCollapsed) { <span>Impuestos</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isImpuestosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                 </div>
-                @if (isUsuariosOpen)
+                @if (isImpuestosOpen || IsCollapsed)
                 {
                     <ul class="nav-submenu">
-                        <li><NavLink href="users/create">Crear Usuario</NavLink></li>
-                        <li><NavLink href="users" Match="NavLinkMatch.All">Listar Usuarios</NavLink></li>
+                        <li><NavLink href="taxes/create"><i class="bi bi-cash-coin submenu-icon"></i><span>Crear Impuesto</span></NavLink></li>
+                        <li><NavLink href="taxes" Match="NavLinkMatch.All"><i class="bi bi-calculator submenu-icon"></i><span>Listar Impuestos</span></NavLink></li>
+                    </ul>
+                }
+            </div>
+            <div class="nav-section">
+                <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isUsuariosOpen); }">
+                    <i class="bi bi-person-fill-gear"></i>
+                    @if (!IsCollapsed) { <span>Usuarios</span> }
+                    @if (!IsCollapsed) { <i class="bi @(isUsuariosOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
+                </div>
+                @if (isUsuariosOpen || IsCollapsed)
+                {
+                    <ul class="nav-submenu">
+                        <li><NavLink href="users/create"><i class="bi bi-person-add submenu-icon"></i><span>Crear Usuario</span></NavLink></li>
+                        <li><NavLink href="users" Match="NavLinkMatch.All"><i class="bi bi-person-lines-fill submenu-icon"></i><span>Listar Usuarios</span></NavLink></li>
                     </ul>
                 }
             </div>
@@ -118,12 +134,16 @@
 </div>
 
 @code {
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
     private bool isFacturasOpen;
     private bool isClientesOpen;
     private bool isProductosOpen;
     private bool isComprasOpen;
     private bool isImpuestosOpen;
     private bool isUsuariosOpen;
+    private bool isInventarioOpen;
 
     private void ToggleSubMenu(ref bool subMenuState)
     {

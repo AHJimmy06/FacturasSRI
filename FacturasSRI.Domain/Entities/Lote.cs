@@ -1,4 +1,5 @@
 using System;
+using FacturasSRI.Domain.Entities; // Added for Proveedor
 
 namespace FacturasSRI.Domain.Entities
 {
@@ -7,6 +8,8 @@ namespace FacturasSRI.Domain.Entities
         public Guid Id { get; set; }
         public Guid ProductoId { get; set; }
         public virtual Producto Producto { get; set; } = null!;
+        public Guid? ProveedorId { get; set; } // Changed to nullable
+        public virtual Proveedor? Proveedor { get; set; } // Changed to nullable
         public int CantidadComprada { get; set; }
         public int CantidadDisponible { get; set; }
         public decimal PrecioCompraUnitario { get; set; }

@@ -1,0 +1,156 @@
+@page "/purchases/create"
+@attribute [Authorize]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject IPurchaseService PurchaseService
+@inject IProductService ProductService
+@inject IProveedorService ProveedorService // Added
+@inject NavigationManager Navigation
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Registrar Compra</PageTitle>
+
+<h1>Registrar Compra</h1>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")" role="alert">
+        @statusMessage
+    </div>
+}
+
+<div class="mb-3">
+    <EditForm Model="@newPurchase" OnValidSubmit="@HandleAddPurchase">
+        <DataAnnotationsValidator />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="product" class="form-label">Producto</label>
+                    <InputSelect id="product" class="form-select" @bind-Value="newPurchase.ProductoId" disabled="@isSubmitting">
+                        <option value="">Seleccione un producto</option>
+                        @foreach (var product in products)
+                        {
+                            <option value="@product.Id">@product.Nombre</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => newPurchase.ProductoId)" />
+                </div>
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">Cantidad</label>
+                    <InputNumber id="cantidad" class="form-control" @bind-Value="newPurchase.Cantidad" disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => newPurchase.Cantidad)" />
+                </div>
+                <div class="mb-3">
+                    <label for="precioCosto" class="form-label">Precio de Costo</label>
+                    <InputNumber id="precioCosto" class="form-control" @bind-Value="newPurchase.PrecioCosto" disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => newPurchase.PrecioCosto)" />
+                </div>
+                <div class="mb-3">
+                    <label for="fechaCaducidad" class="form-label">Fecha de Caducidad</label>
+                    <InputDate id="fechaCaducidad" class="form-control" @bind-Value="newPurchase.FechaCaducidad" disabled="@isSubmitting" />
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="proveedor" class="form-label">Proveedor</label>
+                    <InputSelect id="proveedor" class="form-select" @bind-Value="newPurchase.ProveedorId" disabled="@isSubmitting">
+                        <option value="">Seleccione un proveedor</option>
+                        @foreach (var prov in proveedores)
+                        {
+                            <option value="@prov.Id">@prov.RazonSocial</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => newPurchase.ProveedorId)" />
+                </div>
+                <div class="mb-3">
+                    <label for="numeroFactura" class="form-label">Número de Factura</label>
+                    <InputText id="numeroFactura" class="form-control" @bind-Value="newPurchase.NumeroFactura" disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => newPurchase.NumeroFactura)" />
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+            @if (isSubmitting)
+            {
+                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <span> Registrando...</span>
+            }
+            else
+            {
+                <span>Registrar Compra</span>
+            }
+        </button>
+    </EditForm>
+</div>
+
+@code {
+    private List<ProductDto> products = new();
+    private List<ProveedorDto> proveedores = new(); // Added
+    private PurchaseDto newPurchase = new();
+    private string? statusMessage;
+    private bool isSuccess;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var allProducts = await ProductService.GetActiveProductsAsync();
+            products = allProducts.Where(p => p.ManejaInventario).ToList();
+
+            proveedores = await ProveedorService.GetProveedoresAsync(); // Added
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error al cargar datos: {ex.Message}"; // Modified
+            isSuccess = false;
+        }
+    }
+
+    private async Task HandleAddPurchase()
+    {
+        isSubmitting = true;
+        statusMessage = null;
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            isSuccess = false;
+            statusMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+            isSubmitting = false;
+            return;
+        }
+
+        newPurchase.UsuarioIdCreador = Guid.Parse(userId);
+
+        try
+        {
+            var success = await PurchaseService.CreatePurchaseAsync(newPurchase);
+            if(success)
+            {
+                isSuccess = true;
+                statusMessage = "¡Compra registrada exitosamente!";
+                newPurchase = new();
+                StateHasChanged();
+            }
+            else
+            {
+                isSuccess = false;
+                statusMessage = "Ocurrió un error al registrar la compra. Verifique los datos.";
+            }
+        }
+        catch (Exception ex) // Modified
+        {
+            isSuccess = false;
+            statusMessage = $"Ocurrió un error al registrar la compra: {ex.Message}"; // Modified
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

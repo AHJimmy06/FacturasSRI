@@ -12,5 +12,6 @@ namespace FacturasSRI.Application.Interfaces
         Task<TaxDto> CreateTaxAsync(TaxDto tax);
         Task UpdateTaxAsync(TaxDto tax);
         Task DeleteTaxAsync(Guid id);
+        Task<List<TaxDto>> GetActiveTaxesAsync(); // New method
     }
 }

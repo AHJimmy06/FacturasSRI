@@ -12,7 +12,11 @@ namespace FacturasSRI.Application.Interfaces
         Task<ProductDto> CreateProductAsync(ProductDto productDto);
         Task UpdateProductAsync(ProductDto productDto);
         Task DeleteProductAsync(Guid id);
-        Task AssignTaxesToProductAsync(Guid productId, List<Guid> taxIds);
+        Task<List<ProductDto>> GetActiveProductsAsync(); // New method
         Task<ProductStockDto?> GetProductStockDetailsAsync(Guid productId);
+        Task ApplyTaxToAllProductsAsync(Guid taxId);
+        Task<TaxDto?> GetCurrentGlobalTaxAsync();
+        Task<ProductDetailDto?> GetProductDetailsByIdAsync(Guid id);
+        Task<List<CategoriaDto>> GetAllCategoriasAsync();
     }
 }
