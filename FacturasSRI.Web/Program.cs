@@ -48,6 +48,7 @@ builder.Services.AddScoped<IAjusteInventarioService, AjusteInventarioService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IProveedorService, ProveedorService>(); // Added
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IValidationService, ValidationService>();
 
 builder.Services.AddScoped<AuthenticationStateProvider, ApiAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();

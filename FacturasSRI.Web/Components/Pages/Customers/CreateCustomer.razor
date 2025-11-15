@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "VendedorPolicy")]
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
 @inject ICustomerService CustomerService
 @inject NavigationManager Navigation
 @using System.Security.Claims
@@ -27,6 +28,15 @@
                         <label for="razonSocial" class="form-label">Razón Social</label>
                         <InputText id="razonSocial" class="form-control" @bind-Value="newCustomer.RazonSocial" />
                         <ValidationMessage For="@(() => newCustomer.RazonSocial)" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipoIdentificacion" class="form-label">Tipo de Identificación</label>
+                        <InputSelect id="tipoIdentificacion" class="form-select" @bind-Value="newCustomer.TipoIdentificacion">
+                            @foreach (var tipo in Enum.GetValues(typeof(TipoIdentificacion)))
+                            {
+                                <option value="@tipo">@tipo</option>
+                            }
+                        </InputSelect>
                     </div>
                     <div class="mb-3">
                         <label for="numeroIdentificacion" class="form-label">Número de Identificación</label>
@@ -84,6 +94,11 @@
         {
             await CustomerService.CreateCustomerAsync(newCustomer);
             Navigation.NavigateTo("/customers");
+        }
+        catch (InvalidOperationException ex)
+        {
+            isSuccess = false;
+            statusMessage = ex.Message;
         }
         catch (Exception)
         {

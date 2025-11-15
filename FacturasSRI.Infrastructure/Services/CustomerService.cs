@@ -13,14 +13,21 @@ namespace FacturasSRI.Infrastructure.Services
     public class CustomerService : ICustomerService
     {
         private readonly FacturasSRIDbContext _context;
+        private readonly IValidationService _validationService;
 
-        public CustomerService(FacturasSRIDbContext context)
+        public CustomerService(FacturasSRIDbContext context, IValidationService validationService)
         {
             _context = context;
+            _validationService = validationService;
         }
 
         public async Task<CustomerDto> CreateCustomerAsync(CustomerDto customerDto)
         {
+            if (!_validationService.IsValid(customerDto.NumeroIdentificacion, customerDto.TipoIdentificacion.ToString()))
+            {
+                throw new InvalidOperationException("El número de identificación no es válido.");
+            }
+
             var customer = new Cliente
             {
                 Id = Guid.NewGuid(),
@@ -120,6 +127,11 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task UpdateCustomerAsync(CustomerDto customerDto)
         {
+            if (!_validationService.IsValid(customerDto.NumeroIdentificacion, customerDto.TipoIdentificacion.ToString()))
+            {
+                throw new InvalidOperationException("El número de identificación no es válido.");
+            }
+
             var customer = await _context.Clientes.FindAsync(customerDto.Id);
             if (customer != null)
             {

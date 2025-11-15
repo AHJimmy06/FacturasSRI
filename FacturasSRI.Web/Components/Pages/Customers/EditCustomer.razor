@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "VendedorPolicy")]
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
 @using Microsoft.AspNetCore.Components.Authorization
 @using FacturasSRI.Web.Components.Shared
 @inject ICustomerService CustomerService
@@ -35,12 +36,27 @@ else
         <div class="card-body">
             <EditForm Model="@customer" OnValidSubmit="SaveChanges">
                 <DataAnnotationsValidator />
+
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")">@statusMessage</div>
+                }
+
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label class="form-label">Razón Social</label>
                             <InputText class="form-control" @bind-Value="customer.RazonSocial" />
                             <ValidationMessage For="@(() => customer.RazonSocial)" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="tipoIdentificacion" class="form-label">Tipo de Identificación</label>
+                            <InputSelect id="tipoIdentificacion" class="form-select" @bind-Value="customer.TipoIdentificacion">
+                                @foreach (var tipo in Enum.GetValues(typeof(TipoIdentificacion)))
+                                {
+                                    <option value="@tipo">@tipo</option>
+                                }
+                            </InputSelect>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Número de Identificación</label>
@@ -83,6 +99,8 @@ else
 
     private CustomerDto? customer;
     private string? errorMessage;
+    private string? statusMessage;
+    private bool isSuccess;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,8 +140,21 @@ else
                 }
             }
 
-            await CustomerService.UpdateCustomerAsync(customer);
-            Navigation.NavigateTo("/customers");
+            try
+            {
+                await CustomerService.UpdateCustomerAsync(customer);
+                Navigation.NavigateTo("/customers");
+            }
+            catch (InvalidOperationException ex)
+            {
+                isSuccess = false;
+                statusMessage = ex.Message;
+            }
+            catch (Exception)
+            {
+                isSuccess = false;
+                statusMessage = "Error al guardar el cliente. Por favor, intente de nuevo.";
+            }
         }
     }
 

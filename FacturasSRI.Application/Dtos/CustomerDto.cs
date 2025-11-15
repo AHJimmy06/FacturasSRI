@@ -22,6 +22,7 @@ namespace FacturasSRI.Application.Dtos
 
         [Required]
         public string Direccion { get; set; } = string.Empty;
+        [Required]
         public string Telefono { get; set; } = string.Empty;
         public bool EstaActivo { get; set; } = true;
         public string CreadoPor { get; set; } = string.Empty;
