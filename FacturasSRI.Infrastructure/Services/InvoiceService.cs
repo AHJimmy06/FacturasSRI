@@ -26,12 +26,72 @@ namespace FacturasSRI.Infrastructure.Services
             _configuration = configuration;
         }
         
+        private async Task<Cliente> GetOrCreateConsumidorFinalClientAsync()
+        {
+            var consumidorFinalId = "9999999999999"; // Common ID for Consumidor Final
+
+            var consumidorFinalClient = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.NumeroIdentificacion == consumidorFinalId && c.TipoIdentificacion == TipoIdentificacion.ConsumidorFinal);
+
+            if (consumidorFinalClient == null)
+            {
+                consumidorFinalClient = new Cliente
+                {
+                    Id = Guid.NewGuid(),
+                    TipoIdentificacion = TipoIdentificacion.ConsumidorFinal,
+                    NumeroIdentificacion = consumidorFinalId,
+                    RazonSocial = "CONSUMIDOR FINAL",
+                    Direccion = "N/A",
+                    Email = "consumidorfinal@example.com",
+                    Telefono = "N/A",
+                    FechaCreacion = DateTime.UtcNow,
+                    EstaActivo = true
+                };
+                _context.Clientes.Add(consumidorFinalClient);
+                await _context.SaveChangesAsync(); // Persist the new client
+            }
+
+            return consumidorFinalClient;
+        }
+
         public async Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceDto invoiceDto)
         {
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
+                    Cliente cliente;
+                    if (invoiceDto.ClienteId.HasValue)
+                    {
+                        cliente = await _context.Clientes.FindAsync(invoiceDto.ClienteId.Value);
+                        if (cliente == null)
+                        {
+                            throw new ArgumentException("Cliente no encontrado.");
+                        }
+                    }
+                    else if (invoiceDto.TipoIdentificacionComprador == TipoIdentificacion.ConsumidorFinal)
+                    {
+                        cliente = await GetOrCreateConsumidorFinalClientAsync();
+                    }
+                    else
+                    {
+                        // Create a new client on the fly
+                        cliente = new Cliente
+                        {
+                            Id = Guid.NewGuid(),
+                            TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
+                            NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
+                            RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
+                            Direccion = invoiceDto.DireccionComprador,
+                            Email = invoiceDto.EmailComprador,
+                            Telefono = null, // Or add to DTO if needed
+                            FechaCreacion = DateTime.UtcNow,
+                            EstaActivo = true
+                        };
+                        _context.Clientes.Add(cliente);
+                        await _context.SaveChangesAsync(); // Persist the new client
+                    }
+
                     var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
                     var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"];
 
@@ -55,7 +115,7 @@ namespace FacturasSRI.Infrastructure.Services
                     var invoice = new Factura
                     {
                         Id = Guid.NewGuid(),
-                        ClienteId = invoiceDto.ClienteId,
+                        ClienteId = cliente.Id, // Use the determined client's ID
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroFactura,
                         Estado = EstadoFactura.Generada,
@@ -116,7 +176,7 @@ namespace FacturasSRI.Infrastructure.Services
                     {
                         Id = Guid.NewGuid(),
                         FacturaId = invoice.Id,
-                        ClienteId = invoice.ClienteId,
+                        ClienteId = cliente.Id, // Use the determined client's ID
                         FechaEmision = invoice.FechaEmision,
                         FechaVencimiento = invoice.FechaEmision.AddDays(30),
                         MontoTotal = invoice.Total,
