@@ -68,11 +68,11 @@
 
 
 
-<ConfirmationModal IsVisible="showConfirmationModal"
-                   Title="@confirmationModalTitle"
-                   Message="@confirmationModalMessage"
-                   OnConfirm="ConfirmToggleUserStatus"
-                   OnCancel="CancelToggleUserStatus" />
+<ConfirmationPage IsVisible="showConfirmationModal"
+                  Title="@confirmationModalTitle"
+                  Message="@confirmationModalMessage"
+                  OnConfirm="ConfirmToggleUserStatus"
+                  OnCancel="CancelToggleUserStatus" />
 
 @code {
     private List<UserDto> allUsers = new();

@@ -47,11 +47,11 @@
 </table>
 
 
-<ConfirmationModal IsVisible="showConfirmationModal"
-                   Title="@confirmationModalTitle"
-                   Message="@confirmationModalMessage"
-                   OnConfirm="ConfirmToggleTaxStatus"
-                   OnCancel="CancelToggleTaxStatus" />
+<ConfirmationPage IsVisible="showConfirmationModal"
+                  Title="@confirmationModalTitle"
+                  Message="@confirmationModalMessage"
+                  OnConfirm="ConfirmToggleTaxStatus"
+                  OnCancel="CancelToggleTaxStatus" />
 
 @code {
     private List<TaxDto> allTaxes = new(); // Holds all taxes

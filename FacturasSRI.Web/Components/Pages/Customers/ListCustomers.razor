@@ -61,11 +61,11 @@
 
 
 
-<ConfirmationModal IsVisible="showConfirmationModal"
-                   Title="@confirmationModalTitle"
-                   Message="@confirmationModalMessage"
-                   OnConfirm="ConfirmToggleCustomerStatus"
-                   OnCancel="CancelToggleCustomerStatus" />
+<ConfirmationPage IsVisible="showConfirmationModal"
+                  Title="@confirmationModalTitle"
+                  Message="@confirmationModalMessage"
+                  OnConfirm="ConfirmToggleCustomerStatus"
+                  OnCancel="CancelToggleCustomerStatus" />
 
 @code {
     private List<CustomerDto> allCustomers = new(); // Holds all customers
