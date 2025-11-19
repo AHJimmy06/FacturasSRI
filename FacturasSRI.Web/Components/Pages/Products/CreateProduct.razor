@@ -16,7 +16,10 @@
 
 @if (!string.IsNullOrEmpty(statusMessage))
 {
-    <div class="alert @(isSuccess ? "alert-success" : "alert-danger")">@statusMessage</div>
+    <div class="alert @(isSuccess ? "alert-success" : "alert-danger") mb-4">
+        @statusMessage
+        <button type="button" class="btn-close float-end" @onclick="ClearStatusMessage" aria-label="Close"></button>
+    </div>
 }
 
 <div class="card">
@@ -142,11 +145,20 @@
         catch (InvalidOperationException ex)
         {
             statusMessage = ex.Message; // Muestra el mensaje específico de la excepción
+            isSuccess = false;
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             statusMessage = "Error al crear el producto: " + ex.Message;
+            isSuccess = false;
+            StateHasChanged();
         }
+    }
+
+    private void ClearStatusMessage()
+    {
+        statusMessage = null;
     }
 
     private void GoToList()

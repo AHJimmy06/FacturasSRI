@@ -2,8 +2,8 @@
 @attribute [Authorize]
 @using System.Net.Http.Json
 @using FacturasSRI.Application.Dtos
-@using FacturasSRI.Web.Services
 @inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager Navigation
 
 <PageTitle>Panel Principal</PageTitle>
 
@@ -12,7 +12,7 @@
     <p>Bienvenido de nuevo, aquí tienes un resumen del estado de la empresa.</p>
 </div>
 
-@if (stats == null)
+@if (stats == null && errorMessage == null)
 {
     <div class="text-center p-5">
         <div class="spinner-border text-primary" role="status">
@@ -21,7 +21,14 @@
         <p class="mt-3">Cargando estadísticas...</p>
     </div>
 }
-else
+else if (errorMessage != null)
+{
+    <div class="alert alert-danger">
+        <h4>Error al cargar el panel</h4>
+        <p>@errorMessage</p>
+    </div>
+}
+else if (stats != null)
 {
     <div class="row g-4 mb-5">
         <div class="col-md-6 col-lg-4">
@@ -100,6 +107,7 @@ else
         try
         {
             var httpClient = HttpClientFactory.CreateClient();
+            httpClient.BaseAddress = new Uri(Navigation.BaseUri);
             stats = await httpClient.GetFromJsonAsync<DashboardStatsDto>("api/dashboard/stats");
         }
         catch (Exception ex)

@@ -7,11 +7,15 @@
 
 <PageTitle>Editar Producto</PageTitle>
 
-@if (product == null && !string.IsNullOrEmpty(errorMessage))
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-danger">@errorMessage</div>
+    <div class="alert alert-danger mb-4">
+        @errorMessage
+        <button type="button" class="btn-close float-end" @onclick="ClearErrorMessage" aria-label="Close"></button>
+    </div>
 }
-else if (product == null)
+
+@if (product == null)
 {
     <p><em>Cargando producto...</em></p>
 }
@@ -136,13 +140,27 @@ else
                 product.CategoriaId = selectedCategoria.Id;
             }
 
-            await ProductService.UpdateProductAsync(product);
-            Navigation.NavigateTo("/products");
+            try
+            {
+                await ProductService.UpdateProductAsync(product);
+                Navigation.NavigateTo("/products");
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al guardar los cambios: {ex.Message}";
+                // Force a re-render to display the error message
+                StateHasChanged();
+            }
         }
     }
 
     private void GoBack()
     {
         Navigation.NavigateTo("/products");
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = null;
     }
 }
