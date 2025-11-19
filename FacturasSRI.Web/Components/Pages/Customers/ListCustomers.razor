@@ -48,11 +48,15 @@
                 <td>@customer.CreadoPor</td>
                 <td>@customer.UltimaModificacionPor</td>
                 <td>@(customer.FechaModificacion.HasValue ? customer.FechaModificacion.Value.ToShortDateString() : "N/A")</td>
-                <td>
-                    <a href="@($"/customers/edit/{customer.Id}")" class="btn btn-sm btn-secondary">Editar</a>
-                    <button class="btn btn-sm @(customer.EstaActivo ? "btn-danger" : "btn-success")" @onclick="() => HandleDeleteCustomer(customer.Id)">
-                        @(customer.EstaActivo ? "Desactivar" : "Activar")
-                    </button>
+                <td class="text-end">
+                    <div class="btn-group" role="group">
+                        <a href="@($"/customers/edit/{customer.Id}")" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </a>
+                        <button class="btn btn-sm @(customer.EstaActivo ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => HandleDeleteCustomer(customer.Id)">
+                            <i class="bi @(customer.EstaActivo ? "bi-trash" : "bi-check-circle")"></i> @(customer.EstaActivo ? "Desactivar" : "Activar")
+                        </button>
+                    </div>
                 </td>
             </tr>
         }

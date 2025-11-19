@@ -35,11 +35,15 @@
                 <td>@tax.Nombre</td>
                 <td>@tax.CodigoSRI</td>
                 <td>@tax.Porcentaje</td>
-                <td>
-                    <a href="@($"/taxes/edit/{tax.Id}")" class="btn btn-sm btn-secondary">Editar</a>
-                    <button class="btn btn-sm @(tax.EstaActivo ? "btn-danger" : "btn-success")" @onclick="() => HandleDeleteTax(tax.Id)">
-                        @(tax.EstaActivo ? "Desactivar" : "Activar")
-                    </button>
+                <td class="text-end">
+                    <div class="btn-group" role="group">
+                        <a href="@($"/taxes/edit/{tax.Id}")" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </a>
+                        <button class="btn btn-sm @(tax.EstaActivo ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => HandleDeleteTax(tax.Id)">
+                            <i class="bi @(tax.EstaActivo ? "bi-trash" : "bi-check-circle")"></i> @(tax.EstaActivo ? "Desactivar" : "Activar")
+                        </button>
+                    </div>
                 </td>
             </tr>
         }
