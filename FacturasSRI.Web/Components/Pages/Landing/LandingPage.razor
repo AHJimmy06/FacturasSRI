@@ -3,29 +3,26 @@
 @attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @using Microsoft.AspNetCore.Components.Authorization
 
-<PageTitle>Aether Tech | Facturación Inteligente para tu Negocio</PageTitle>
-<div class="d-flex flex-column min-vh-100 text-white" style="background: linear-gradient(135deg,#2444d1 ,#6172d3 );">
+<PageTitle>Aether Tech | Portal de Facturación</PageTitle>
+
+<div class="main-wrapper">
     <!-- ============================================ -->
     <!-- HEADER / BARRA DE NAVEGACIÓN -->
     <!-- ============================================ -->
-    <header class="py-3">
+    <header class="py-3 bg-dark text-white shadow-sm">
         <div class="container">
             <div class="d-flex flex-wrap align-items-center justify-content-between">
-                
-                <!-- Logo y Nombre de la Empresa -->
                 <a href="/" class="d-flex align-items-center text-white text-decoration-none">
                     <img src="logo.png" alt="Logo Aether Tech" style="height: 32px;" class="me-3" />
                     <span class="fs-4">Aether Tech</span>
                 </a>
-
-                <!-- Botones de Acción -->
                 <div>
                     <AuthorizeView>
                         <Authorized>
-                            <a href="/dashboard" class="btn btn-outline-light">Ir al Panel</a>
+                            <a href="/dashboard" class="btn btn-outline-light">Ir a mi Panel</a>
                         </Authorized>
                         <NotAuthorized>
-                            <a href="/login" class="btn btn-outline-light">Iniciar Sesión</a>
+                            <a href="/login" class="btn btn-light fw-bold">Iniciar Sesión</a>
                         </NotAuthorized>
                     </AuthorizeView>
                 </div>
@@ -36,56 +33,133 @@
     <!-- ============================================ -->
     <!-- SECCIÓN PRINCIPAL "HÉROE" -->
     <!-- ============================================ -->
-    <main class="flex-grow-1 d-flex align-items-center">
+    <main class="hero-section text-center text-white">
         <div class="container">
-            <div class="col-lg-8">
-                
-                <h1 class="display-3 fw-bold m-0 mb-3" style="line-height: 1.1;">
-                    FACTURACIÓN INTELIGENTE
-                </h1>
-
-                <!-- Subtítulo -->
-                <h2 class="fw-bold text-info mb-4">
-                    PARA HACER CRECER TU NEGOCIO
-                </h2>
-
-                <!-- Párrafo de Descripción -->
-                <p class="fs-5 col-lg-10">
-                    Con Aether Tech, crea, envía y gestiona tus facturas en minutos, no en horas. Automatiza tus cobros y obtén reportes claros para tomar las mejores decisiones.
-                </p>
-
-                <!-- Botón de Llamado a la Acción -->
-                <div class="mt-4">
-                    <AuthorizeView>
-                        <Authorized>
-                            <a href="/dashboard" class="btn btn-light btn-lg px-4 fw-bold">Ir al Panel</a>
-                        </Authorized>
-                        <NotAuthorized>
-                            <a href="/login" class="btn btn-light btn-lg px-4 fw-bold">Empieza Ahora</a>
-                        </NotAuthorized>
-                    </AuthorizeView>
-                </div>
-            </div>
+            <h1 class="display-4 fw-bold">Portal de Facturación Interno</h1>
+            <p class="lead col-lg-8 mx-auto">Bienvenido al sistema de gestión de facturas de Aether Tecnologías. Optimice su flujo de trabajo y gestione facturas de forma eficiente.</p>
         </div>
     </main>
 
     <!-- ============================================ -->
+    <!-- SECCIÓN DE CARACTERÍSTICAS -->
+    <!-- ============================================ -->
+    <section class="features-section py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Herramientas para la Gestión Diaria</h2>
+                <p class="text-muted">Funcionalidades diseñadas para agilizar nuestros procesos.</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card text-center p-4 h-100">
+                        <i class="bi bi-speedometer2 fs-1 text-primary"></i>
+                        <h4 class="fw-bold mt-3">Facturación Rápida</h4>
+                        <p>Genere y envíe facturas autorizadas por el SRI en cuestión de segundos.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card text-center p-4 h-100">
+                        <i class="bi bi-clipboard-data fs-1 text-primary"></i>
+                        <h4 class="fw-bold mt-3">Reportes Claros</h4>
+                        <p>Visualice reportes de ventas, impuestos y cuentas por cobrar en tiempo real.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card text-center p-4 h-100">
+                        <i class="bi bi-box-seam fs-1 text-primary"></i>
+                        <h4 class="fw-bold mt-3">Control de Inventario</h4>
+                        <p>Mantenga un registro actualizado del stock de productos y servicios.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- SECCIÓN "CÓMO FUNCIONA" -->
+    <!-- ============================================ -->
+    <section class="how-it-works-section py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">Guía Rápida de Uso</h2>
+            </div>
+            <div class="row text-center align-items-center">
+                <div class="col-md">
+                    <h5 class="fw-bold">1. Inicie Sesión</h5>
+                    <p class="text-muted">Acceda con sus credenciales de Aether Tech.</p>
+                </div>
+                <div class="col-md-auto d-none d-md-block text-muted">
+                    <i class="bi bi-chevron-right fs-3"></i>
+                </div>
+                <div class="col-md">
+                    <h5 class="fw-bold">2. Genere la Factura</h5>
+                    <p class="text-muted">Complete los datos del cliente y los productos/servicios.</p>
+                </div>
+                <div class="col-md-auto d-none d-md-block text-muted">
+                    <i class="bi bi-chevron-right fs-3"></i>
+                </div>
+                <div class="col-md">
+                    <h5 class="fw-bold">3. Envíe y Gestione</h5>
+                    <p class="text-muted">Envíe la factura al cliente y realice el seguimiento.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- ============================================ -->
     <!-- FOOTER -->
     <!-- ============================================ -->
-    <footer class="text-center py-4">
+    <footer class="text-center py-4 bg-dark text-white">
         <div class="container">
-            <p class="text-white-50 mb-0">© @DateTime.Now.Year Aether Tech. Todos los derechos reservados.</p>
+            <p class="mb-1">© @DateTime.Now.Year Aether Tecnologías. Todos los derechos reservados.</p>
+            <p class="text-white-50 small mb-0">RUC: 1799999999001 | Matriz: Av. de los Shyris N37-271 y Holanda, Quito</p>
         </div>
     </footer>
-
 </div>
-<style>
 
-    h1.display-3:focus {
-        outline: none !important;
-        box-shadow: none !important;
+<style>
+    .main-wrapper {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        background-color: #ffffff;
+        color: #333;
+    }
+    .hero-section {
+        background: linear-gradient(135deg, #2444d1, #6172d3);
+        padding: 4rem 0;
+    }
+    .features-section .feature-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .features-section .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .how-it-works-section {
+        border-top: 1px solid #dee2e6;
+    }
+    footer {
+        margin-top: auto;
+    }
+    .btn-light {
+        background-color: #ffffff;
+        color: #2444d1;
+        border-color: #ffffff;
+    }
+    .btn-light:hover {
+        background-color: #f0f0f0;
+        border-color: #f0f0f0;
+        color: #2444d1;
+    }
+    .text-primary {
+        color: #2444d1 !important;
     }
 </style>
+
 @code {
     // No se necesita C# para esta página de presentación.
 }
