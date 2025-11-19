@@ -11,9 +11,24 @@ namespace FacturasSRI.Infrastructure.Services
             {
                 "Cedula" => IsValidCedula(identification),
                 "RUC" => IsValidRuc(identification),
-                "Pasaporte" => !string.IsNullOrEmpty(identification),
+                "Pasaporte" => IsValidPassport(identification),
                 _ => false,
             };
+        }
+
+        private bool IsValidPassport(string passport)
+        {
+            if (string.IsNullOrEmpty(passport))
+            {
+                return false;
+            }
+
+            if (passport.Length < 6 || passport.Length > 9)
+            {
+                return false;
+            }
+
+            return passport.All(char.IsLetterOrDigit);
         }
 
         private bool IsValidCedula(string cedula)

@@ -52,7 +52,7 @@ namespace FacturasSRI.Infrastructure.Services
             {
                 try
                 {
-                    Cliente cliente;
+                    Cliente? cliente;
                     Guid? clienteId = null;
 
                     if (invoiceDto.EsConsumidorFinal)
@@ -474,6 +474,8 @@ namespace FacturasSRI.Infrastructure.Services
         public async Task<List<InvoiceDto>> GetInvoicesAsync()
         {
             return await (from invoice in _context.Facturas
+                        join cliente in _context.Clientes on invoice.ClienteId equals cliente.Id into clienteJoin
+                        from cliente in clienteJoin.DefaultIfEmpty()
                         join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
                         from usuario in usuarioJoin.DefaultIfEmpty()
                         orderby invoice.FechaCreacion descending
@@ -484,6 +486,7 @@ namespace FacturasSRI.Infrastructure.Services
                             NumeroFactura = invoice.NumeroFactura,
                             Estado = invoice.Estado,
                             ClienteId = invoice.ClienteId,
+                            ClienteNombre = cliente != null ? cliente.RazonSocial : "Consumidor Final",
                             SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
                             TotalDescuento = invoice.TotalDescuento,
                             TotalIVA = invoice.TotalIVA,
@@ -546,10 +549,10 @@ namespace FacturasSRI.Infrastructure.Services
                 Id = invoice.Id,
                 NumeroFactura = invoice.NumeroFactura,
                 FechaEmision = invoice.FechaEmision,
-                ClienteNombre = invoice.Cliente.RazonSocial,
-                ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion,
-                ClienteDireccion = invoice.Cliente.Direccion,
-                ClienteEmail = invoice.Cliente.Email,
+                ClienteNombre = invoice.Cliente?.RazonSocial ?? "CONSUMIDOR FINAL",
+                ClienteIdentificacion = invoice.Cliente?.NumeroIdentificacion ?? "9999999999",
+                ClienteDireccion = invoice.Cliente?.Direccion ?? "N/A",
+                ClienteEmail = invoice.Cliente?.Email ?? "N/A",
                 SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
                 TotalIVA = invoice.TotalIVA,
                 Total = invoice.Total,

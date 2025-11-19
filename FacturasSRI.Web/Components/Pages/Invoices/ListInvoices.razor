@@ -53,7 +53,7 @@
                         {
                             <tr>
                                 <td><strong>@invoice.NumeroFactura</strong></td>
-                                <td>@(customers.FirstOrDefault(c => c.Id == invoice.ClienteId)?.RazonSocial ?? "N/A")</td>
+                                <td>@invoice.ClienteNombre</td>
                                 <td>@invoice.FechaEmision.ToLocalTime().ToString("g")</td>
                                 <td>@invoice.Estado</td>
                                 <td>@invoice.CreadoPor</td>
@@ -75,7 +75,6 @@
 
 @code {
     private List<InvoiceDto>? allInvoices; // Holds all invoices
-    private List<CustomerDto> customers = new();
     private string? errorMessage;
 
     private string searchTerm = string.Empty; // New property for search
@@ -83,7 +82,7 @@
     private List<InvoiceDto> FilteredInvoices => string.IsNullOrWhiteSpace(searchTerm)
         ? allInvoices ?? new()
         : allInvoices?.Where(invoice => invoice.NumeroFactura.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                                        (customers.FirstOrDefault(c => c.Id == invoice.ClienteId)?.RazonSocial?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+                                        (invoice.ClienteNombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
                       .ToList() ?? new();
 
     protected override async Task OnInitializedAsync()
@@ -91,7 +90,6 @@
         try
         {
             allInvoices = await InvoiceService.GetInvoicesAsync(); // Load all invoices
-            customers = await CustomerService.GetCustomersAsync();
         }
         catch (Exception ex)
         {
