@@ -130,16 +130,6 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// ... (todo el middleware sigue igual) ...
-app.Use(async (context, next) =>
-{
-    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-    var headers = string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}={h.Value}"));
-    logger.LogWarning(">>>>>> INCOMING REQUEST: {Method} {Path} | Headers: {Headers}",
-        context.Request.Method, context.Request.Path, headers);
-    await next.Invoke();
-});
-
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -168,22 +158,6 @@ app.UseStatusCodePagesWithReExecute("/NotFound");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.Use(async (context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api"))
-    {
-        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-        var user = context.User;
-        var claims = string.Join(", ", user.Claims.Select(c => $"{c.Type}={c.Value}"));
-
-        logger.LogWarning(">>>>>> API AUTH CHECK: IsAuthenticated={IsAuthenticated}, AuthType={AuthType}, Claims: [{Claims}]",
-            user.Identity?.IsAuthenticated ?? false,
-            user.Identity?.AuthenticationType ?? "null",
-            claims);
-    }
-    await next.Invoke();
-});
 
 app.UseAntiforgery();
 

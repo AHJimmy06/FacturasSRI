@@ -4,7 +4,6 @@
 @using FacturasSRI.Application.Interfaces
 @inject IPurchaseService PurchaseService
 @inject IJSRuntime JSRuntime
-@inject ILogger<ListPurchases> Logger
 
 <PageTitle>Historial de Compras</PageTitle>
 
@@ -102,14 +101,9 @@ else
         {
             isLoading = true;
             allPurchases = await PurchaseService.GetPurchasesAsync();
-            
-            Logger.LogInformation("Loaded {Count} purchases. IDs: {Ids}", 
-                allPurchases.Count, 
-                string.Join(", ", allPurchases.Select(p => p.CuentaPorPagarId)));
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Logger.LogError(ex, "Error loading purchases.");
         }
         finally
         {
