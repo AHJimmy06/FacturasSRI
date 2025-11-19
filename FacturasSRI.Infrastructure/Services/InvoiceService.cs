@@ -80,10 +80,10 @@ namespace FacturasSRI.Infrastructure.Services
             {
                 try
                 {
-                    Cliente cliente;
+                    Cliente? cliente;
                     if (invoiceDto.ClienteId.HasValue)
                     {
-                        cliente = await _context.Clientes.FindAsync(invoiceDto.ClienteId.Value);
+                        cliente = await _context.Clientes.FindAsync(invoiceDto.ClienteId.Value)!;
                         if (cliente == null)
                         {
                             throw new ArgumentException("Cliente no encontrado.");
@@ -101,9 +101,9 @@ namespace FacturasSRI.Infrastructure.Services
                             TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
                             NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
                             RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
-                            Direccion = invoiceDto.DireccionComprador,
-                            Email = invoiceDto.EmailComprador,
-                            Telefono = null,
+                            Direccion = invoiceDto.DireccionComprador ?? string.Empty,
+                            Email = invoiceDto.EmailComprador ?? string.Empty,
+                            Telefono = string.Empty,
                             FechaCreacion = DateTime.UtcNow,
                             EstaActivo = true
                         };
@@ -113,16 +113,21 @@ namespace FacturasSRI.Infrastructure.Services
                     var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
                     var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"];
 
+                    if (string.IsNullOrEmpty(establishmentCode) || string.IsNullOrEmpty(emissionPointCode))
+                    {
+                        throw new InvalidOperationException("El código de establecimiento y el punto de emisión deben estar configurados en appsettings.json.");
+                    }
+
                     var secuencial = await _context.Secuenciales
                         .FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
 
                     if (secuencial == null)
                     {
-                        secuencial = new Secuencial { 
+                        secuencial = new Secuencial {
                             Id = Guid.NewGuid(),
-                            Establecimiento = establishmentCode!, 
-                            PuntoEmision = emissionPointCode!, 
-                            UltimoSecuencialFactura = 0 
+                            Establecimiento = establishmentCode,
+                            PuntoEmision = emissionPointCode,
+                            UltimoSecuencialFactura = 0
                         };
                         _context.Secuenciales.Add(secuencial);
                     }
@@ -181,7 +186,7 @@ namespace FacturasSRI.Infrastructure.Services
                             }
                             else
                             {
-                                await DescontarStockGeneral(producto, detalle.Cantidad);
+                                DescontarStockGeneral(producto, detalle.Cantidad);
                             }
                         }
 
@@ -363,7 +368,7 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
 
-        private async Task DescontarStockGeneral(Producto producto, int cantidadADescontar)
+        private void DescontarStockGeneral(Producto producto, int cantidadADescontar)
         {
             if (producto.StockTotal < cantidadADescontar)
             {
@@ -481,9 +486,9 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public Task<List<InvoiceDto>> GetInvoicesAsync()
+        public async Task<List<InvoiceDto>> GetInvoicesAsync()
         {
-            return (from invoice in _context.Facturas
+            return await (from invoice in _context.Facturas
                         join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
                         from usuario in usuarioJoin.DefaultIfEmpty()
                         orderby invoice.FechaCreacion descending

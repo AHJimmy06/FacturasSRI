@@ -289,7 +289,7 @@ namespace FacturasSRI.Infrastructure.Services
                     .ToListAsync();
                 return categoriasDesdeDb;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return new List<CategoriaDto>(); // Devolver lista vacía si hay error
             }
@@ -306,7 +306,7 @@ namespace FacturasSRI.Infrastructure.Services
                     .ToListAsync();
                 return marcasDesdeDb;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log the exception if you have a logging mechanism
                 return new List<string>(); // Return an empty list on error

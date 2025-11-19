@@ -128,18 +128,12 @@ app.UseStaticFiles();
 
 app.UseStatusCodePagesWithReExecute("/NotFound"); // Handle 404s by re-executing to Blazor's NotFound route
 
-app.UseRouting(); // Add UseRouting here
-
-app.UseAuthentication();
-app.UseAuthorization();
 app.UseAntiforgery();
 
-app.UseEndpoints(endpoints => // Wrap mappings in UseEndpoints
-{
-    endpoints.MapControllers(); // API endpoints
+app.MapControllers();
 
-    endpoints.MapRazorComponents<App>() // Blazor components
-        .AddInteractiveServerRenderMode();
-});
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
     
     app.Run();

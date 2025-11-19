@@ -22,7 +22,7 @@ namespace FacturasSRI.Domain.Entities
 
         public string Marca { get; set; } = string.Empty;
         public Guid CategoriaId { get; set; }
-        public virtual Categoria Categoria { get; set; }
+        public virtual Categoria Categoria { get; set; } = null!;
 
         public virtual ICollection<Lote> Lotes { get; set; } = new List<Lote>();
         public virtual ICollection<ProductoImpuesto> ProductoImpuestos { get; set; } = new List<ProductoImpuesto>();
