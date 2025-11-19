@@ -108,7 +108,7 @@
         try
         {
             var allProducts = await ProductService.GetProductsAsync();
-            products = allProducts.Where(p => p.ManejaInventario).ToList();
+            products = allProducts.Where(p => p.ManejaInventario && p.IsActive).ToList();
         }
         catch (Exception ex)
         {

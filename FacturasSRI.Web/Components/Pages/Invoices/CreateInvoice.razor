@@ -312,8 +312,9 @@
             return;
         }
         productSearchResults = allProducts
-            .Where(p => p.Nombre.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase) || 
-                        p.CodigoPrincipal.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(p => p.IsActive && // Add this condition to filter by active products
+                        (p.Nombre.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase) || 
+                        p.CodigoPrincipal.Contains(productSearchTerm, StringComparison.OrdinalIgnoreCase)))
             .Take(5)
             .ToList();
     }
