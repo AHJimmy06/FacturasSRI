@@ -24,7 +24,8 @@ else
 {
     <div class="page-header">
         <h1>Registrar Pago</h1>
-        <p>Registrar el pago para la compra del proveedor <strong>@purchase.NombreProveedor</strong> por un total de <strong>@purchase.MontoTotal.ToString("C")</strong>.</p>
+        @* Usamos '!' porque estamos seguros de que 'purchase' no es nulo en este bloque else *@
+        <p>Registrar el pago para la compra del proveedor <strong>@purchase!.NombreProveedor</strong> por un total de <strong>@purchase.MontoTotal.ToString("C")</strong>.</p>
     </div>
 
     @if (!string.IsNullOrEmpty(statusMessage))
@@ -36,7 +37,8 @@ else
 
     <div class="card">
         <div class="card-body">
-            <EditForm Model="@purchase" OnValidSubmit="@HandleRegisterPayment">
+            @* --- CORRECCIÓN AQUÍ: Se envuelve la expresión en paréntesis @(...) --- *@
+            <EditForm Model="@(purchase!)" OnValidSubmit="@HandleRegisterPayment">
                 <DataAnnotationsValidator />
                 <div class="row">
                     <div class="col-md-12">

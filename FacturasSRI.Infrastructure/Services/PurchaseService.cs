@@ -29,7 +29,6 @@ namespace FacturasSRI.Infrastructure.Services
             _ajusteInventarioService = ajusteInventarioService;
         }
         
-        // --- MÉTODO IMPLEMENTADO ---
         public async Task MarcarComprasVencidasAsync()
         {
             var ahoraUtc = DateTime.UtcNow;
@@ -77,7 +76,8 @@ namespace FacturasSRI.Infrastructure.Services
                     MontoTotal = purchaseDto.MontoTotal,
                     Cantidad = purchaseDto.Cantidad,
                     Estado = purchaseDto.EsCredito ? EstadoCompra.Pendiente : EstadoCompra.Pagada,
-                    FechaVencimiento = purchaseDto.EsCredito ? purchaseDto.FechaVencimiento.Value.ToUniversalTime() : null,
+                    // --- CORRECCIÓN AQUÍ ---
+                    FechaVencimiento = purchaseDto.EsCredito ? purchaseDto.FechaVencimiento!.Value.ToUniversalTime() : null,
                     FechaPago = !purchaseDto.EsCredito ? (DateTime?)DateTime.UtcNow : null,
                     UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow
@@ -128,7 +128,6 @@ namespace FacturasSRI.Infrastructure.Services
             if (compra == null) throw new InvalidOperationException("La compra no existe.");
             if (compra.Estado != EstadoCompra.Vencida) throw new InvalidOperationException("Solo se pueden anular compras vencidas.");
 
-            // --- VALIDACIÓN CORREGIDA PARA ELIMINAR EL WARNING ---
             if (compra.Producto == null) throw new InvalidOperationException("El producto asociado a la compra es inválido. No se puede anular.");
             if (!compra.Producto.ManejaLotes) throw new InvalidOperationException("Solo se pueden anular automáticamente compras de productos que manejan lotes. Realice un ajuste de inventario manual.");
             

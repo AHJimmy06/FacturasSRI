@@ -51,7 +51,7 @@ else
                     <h5 class="card-title mb-4">Información de la Compra</h5>
                     <div class="row">
                         <div class="col-md-6">
-                            <p class="mb-2"><strong>Producto:</strong><br /> @purchase.ProductName</p>
+                            <p class="mb-2"><strong>Producto:</strong><br /> @purchase!.ProductName</p>
                             <p class="mb-2"><strong>Proveedor:</strong><br /> @purchase.NombreProveedor</p>
                             <p class="mb-0"><strong>Cantidad Comprada:</strong><br /> @purchase.Cantidad unidad(es)</p>
                         </div>
@@ -105,7 +105,6 @@ else
                             </button>
                         }
                         
-                        <!-- BOTÓN DE ANULAR AÑADIDO -->
                         @if (userIsAdmin && purchase.Estado == EstadoCompra.Vencida)
                         {
                              <button class="btn btn-danger" @onclick="HandleAnularCompra">
@@ -134,7 +133,7 @@ else
         try
         {
             isLoading = true;
-            statusMessage = null; // Limpiar mensaje en recarga
+            statusMessage = null;
             
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
@@ -163,7 +162,6 @@ else
                 return;
             }
 
-            // Opcional: Añadir una confirmación de JavaScript antes de llamar al servicio
             bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Se anulará la compra y se revertirá el inventario asociado. ¿Estás seguro?");
             if (!confirmed) return;
 
@@ -171,7 +169,7 @@ else
             
             statusMessage = "La compra ha sido anulada y el inventario ha sido ajustado correctamente.";
             isSuccess = true;
-            await OnInitializedAsync(); // Recargar los datos para mostrar el nuevo estado
+            await OnInitializedAsync();
         }
         catch (InvalidOperationException ex)
         {
