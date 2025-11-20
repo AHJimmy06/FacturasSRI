@@ -160,8 +160,9 @@ namespace FacturasSRI.Infrastructure.Services
                 
                 await _supabase.Storage.From("comprobantes-compra").Upload(memoryStream.ToArray(), bucketPath);
 
+                // 2. Update purchase record in DB
                 purchase.Estado = EstadoCompra.Pagada;
-                purchase.FechaPago = paymentDto.FechaPago.ToUniversalTime();
+                purchase.FechaPago = DateTime.UtcNow; // Asignar fecha de pago automáticamente
                 purchase.ComprobantePagoPath = bucketPath;
 
                 await _context.SaveChangesAsync();

@@ -7,9 +7,6 @@ namespace FacturasSRI.Application.Dtos
     {
         [Required]
         public Guid PurchaseId { get; set; }
-
-        [Required]
-        public DateTime FechaPago { get; set; }
         
         [Required]
         public Guid UsuarioId { get; set; }

@@ -4,7 +4,6 @@
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Domain.Enums
 @inject IPurchaseService PurchaseService
-@inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
 <PageTitle>Historial de Compras</PageTitle>
@@ -19,9 +18,19 @@
     </a>
 </div>
 
-
-<div class="mb-3">
-    <input type="text" class="form-control" placeholder="Buscar por producto o proveedor..." @bind-value="searchTerm" @bind-value:event="oninput" />
+<div class="row mb-3">
+    <div class="col-md-8">
+        <input type="text" class="form-control" placeholder="Buscar por producto o proveedor..." @bind-value="searchTerm" @bind-value:event="oninput" />
+    </div>
+    <div class="col-md-4">
+        <InputSelect class="form-select" @bind-Value="selectedStatus">
+            <option value="@(null as EstadoCompra?)">Todos los Estados</option>
+            @foreach (var s in Enum.GetValues(typeof(EstadoCompra)))
+            {
+                <option value="@s">@s.ToString()</option>
+            }
+        </InputSelect>
+    </div>
 </div>
 
 @if (isLoading)
@@ -62,16 +71,13 @@ else if (FilteredPurchases.Any())
                                 <td>@(purchase.FechaVencimiento?.ToLocalTime().ToString("d") ?? "N/A")</td>
                                 <td>@(purchase.FechaPago?.ToLocalTime().ToString("d") ?? "N/A")</td>
                                 <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="@(() => GoToDetails(purchase.Id))">
+                                        <i class="bi bi-eye"></i> Ver Detalles
+                                    </button>
                                     @if (purchase.Estado == EstadoCompra.Pendiente || purchase.Estado == EstadoCompra.Vencida)
                                     {
-                                        <button class="btn btn-sm btn-success" @onclick="() => GoToRegisterPayment(purchase.Id)">
+                                        <button class="btn btn-sm btn-success ms-1" @onclick="@(() => GoToRegisterPayment(purchase.Id))">
                                             <i class="bi bi-cash-coin"></i> Registrar Pago
-                                        </button>
-                                    }
-                                    @if (!string.IsNullOrEmpty(purchase.FacturaCompraPath))
-                                    {
-                                        <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="() => DownloadFile(purchase.Id)">
-                                            <i class="bi bi-file-earmark-pdf"></i> Ver Factura
                                         </button>
                                     }
                                 </td>
@@ -85,19 +91,36 @@ else if (FilteredPurchases.Any())
 }
 else
 {
-    <p>No se han registrado compras todavía.</p>
+    <p>No se han registrado compras con los filtros seleccionados.</p>
 }
 
 @code {
     private List<PurchaseListItemDto> allPurchases = new();
     private bool isLoading = true;
+    
     private string searchTerm = string.Empty;
+    private EstadoCompra? selectedStatus = EstadoCompra.Pendiente;
 
-    private List<PurchaseListItemDto> FilteredPurchases => string.IsNullOrWhiteSpace(searchTerm)
-        ? allPurchases
-        : allPurchases.Where(p => p.ProductName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                                  p.NombreProveedor.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                      .ToList();
+    private List<PurchaseListItemDto> FilteredPurchases
+    {
+        get
+        {
+            var filtered = allPurchases;
+
+            if (selectedStatus.HasValue)
+            {
+                filtered = filtered.Where(p => p.Estado == selectedStatus.Value).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                filtered = filtered.Where(p => p.ProductName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                          p.NombreProveedor.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            return filtered;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,15 +147,13 @@ else
         };
     }
     
+    private void GoToDetails(Guid purchaseId)
+    {
+        Navigation.NavigateTo($"/purchases/details/{purchaseId}");
+    }
+    
     private void GoToRegisterPayment(Guid purchaseId)
     {
         Navigation.NavigateTo($"/purchases/pay/{purchaseId}");
-    }
-
-    private async Task DownloadFile(Guid purchaseId)
-    {
-        // Esta lógica podría necesitar un ajuste si la ruta de la API cambia
-        var url = $"/api/downloads/purchase-receipt/{purchaseId}";
-        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
     }
 }

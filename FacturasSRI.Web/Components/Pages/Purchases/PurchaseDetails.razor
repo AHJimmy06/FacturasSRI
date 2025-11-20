@@ -1,0 +1,145 @@
+@page "/purchases/details/{PurchaseId:guid}"
+@attribute [Authorize(Roles = "Administrador, Bodeguero")]
+
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
+@inject IPurchaseService PurchaseService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Detalle de Compra</PageTitle>
+
+@if (purchase == null && !isLoading)
+{
+    <div class="alert alert-danger">No se encontró la compra solicitada.</div>
+}
+else if (isLoading)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Detalle de Compra</h1>
+        <div>
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="bi bi-arrow-left-circle me-2"></i>Volver
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-4">Información de la Compra</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Producto:</strong><br /> @purchase.ProductName</p>
+                            <p class="mb-2"><strong>Proveedor:</strong><br /> @purchase.NombreProveedor</p>
+                            <p class="mb-0"><strong>Cantidad Comprada:</strong><br /> @purchase.Cantidad unidad(es)</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Monto Total de la Factura:</strong><br /> <span class="fs-5 fw-bold">@purchase.MontoTotal.ToString("C")</span></p>
+                            <p class="mb-0"><strong>Fecha de Emisión:</strong><br /> @purchase.FechaEmision.ToLocalTime().ToString("g")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="bi bi-credit-card me-2"></i>Estado del Pago</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Estado:</label>
+                        <p><span class="badge fs-6 @GetBadgeClass(purchase.Estado)">@purchase.Estado.ToString()</span></p>
+                    </div>
+                    
+                    @if(purchase.Estado != EstadoCompra.Pagada)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Vencimiento:</label>
+                            <input type="text" class="form-control" value="@(purchase.FechaVencimiento?.ToLocalTime().ToString("D") ?? "N/A")" readonly />
+                        </div>
+                    }
+                    
+                    @if(purchase.Estado == EstadoCompra.Pagada)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Pago:</label>
+                            <input type="text" class="form-control" value="@(purchase.FechaPago?.ToLocalTime().ToString("D") ?? "N/A")" readonly />
+                        </div>
+                    }
+
+                    <div class="d-grid gap-2">
+                        @if (!string.IsNullOrEmpty(purchase.FacturaCompraPath))
+                        {
+                            <button class="btn btn-outline-primary" @onclick="@(() => DownloadFile(purchase.Id, "invoice"))">
+                                <i class="bi bi-file-earmark-pdf"></i> Ver Factura de Compra
+                            </button>
+                        }
+                        @if (!string.IsNullOrEmpty(purchase.ComprobantePagoPath))
+                        {
+                            <button class="btn btn-outline-success" @onclick="@(() => DownloadFile(purchase.Id, "payment"))">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Ver Comprobante de Pago
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid PurchaseId { get; set; }
+
+    private PurchaseListItemDto? purchase;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            purchase = await PurchaseService.GetPurchaseByIdAsync(PurchaseId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/purchases");
+    }
+
+    private string GetBadgeClass(EstadoCompra estado)
+    {
+        return estado switch
+        {
+            EstadoCompra.Pagada => "bg-success",
+            EstadoCompra.Pendiente => "bg-warning text-dark",
+            EstadoCompra.Vencida => "bg-danger",
+            EstadoCompra.Cancelada => "bg-secondary",
+            _ => "bg-light text-dark",
+        };
+    }
+
+    private async Task DownloadFile(Guid purchaseId, string type)
+    {
+        var url = $"/api/downloads/purchase-receipt/{purchaseId}?type={type}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+}

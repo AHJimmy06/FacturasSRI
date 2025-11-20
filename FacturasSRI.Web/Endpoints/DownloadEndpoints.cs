@@ -24,20 +24,30 @@ namespace FacturasSRI.Web.Endpoints
 
             downloadsGroup.MapGet("/purchase-receipt/{id}", async (
                 Guid id,
+                [FromQuery] string? type, // "invoice" or "payment"
                 HttpContext httpContext,
                 FacturasSRIDbContext dbContext,
                 Client supabase,
                 ILoggerFactory loggerFactory) =>
             {
                 var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-                logger.LogInformation("Descarga de comprobante solicitada. ID: {Id}", id);
+                logger.LogInformation("Descarga de comprobante de compra solicitada. ID: {Id}, Tipo: {Type}", id, type);
                 
-                var cuentaPorPagar = await dbContext.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == id);
+                var cuentaPorPagar = await dbContext.CuentasPorPagar.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
 
-                if (cuentaPorPagar == null || string.IsNullOrEmpty(cuentaPorPagar.FacturaCompraPath))
+                if (cuentaPorPagar == null)
                 {
-                    logger.LogWarning("No se encontró la cuenta por pagar o no tiene comprobante. ID: {Id}", id);
-                    return Results.NotFound("El comprobante no fue encontrado.");
+                    return Results.NotFound("El registro de compra no fue encontrado.");
+                }
+
+                string? filePath = (type?.ToLower() == "payment")
+                    ? cuentaPorPagar.ComprobantePagoPath
+                    : cuentaPorPagar.FacturaCompraPath;
+
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    logger.LogWarning("No se encontró la ruta del archivo. ID: {Id}, Tipo: {Type}", id, type);
+                    return Results.NotFound("El archivo solicitado no fue encontrado.");
                 }
 
                 var user = httpContext.User;
@@ -46,24 +56,29 @@ namespace FacturasSRI.Web.Endpoints
 
                 if (cuentaPorPagar.UsuarioIdCreador.ToString() != userId && !isAdmin)
                 {
-                    logger.LogWarning("Acceso denegado para descargar el comprobante. Usuario: {UserId}, Creador: {CreatorId}", userId, cuentaPorPagar.UsuarioIdCreador);
+                    logger.LogWarning("Acceso denegado. Usuario: {UserId}, Creador: {CreatorId}", userId, cuentaPorPagar.UsuarioIdCreador);
                     return Results.Forbid();
                 }
 
                 try
                 {
-                    logger.LogInformation("Descargando archivo desde Supabase: {Path}", cuentaPorPagar.FacturaCompraPath);
+                    logger.LogInformation("Descargando archivo desde Supabase: {Path}", filePath);
                     var fileBytes = await supabase.Storage
                         .From("comprobantes-compra")
-                        .Download(cuentaPorPagar.FacturaCompraPath, null);
+                        .Download(filePath, null);
                     
-                    var fileName = Path.GetFileName(cuentaPorPagar.FacturaCompraPath);
+                    var fileName = Path.GetFileName(filePath);
+                    var contentType = "application/octet-stream"; // Generic default
+                    if(fileName.EndsWith(".pdf")) contentType = "application/pdf";
+                    if(fileName.EndsWith(".png")) contentType = "image/png";
+                    if(fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
 
-                    return Results.File(fileBytes, "application/pdf", fileDownloadName: fileName);
+
+                    return Results.File(fileBytes, contentType, fileDownloadName: fileName);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", cuentaPorPagar.FacturaCompraPath);
+                    logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", filePath);
                     return Results.StatusCode(500);
                 }
             });

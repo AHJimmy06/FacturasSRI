@@ -36,17 +36,10 @@ else
 
     <div class="card">
         <div class="card-body">
-            <EditForm Model="@paymentModel" OnValidSubmit="@HandleRegisterPayment">
+            <EditForm Model="@purchase" OnValidSubmit="@HandleRegisterPayment">
                 <DataAnnotationsValidator />
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="fechaPago" class="form-label">Fecha de Pago</label>
-                            <InputDate id="fechaPago" class="form-control" @bind-Value="paymentModel.FechaPago" disabled="@isSubmitting" />
-                            <ValidationMessage For="@(() => paymentModel.FechaPago)" />
-                        </div>
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <div class="mb-3">
                             <label for="comprobante" class="form-label">Comprobante de Pago (PDF, PNG, JPG)</label>
                             <InputFile id="comprobante" class="form-control" OnChange="@OnInputFileChange" disabled="@isSubmitting" accept=".pdf,.png,.jpg,.jpeg" />
@@ -81,7 +74,6 @@ else
     public Guid PurchaseId { get; set; }
 
     private PurchaseListItemDto? purchase;
-    private PaymentFormModel paymentModel = new();
     
     private string? statusMessage;
     private bool isSuccess;
@@ -96,10 +88,6 @@ else
         try
         {
             purchase = await PurchaseService.GetPurchaseByIdAsync(PurchaseId);
-            if (purchase != null)
-            {
-                paymentModel.FechaPago = DateTime.Now;
-            }
         }
         finally
         {
@@ -148,7 +136,6 @@ else
         var paymentDto = new RegisterPaymentDto
         {
             PurchaseId = PurchaseId,
-            FechaPago = paymentModel.FechaPago,
             UsuarioId = Guid.Parse(userId)
         };
 
@@ -176,11 +163,5 @@ else
         {
             isSubmitting = false;
         }
-    }
-
-    public class PaymentFormModel
-    {
-        [Required]
-        public DateTime FechaPago { get; set; } = DateTime.Now;
     }
 }
