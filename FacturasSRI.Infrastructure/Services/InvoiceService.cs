@@ -81,10 +81,12 @@ namespace FacturasSRI.Infrastructure.Services
                 try
                 {
                     Cliente cliente;
+                    Guid? clienteId = null;
                     
                     if (invoiceDto.EsConsumidorFinal)
                     {
                         cliente = await GetOrCreateConsumidorFinalClientAsync();
+                        clienteId = cliente.Id;
                     }
                     else if (invoiceDto.ClienteId.HasValue)
                     {
@@ -93,6 +95,7 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             throw new ArgumentException("Cliente no encontrado.");
                         }
+                        clienteId = cliente.Id;
                     }
                     else
                     {
@@ -109,6 +112,7 @@ namespace FacturasSRI.Infrastructure.Services
                             EstaActivo = true
                         };
                         _context.Clientes.Add(cliente);
+                        clienteId = cliente.Id;
                     }
 
                     var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
@@ -228,11 +232,13 @@ namespace FacturasSRI.Infrastructure.Services
 
                     await _context.SaveChangesAsync();
                     
-                    var resultadoXml = _xmlGeneratorService.GenerarYFirmarFactura(claveAcceso, invoice, cliente, certificatePath!, certificatePassword!);
-                    facturaSri.XmlGenerado = resultadoXml.XmlGenerado; 
-                    facturaSri.XmlFirmado = resultadoXml.XmlFirmado;
+                    var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarFactura(claveAcceso, invoice, cliente, certificatePath!, certificatePassword!);
+                    
+                    facturaSri.XmlGenerado = xmlGenerado; 
+                    facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
 
-                    string respuestaRecepcionXml = await _sriApiClientService.EnviarRecepcionAsync(resultadoXml.XmlFirmado);
+                    string respuestaRecepcionXml = await _sriApiClientService.EnviarRecepcionAsync(xmlFirmadoBytes);
+
                     RespuestaRecepcion respuestaRecepcion = _sriResponseParserService.ParsearRespuestaRecepcion(respuestaRecepcionXml);
 
                     if (respuestaRecepcion.Estado == "DEVUELTA")
@@ -438,7 +444,7 @@ namespace FacturasSRI.Infrastructure.Services
 
         private int CalcularDigitoVerificador(string clave)
         {
-            int[] factores = { 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
+            int[] factores = { 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2 };
             int suma = 0;
 
             for (int i = 0; i < 48; i++)

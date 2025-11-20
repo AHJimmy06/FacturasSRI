@@ -11,8 +11,7 @@ namespace FacturasSRI.Core.Services
 {
     public class FirmaDigitalService
     {
-        public string FirmarXml(string xmlSinFirmar, string rutaCertificado, string passwordCertificado)
-        {
+        public byte[] FirmarXml(string xmlSinFirmar, string rutaCertificado, string passwordCertificado)        {
             var certificado = new X509Certificate2(rutaCertificado, passwordCertificado, X509KeyStorageFlags.Exportable);
 
             var xadesService = new XadesService();
@@ -40,7 +39,12 @@ namespace FacturasSRI.Core.Services
                 try
                 {
                     var signedXml = xadesService.Sign(stream, parametros);
-                    return signedXml.Document.OuterXml;
+                    
+                    using (var ms = new MemoryStream())
+                    {
+                        signedXml.Document.Save(ms);
+                        return ms.ToArray();
+                    }
                 }
                 catch (Exception ex)
                 {

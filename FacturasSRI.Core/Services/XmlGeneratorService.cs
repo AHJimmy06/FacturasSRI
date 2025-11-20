@@ -6,6 +6,7 @@ using System.Xml;
 using FacturasSRI.Domain.Enums; 
 using System.Globalization;
 using System.Collections.Generic;
+using System.Text;
 
 using FacturaDominio = FacturasSRI.Domain.Entities.Factura;
 using ClienteDominio = FacturasSRI.Domain.Entities.Cliente;
@@ -40,7 +41,7 @@ namespace FacturasSRI.Core.Services
             _firmaService = firmaService;
         }
 
-        public (string XmlGenerado, string XmlFirmado) GenerarYFirmarFactura(
+        public (string XmlGenerado, byte[] XmlFirmadoBytes) GenerarYFirmarFactura(
             string claveAcceso,
             FacturaDominio facturaDominio, 
             ClienteDominio clienteDominio,
@@ -52,9 +53,9 @@ namespace FacturasSRI.Core.Services
             
             string xmlSinFirmar = SerializarObjeto(facturaXml);
 
-            string xmlFirmado = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
+            byte[] xmlFirmadoBytes = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
 
-            return (xmlSinFirmar, xmlFirmado);
+            return (xmlSinFirmar, xmlFirmadoBytes);
         }
 
         private FacturaXml GenerarXmlFactura( 
@@ -68,7 +69,7 @@ namespace FacturasSRI.Core.Services
             var facturaXml = new FacturaXml 
             {
                 Id = FacturaId.Comprobante,
-                Version = "1.0.0", 
+                Version = "1.1.0", 
             };
             
             facturaXml.InfoTributaria = new InfoTributariaXml 
@@ -153,12 +154,12 @@ namespace FacturasSRI.Core.Services
 
         private string SerializarObjeto(object objeto)
         {
-            using (var stringWriter = new StringWriter())
+            using (var stringWriter = new Utf8StringWriter()) 
             {
                 var settings = new XmlWriterSettings
                 {
                     Indent = true, 
-                    Encoding = new System.Text.UTF8Encoding(false) 
+                    Encoding = new UTF8Encoding(false)
                 };
 
                 using (var xmlWriter = XmlWriter.Create(stringWriter, settings))
@@ -193,5 +194,10 @@ namespace FacturasSRI.Core.Services
                     return "07";
             }
         }
+    }
+
+    public class Utf8StringWriter : StringWriter
+    {
+        public override Encoding Encoding => Encoding.UTF8;
     }
 }
