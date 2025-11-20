@@ -1,5 +1,6 @@
 using FacturasSRI.Application.Dtos;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace FacturasSRI.Application.Interfaces
@@ -8,6 +9,7 @@ namespace FacturasSRI.Application.Interfaces
     {
         Task<bool> CreatePurchaseAsync(PurchaseDto purchase);
         Task<List<PurchaseListItemDto>> GetPurchasesAsync();
-
+        Task<PurchaseListItemDto?> GetPurchaseByIdAsync(Guid id);
+        Task<bool> RegisterPaymentAsync(RegisterPaymentDto paymentDto, Stream fileStream, string fileName);
     }
 }

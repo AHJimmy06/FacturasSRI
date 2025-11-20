@@ -1,3 +1,4 @@
+using FacturasSRI.Domain.Enums;
 using System;
 
 namespace FacturasSRI.Domain.Entities
@@ -10,13 +11,14 @@ namespace FacturasSRI.Domain.Entities
         public Guid? LoteId { get; set; }
         public virtual Lote? Lote { get; set; }
         public string NombreProveedor { get; set; } = string.Empty;
-        public string? ComprobantePath { get; set; }
+        public string? FacturaCompraPath { get; set; }
+        public string? ComprobantePagoPath { get; set; }
         public DateTime FechaEmision { get; set; }
         public DateTime FechaVencimiento { get; set; }
         public decimal MontoTotal { get; set; }
         public int Cantidad { get; set; }
-        public decimal SaldoPendiente { get; set; }
-        public bool Pagada { get; set; }
+        public EstadoCompra Estado { get; set; }
+        public DateTime? FechaPago { get; set; }
         public Guid UsuarioIdCreador { get; set; }
         public DateTime FechaCreacion { get; set; }
     }

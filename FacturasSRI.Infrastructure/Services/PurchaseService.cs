@@ -1,11 +1,14 @@
 using FacturasSRI.Application.Dtos;
 using FacturasSRI.Application.Interfaces;
 using FacturasSRI.Domain.Entities;
+using FacturasSRI.Domain.Enums;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Supabase;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -15,127 +18,160 @@ namespace FacturasSRI.Infrastructure.Services
     {
         private readonly FacturasSRIDbContext _context;
         private readonly ILogger<PurchaseService> _logger;
+        private readonly Client _supabase;
 
-        public PurchaseService(FacturasSRIDbContext context, ILogger<PurchaseService> logger)
+        public PurchaseService(FacturasSRIDbContext context, ILogger<PurchaseService> logger, Client supabase)
         {
             _context = context;
             _logger = logger;
+            _supabase = supabase;
         }
 
         public async Task<bool> CreatePurchaseAsync(PurchaseDto purchaseDto)
         {
-            // The file upload logic will be fully implemented in Phase 2.
-            // For now, this just makes the project buildable.
-
-            using (var transaction = await _context.Database.BeginTransactionAsync())
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                try
+                var producto = await _context.Productos.FindAsync(purchaseDto.ProductoId);
+                if (producto == null) throw new InvalidOperationException("El producto no existe.");
+                if (!producto.ManejaInventario) throw new InvalidOperationException("No se puede registrar una compra para un producto que no maneja inventario.");
+
+                if (purchaseDto.EsCredito && !purchaseDto.FechaVencimiento.HasValue)
                 {
-                    var producto = await _context.Productos.FindAsync(purchaseDto.ProductoId);
-                    if (producto == null) throw new InvalidOperationException("El producto no existe.");
-                    if (!producto.ManejaInventario) throw new InvalidOperationException("No se puede registrar una compra para un producto que no maneja inventario.");
-
-                    decimal montoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCosto;
-
-                    if (producto.ManejaLotes)
-                    {
-                        var lote = new Lote
-                        {
-                            Id = Guid.NewGuid(),
-                            ProductoId = purchaseDto.ProductoId,
-                            CantidadComprada = purchaseDto.Cantidad,
-                            CantidadDisponible = purchaseDto.Cantidad,
-                            PrecioCompraUnitario = purchaseDto.PrecioCosto,
-                            FechaCompra = DateTime.UtcNow,
-                            FechaCaducidad = purchaseDto.FechaCaducidad?.ToUniversalTime(),
-                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
-                            FechaCreacion = DateTime.UtcNow
-                        };
-                        _context.Lotes.Add(lote);
-
-                        var cuentaPorPagarLote = new CuentaPorPagar
-                        {
-                            Id = Guid.NewGuid(),
-                            LoteId = lote.Id,
-                            ProductoId = purchaseDto.ProductoId,
-                            NombreProveedor = purchaseDto.NombreProveedor,
-                            ComprobantePath = purchaseDto.ComprobantePath,
-                            FechaEmision = DateTime.UtcNow,
-                            FechaVencimiento = DateTime.UtcNow.AddDays(30),
-                            MontoTotal = montoTotal,
-                            Cantidad = purchaseDto.Cantidad,
-                            SaldoPendiente = montoTotal, // Saldo pendiente es el total al crear
-                            Pagada = false, // La cuenta se crea como no pagada
-                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
-                            FechaCreacion = DateTime.UtcNow
-                        };
-                        _context.CuentasPorPagar.Add(cuentaPorPagarLote);
-                    }
-                    else
-                    {
-                        producto.StockTotal += purchaseDto.Cantidad;
-
-                        var cuentaPorPagarGeneral = new CuentaPorPagar
-                        {
-                            Id = Guid.NewGuid(),
-                            LoteId = null,
-                            ProductoId = purchaseDto.ProductoId,
-                            NombreProveedor = purchaseDto.NombreProveedor,
-                            ComprobantePath = purchaseDto.ComprobantePath,
-                            FechaEmision = DateTime.UtcNow,
-                            FechaVencimiento = DateTime.UtcNow.AddDays(30),
-                            MontoTotal = montoTotal,
-                            Cantidad = purchaseDto.Cantidad,
-                            SaldoPendiente = montoTotal, // Saldo pendiente es el total al crear
-                            Pagada = false, // La cuenta se crea como no pagada
-                            UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
-                            FechaCreacion = DateTime.UtcNow
-                        };
-                        _context.CuentasPorPagar.Add(cuentaPorPagarGeneral);
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                    return true;
+                    throw new InvalidOperationException("Para compras a crédito, la fecha de vencimiento es obligatoria.");
                 }
-                catch (Exception ex)
+                if (purchaseDto.FechaVencimiento.HasValue && purchaseDto.FechaVencimiento.Value.ToUniversalTime() < DateTime.UtcNow)
                 {
-                    _logger.LogError(ex, "EXCEPCIÓN al crear la compra. Revirtiendo transacción.");
-                    await transaction.RollbackAsync();
-                    return false;
+                    throw new InvalidOperationException("La fecha de vencimiento debe ser una fecha futura.");
                 }
+
+                var cuenta = new CuentaPorPagar
+                {
+                    Id = Guid.NewGuid(),
+                    ProductoId = purchaseDto.ProductoId,
+                    NombreProveedor = purchaseDto.NombreProveedor,
+                    FacturaCompraPath = purchaseDto.FacturaCompraPath,
+                    FechaEmision = DateTime.UtcNow,
+                    MontoTotal = purchaseDto.MontoTotal,
+                    Cantidad = purchaseDto.Cantidad,
+                    Estado = purchaseDto.EsCredito ? EstadoCompra.Pendiente : EstadoCompra.Pagada,
+                    FechaVencimiento = purchaseDto.EsCredito ? purchaseDto.FechaVencimiento.Value.ToUniversalTime() : DateTime.UtcNow.AddDays(30),
+                    FechaPago = !purchaseDto.EsCredito ? (DateTime?)DateTime.UtcNow : null,
+                    UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
+                    FechaCreacion = DateTime.UtcNow
+                };
+
+                if (producto.ManejaLotes)
+                {
+                    var lote = new Lote
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductoId = purchaseDto.ProductoId,
+                        CantidadComprada = purchaseDto.Cantidad,
+                        CantidadDisponible = purchaseDto.Cantidad,
+                        PrecioCompraUnitario = (purchaseDto.Cantidad > 0) ? (purchaseDto.MontoTotal / purchaseDto.Cantidad) : 0,
+                        FechaCompra = DateTime.UtcNow,
+                        FechaCaducidad = purchaseDto.FechaCaducidad?.ToUniversalTime(),
+                        UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
+                        FechaCreacion = DateTime.UtcNow
+                    };
+                    _context.Lotes.Add(lote);
+                    cuenta.LoteId = lote.Id;
+                }
+                else
+                {
+                    producto.StockTotal += purchaseDto.Cantidad;
+                }
+
+                _context.CuentasPorPagar.Add(cuenta);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "EXCEPCIÓN al crear la compra. Revirtiendo transacción.");
+                await transaction.RollbackAsync();
+                return false;
             }
         }
 
         public async Task<List<PurchaseListItemDto>> GetPurchasesAsync()
         {
-            var purchases = await (
-                from cpp in _context.CuentasPorPagar
-                join producto in _context.Productos on cpp.ProductoId equals producto.Id
-                join usuario in _context.Usuarios on cpp.UsuarioIdCreador equals usuario.Id into usuarioJoin
-                from user in usuarioJoin.DefaultIfEmpty()
-                // LEFT JOIN to Lotes
-                join lote in _context.Lotes on cpp.LoteId equals lote.Id into loteJoin
-                from lote in loteJoin.DefaultIfEmpty()
-                orderby cpp.FechaCreacion descending
-                select new PurchaseListItemDto
+            return await _context.CuentasPorPagar
+                .Include(p => p.Producto)
+                .OrderByDescending(p => p.FechaCreacion)
+                .Select(p => new PurchaseListItemDto
                 {
-                    CuentaPorPagarId = cpp.Id,
-                    LoteId = lote != null ? lote.Id : Guid.Empty,
-                    ProductName = producto.Nombre,
-                    CantidadComprada = cpp.Cantidad,
-                    CantidadDisponible = lote != null ? lote.CantidadDisponible : producto.StockTotal,
-                    PrecioCompraUnitario = (cpp.Cantidad > 0) ? (cpp.MontoTotal / cpp.Cantidad) : 0,
-                    ValorTotalCompra = cpp.MontoTotal,
-                    FechaCompra = cpp.FechaEmision,
-                    FechaCaducidad = lote != null ? lote.FechaCaducidad : null,
-                    NombreProveedor = cpp.NombreProveedor,
-                    ComprobantePath = cpp.ComprobantePath,
-                    CreadoPor = user != null ? user.PrimerNombre + " " + user.PrimerApellido : "N/A"
-                }
-            ).ToListAsync();
+                    Id = p.Id,
+                    ProductName = p.Producto.Nombre,
+                    NombreProveedor = p.NombreProveedor,
+                    Cantidad = p.Cantidad,
+                    MontoTotal = p.MontoTotal,
+                    Estado = p.Estado,
+                    FechaEmision = p.FechaEmision,
+                    FechaVencimiento = p.FechaVencimiento,
+                    FechaPago = p.FechaPago,
+                    FacturaCompraPath = p.FacturaCompraPath,
+                    ComprobantePagoPath = p.ComprobantePagoPath
+                })
+                .ToListAsync();
+        }
+        
+        public async Task<PurchaseListItemDto?> GetPurchaseByIdAsync(Guid id)
+        {
+            return await _context.CuentasPorPagar
+                .Where(p => p.Id == id)
+                .Select(p => new PurchaseListItemDto
+                {
+                    Id = p.Id,
+                    ProductName = p.Producto.Nombre,
+                    NombreProveedor = p.NombreProveedor,
+                    Cantidad = p.Cantidad,
+                    MontoTotal = p.MontoTotal,
+                    Estado = p.Estado,
+                    FechaEmision = p.FechaEmision,
+                    FechaVencimiento = p.FechaVencimiento,
+                    FechaPago = p.FechaPago,
+                    FacturaCompraPath = p.FacturaCompraPath,
+                    ComprobantePagoPath = p.ComprobantePagoPath,
+                })
+                .FirstOrDefaultAsync();
+        }
 
-            return purchases;
+        public async Task<bool> RegisterPaymentAsync(RegisterPaymentDto paymentDto, Stream fileStream, string fileName)
+        {
+            try
+            {
+                var purchase = await _context.CuentasPorPagar.FindAsync(paymentDto.PurchaseId);
+                if (purchase == null) throw new InvalidOperationException("La compra no existe.");
+
+                if (purchase.Estado != EstadoCompra.Pendiente && purchase.Estado != EstadoCompra.Vencida)
+                {
+                    throw new InvalidOperationException("Solo se pueden registrar pagos para compras pendientes o vencidas.");
+                }
+
+                var fileExtension = Path.GetExtension(fileName);
+                var newFileName = $"{Guid.NewGuid()}{fileExtension}";
+                var bucketPath = $"{paymentDto.UsuarioId}/{newFileName}";
+
+                await using var memoryStream = new MemoryStream();
+                await fileStream.CopyToAsync(memoryStream);
+                
+                await _supabase.Storage.From("comprobantes-compra").Upload(memoryStream.ToArray(), bucketPath);
+
+                purchase.Estado = EstadoCompra.Pagada;
+                purchase.FechaPago = paymentDto.FechaPago.ToUniversalTime();
+                purchase.ComprobantePagoPath = bucketPath;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "EXCEPCIÓN al registrar el pago.");
+                return false;
+            }
         }
     }
 }

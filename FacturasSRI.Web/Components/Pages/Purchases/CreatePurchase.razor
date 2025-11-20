@@ -66,14 +66,31 @@
                         <ValidationMessage For="@(() => newPurchase.Cantidad)" />
                     </div>
                     <div class="mb-3">
-                        <label for="precioCosto" class="form-label">Precio de Costo (Unitario)</label>
-                        <InputNumber id="precioCosto" class="form-control" @bind-Value="newPurchase.PrecioCosto" disabled="@isSubmitting" />
-                        <ValidationMessage For="@(() => newPurchase.PrecioCosto)" />
+                        <label for="montoTotal" class="form-label">Monto Total de la Factura (IVA incluido)</label>
+                        <InputNumber id="montoTotal" class="form-control" @bind-Value="newPurchase.MontoTotal" disabled="@isSubmitting" />
+                        <ValidationMessage For="@(() => newPurchase.MontoTotal)" />
                     </div>
                     <div class="mb-3">
                         <label for="fechaCaducidad" class="form-label">Fecha de Caducidad (Opcional)</label>
                         <InputDate id="fechaCaducidad" class="form-control" @bind-Value="newPurchase.FechaCaducidad" disabled="@isSubmitting" />
                     </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3 form-check">
+                        <InputCheckbox id="esCredito" class="form-check-input" @bind-Value="newPurchase.EsCredito" disabled="@isSubmitting" />
+                        <label for="esCredito" class="form-check-label">Es compra a crédito</label>
+                    </div>
+
+                    @if (newPurchase.EsCredito)
+                    {
+                        <div class="mb-3">
+                            <label for="fechaVencimiento" class="form-label">Fecha de Vencimiento</label>
+                            <InputDate id="fechaVencimiento" class="form-control" @bind-Value="newPurchase.FechaVencimiento" disabled="@isSubmitting" />
+                            <ValidationMessage For="@(() => newPurchase.FechaVencimiento)" />
+                        </div>
+                    }
                 </div>
             </div>
             <div class="mt-4">
@@ -183,7 +200,7 @@
             
             await Supabase.Storage.From("comprobantes-compra").Upload(memoryStream.ToArray(), bucketPath);
             
-            newPurchase.ComprobantePath = bucketPath;
+            newPurchase.FacturaCompraPath = bucketPath;
 
             // 2. Create purchase record in DB
             var success = await PurchaseService.CreatePurchaseAsync(newPurchase);

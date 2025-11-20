@@ -34,7 +34,7 @@ namespace FacturasSRI.Web.Endpoints
                 
                 var cuentaPorPagar = await dbContext.CuentasPorPagar.FirstOrDefaultAsync(c => c.Id == id);
 
-                if (cuentaPorPagar == null || string.IsNullOrEmpty(cuentaPorPagar.ComprobantePath))
+                if (cuentaPorPagar == null || string.IsNullOrEmpty(cuentaPorPagar.FacturaCompraPath))
                 {
                     logger.LogWarning("No se encontró la cuenta por pagar o no tiene comprobante. ID: {Id}", id);
                     return Results.NotFound("El comprobante no fue encontrado.");
@@ -52,18 +52,18 @@ namespace FacturasSRI.Web.Endpoints
 
                 try
                 {
-                    logger.LogInformation("Descargando archivo desde Supabase: {Path}", cuentaPorPagar.ComprobantePath);
+                    logger.LogInformation("Descargando archivo desde Supabase: {Path}", cuentaPorPagar.FacturaCompraPath);
                     var fileBytes = await supabase.Storage
                         .From("comprobantes-compra")
-                        .Download(cuentaPorPagar.ComprobantePath, null);
+                        .Download(cuentaPorPagar.FacturaCompraPath, null);
                     
-                    var fileName = Path.GetFileName(cuentaPorPagar.ComprobantePath);
+                    var fileName = Path.GetFileName(cuentaPorPagar.FacturaCompraPath);
 
                     return Results.File(fileBytes, "application/pdf", fileDownloadName: fileName);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", cuentaPorPagar.ComprobantePath);
+                    logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", cuentaPorPagar.FacturaCompraPath);
                     return Results.StatusCode(500);
                 }
             });

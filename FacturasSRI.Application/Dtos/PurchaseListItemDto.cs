@@ -1,20 +1,21 @@
+using FacturasSRI.Domain.Enums;
 using System;
 
 namespace FacturasSRI.Application.Dtos
 {
     public class PurchaseListItemDto
     {
-        public Guid CuentaPorPagarId { get; set; }
-        public Guid LoteId { get; set; }
+        public Guid Id { get; set; }
         public string ProductName { get; set; } = string.Empty;
-        public int CantidadComprada { get; set; }
-        public int CantidadDisponible { get; set; }
-        public decimal PrecioCompraUnitario { get; set; }
-        public decimal ValorTotalCompra { get; set; }
-        public DateTime FechaCompra { get; set; }
-        public DateTime? FechaCaducidad { get; set; }
         public string NombreProveedor { get; set; } = string.Empty;
-        public string? ComprobantePath { get; set; }
+        public int Cantidad { get; set; }
+        public decimal MontoTotal { get; set; }
+        public EstadoCompra Estado { get; set; }
+        public DateTime FechaEmision { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
+        public DateTime? FechaPago { get; set; }
+        public string? FacturaCompraPath { get; set; }
+        public string? ComprobantePagoPath { get; set; }
         public string CreadoPor { get; set; } = string.Empty;
     }
 }

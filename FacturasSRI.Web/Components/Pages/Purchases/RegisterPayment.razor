@@ -1,0 +1,186 @@
+@page "/purchases/pay/{PurchaseId:guid}"
+@attribute [Authorize(Roles = "Administrador")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@inject IPurchaseService PurchaseService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject Supabase.Client Supabase
+
+<PageTitle>Registrar Pago de Compra</PageTitle>
+
+@if (purchase == null && !isLoading)
+{
+    <div class="alert alert-danger">No se encontró la compra especificada.</div>
+}
+else if (isLoading)
+{
+    <p><em>Cargando...</em></p>
+}
+else
+{
+    <div class="page-header">
+        <h1>Registrar Pago</h1>
+        <p>Registrar el pago para la compra del proveedor <strong>@purchase.NombreProveedor</strong> por un total de <strong>@purchase.MontoTotal.ToString("C")</strong>.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @(isSuccess ? "alert-success" : "alert-danger") mb-4" role="alert">
+            @statusMessage
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <EditForm Model="@paymentModel" OnValidSubmit="@HandleRegisterPayment">
+                <DataAnnotationsValidator />
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="fechaPago" class="form-label">Fecha de Pago</label>
+                            <InputDate id="fechaPago" class="form-control" @bind-Value="paymentModel.FechaPago" disabled="@isSubmitting" />
+                            <ValidationMessage For="@(() => paymentModel.FechaPago)" />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="comprobante" class="form-label">Comprobante de Pago (PDF, PNG, JPG)</label>
+                            <InputFile id="comprobante" class="form-control" OnChange="@OnInputFileChange" disabled="@isSubmitting" accept=".pdf,.png,.jpg,.jpeg" />
+                            @if (!string.IsNullOrEmpty(fileValidationMessage))
+                            {
+                                <div class="text-danger small mt-1">@fileValidationMessage</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span> Registrando Pago...</span>
+                        }
+                        else
+                        {
+                            <span><i class="bi bi-check-circle-fill me-2"></i>Confirmar Pago</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" @onclick="@(() => Navigation.NavigateTo("/purchases"))" disabled="@isSubmitting">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid PurchaseId { get; set; }
+
+    private PurchaseListItemDto? purchase;
+    private PaymentFormModel paymentModel = new();
+    
+    private string? statusMessage;
+    private bool isSuccess;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+
+    private IBrowserFile? comprobanteFile;
+    private string? fileValidationMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            purchase = await PurchaseService.GetPurchaseByIdAsync(PurchaseId);
+            if (purchase != null)
+            {
+                paymentModel.FechaPago = DateTime.Now;
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        fileValidationMessage = null;
+        comprobanteFile = e.GetMultipleFiles(1).FirstOrDefault();
+
+        if (comprobanteFile != null)
+        {
+            if (comprobanteFile.Size > 5 * 1024 * 1024) // 5MB limit
+            {
+                fileValidationMessage = "Error: El archivo es demasiado grande (máximo 5MB).";
+                comprobanteFile = null;
+            }
+        }
+    }
+
+    private async Task HandleRegisterPayment()
+    {
+        isSubmitting = true;
+        
+        if (comprobanteFile == null)
+        {
+            statusMessage = "Error: Debe adjuntar el comprobante de pago.";
+            isSuccess = false;
+            isSubmitting = false;
+            return;
+        }
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            statusMessage = "No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.";
+            isSubmitting = false;
+            return;
+        }
+
+        var paymentDto = new RegisterPaymentDto
+        {
+            PurchaseId = PurchaseId,
+            FechaPago = paymentModel.FechaPago,
+            UsuarioId = Guid.Parse(userId)
+        };
+
+        try
+        {
+            await using var fileStream = comprobanteFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            var success = await PurchaseService.RegisterPaymentAsync(paymentDto, fileStream, comprobanteFile.Name);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/purchases", new NavigationOptions { ForceLoad = true });
+            }
+            else
+            {
+                statusMessage = "Ocurrió un error al registrar el pago.";
+                isSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            isSuccess = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    public class PaymentFormModel
+    {
+        [Required]
+        public DateTime FechaPago { get; set; } = DateTime.Now;
+    }
+}
