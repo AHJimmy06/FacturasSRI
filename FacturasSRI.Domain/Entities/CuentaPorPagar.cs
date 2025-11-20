@@ -14,7 +14,7 @@ namespace FacturasSRI.Domain.Entities
         public string? FacturaCompraPath { get; set; }
         public string? ComprobantePagoPath { get; set; }
         public DateTime FechaEmision { get; set; }
-        public DateTime FechaVencimiento { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
         public decimal MontoTotal { get; set; }
         public int Cantidad { get; set; }
         public EstadoCompra Estado { get; set; }

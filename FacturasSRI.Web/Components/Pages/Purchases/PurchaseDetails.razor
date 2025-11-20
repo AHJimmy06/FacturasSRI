@@ -68,7 +68,7 @@ else
                     {
                         <div class="mb-3">
                             <label class="form-label">Fecha de Vencimiento:</label>
-                            <input type="text" class="form-control" value="@(purchase.FechaVencimiento?.ToLocalTime().ToString("D") ?? "N/A")" readonly />
+                            <input type="text" class="form-control" value="@(purchase.FechaVencimiento?.ToLocalTime().ToString("g") ?? "N/A")" readonly />
                         </div>
                     }
                     
@@ -76,7 +76,7 @@ else
                     {
                         <div class="mb-3">
                             <label class="form-label">Fecha de Pago:</label>
-                            <input type="text" class="form-control" value="@(purchase.FechaPago?.ToLocalTime().ToString("D") ?? "N/A")" readonly />
+                            <input type="text" class="form-control" value="@(purchase.FechaPago?.ToLocalTime().ToString("g") ?? "N/A")" readonly />
                         </div>
                     }
 

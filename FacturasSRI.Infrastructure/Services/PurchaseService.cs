@@ -55,7 +55,7 @@ namespace FacturasSRI.Infrastructure.Services
                     MontoTotal = purchaseDto.MontoTotal,
                     Cantidad = purchaseDto.Cantidad,
                     Estado = purchaseDto.EsCredito ? EstadoCompra.Pendiente : EstadoCompra.Pagada,
-                    FechaVencimiento = purchaseDto.EsCredito ? purchaseDto.FechaVencimiento.Value.ToUniversalTime() : DateTime.UtcNow.AddDays(30),
+                    FechaVencimiento = purchaseDto.EsCredito ? purchaseDto.FechaVencimiento.Value.ToUniversalTime() : null,
                     FechaPago = !purchaseDto.EsCredito ? (DateTime?)DateTime.UtcNow : null,
                     UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow

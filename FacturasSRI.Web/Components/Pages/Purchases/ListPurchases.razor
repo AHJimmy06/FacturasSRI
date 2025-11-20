@@ -24,7 +24,7 @@
     </div>
     <div class="col-md-4">
         <InputSelect class="form-select" @bind-Value="selectedStatus">
-            <option value="@(null as EstadoCompra?)">Todos los Estados</option>
+            <option value="">Todos los Estados</option>
             @foreach (var s in Enum.GetValues(typeof(EstadoCompra)))
             {
                 <option value="@s">@s.ToString()</option>
@@ -66,10 +66,10 @@ else if (FilteredPurchases.Any())
                                 </td>
                                 <td>@purchase.ProductName</td>
                                 <td>@purchase.NombreProveedor</td>
-                                <td class="text-end">@purchase.MontoTotal.ToString("C")</td>
-                                <td>@purchase.FechaEmision.ToLocalTime().ToString("d")</td>
-                                <td>@(purchase.FechaVencimiento?.ToLocalTime().ToString("d") ?? "N/A")</td>
-                                <td>@(purchase.FechaPago?.ToLocalTime().ToString("d") ?? "N/A")</td>
+                                <td>@purchase.MontoTotal.ToString("C")</td>
+                                <td>@purchase.FechaEmision.ToLocalTime().ToString("g")</td>
+                                <td>@(purchase.FechaVencimiento?.ToLocalTime().ToString("g") ?? "N/A")</td>
+                                <td>@(purchase.FechaPago?.ToLocalTime().ToString("g") ?? "N/A")</td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-outline-primary" @onclick="@(() => GoToDetails(purchase.Id))">
                                         <i class="bi bi-eye"></i> Ver Detalles
