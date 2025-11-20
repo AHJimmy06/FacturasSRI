@@ -24,13 +24,13 @@ namespace FacturasSRI.Core.Services
     {
         private readonly FirmaDigitalService _firmaService;
 
-        private const string RUC_EMISOR = "1799999999001";
-        private const string RAZON_SOCIAL_EMISOR = "Aether Tecnologías";
-        private const string NOMBRE_COMERCIAL_EMISOR = "Aether Tech";
-        private const string DIRECCION_MATRIZ_EMISOR = "Av. de los Shyris N37-271 y Holanda, Edificio Shyris Center, Quito, Ecuador";
+        private const string RUC_EMISOR = "1850641927001";
+        private const string RAZON_SOCIAL_EMISOR = "AÑILEMA HOFFMANN JIMMY ALEXANDER";
+        private const string NOMBRE_COMERCIAL_EMISOR = "AETHER TECH";
+        private const string DIRECCION_MATRIZ_EMISOR = "AV. BENJAMIN FRANKLIN SNN Y EDWARD JENNER";
         private const string COD_ESTABLECIMIENTO = "001";
         private const string COD_PUNTO_EMISION = "001";
-        private const ObligadoContabilidad OBLIGADO_CONTABILIDAD = ObligadoContabilidad.Si;
+        private const ObligadoContabilidad OBLIGADO_CONTABILIDAD = ObligadoContabilidad.No;
         private const string TIPO_AMBIENTE = "1"; 
         
         private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
@@ -43,14 +43,13 @@ namespace FacturasSRI.Core.Services
         public string GenerarYFirmarFactura(
             string claveAcceso,
             FacturaDominio facturaDominio, 
-            ClienteDominio clienteDominio
+            ClienteDominio clienteDominio,
+            string rutaCertificado,
+            string passwordCertificado
             )
         {
             FacturaXml facturaXml = GenerarXmlFactura(claveAcceso, facturaDominio, clienteDominio);
             string xmlSinFirmar = SerializarObjeto(facturaXml);
-
-            string rutaCertificado = @"C:\Users\THINKPAD\Desktop\certificado_prueba_sri.p12";
-            string passwordCertificado = "9ninelivesL"; 
 
             string xmlFirmado = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
 
@@ -178,7 +177,7 @@ namespace FacturasSRI.Core.Services
         {
             if (numeroIdentificacion == "9999999999")
             {
-                return "07"; // Consumidor Final
+                return "07"; 
             }
 
             switch (tipo)
@@ -190,9 +189,6 @@ namespace FacturasSRI.Core.Services
                 case TipoIdentificacion.Pasaporte:
                     return "06"; 
                 default:
-                    // Se retorna "07" por defecto si no es ninguna de las anteriores,
-                    // cubriendo el caso de un nuevo cliente sin tipo especificado pero que no es CF.
-                    // O se podría lanzar una excepción si se requiere que siempre sea explícito.
                     return "07";
             }
         }

@@ -46,27 +46,45 @@ namespace FacturasSRI.Infrastructure.Services
             _sriResponseParserService = sriResponseParserService;
         }
         
+        private async Task<Cliente> GetOrCreateConsumidorFinalClientAsync()
+        {
+            var consumidorFinalId = "9999999999";
+
+            var consumidorFinalClient = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.NumeroIdentificacion == consumidorFinalId);
+
+            if (consumidorFinalClient == null)
+            {
+                consumidorFinalClient = new Cliente
+                {
+                    Id = Guid.NewGuid(),
+                    TipoIdentificacion = default,
+                    NumeroIdentificacion = consumidorFinalId,
+                    RazonSocial = "CONSUMIDOR FINAL",
+                    Direccion = "N/A",
+                    Email = "consumidorfinal@example.com",
+                    Telefono = "N/A",
+                    FechaCreacion = DateTime.UtcNow,
+                    EstaActivo = true
+                };
+                _context.Clientes.Add(consumidorFinalClient);
+                await _context.SaveChangesAsync();
+            }
+
+            return consumidorFinalClient;
+        }
+
         public async Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceDto invoiceDto)
         {
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
-                    Cliente? cliente;
-                    Guid? clienteId = null;
-
+                    Cliente cliente;
+                    
                     if (invoiceDto.EsConsumidorFinal)
                     {
-                        cliente = new Cliente
-                        {
-                            TipoIdentificacion = default, // O un valor apropiado que no sea ConsumidorFinal
-                            NumeroIdentificacion = "9999999999",
-                            RazonSocial = "CONSUMIDOR FINAL",
-                            Direccion = invoiceDto.DireccionComprador ?? "N/A",
-                            Email = invoiceDto.EmailComprador ?? "consumidorfinal@example.com",
-                            Telefono = "N/A"
-                        };
-                        // No se añade al contexto ni se guarda
+                        cliente = await GetOrCreateConsumidorFinalClientAsync();
                     }
                     else if (invoiceDto.ClienteId.HasValue)
                     {
@@ -75,7 +93,6 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             throw new ArgumentException("Cliente no encontrado.");
                         }
-                        clienteId = cliente.Id;
                     }
                     else
                     {
@@ -85,34 +102,28 @@ namespace FacturasSRI.Infrastructure.Services
                             TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
                             NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
                             RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
-                            Direccion = invoiceDto.DireccionComprador ?? string.Empty,
-                            Email = invoiceDto.EmailComprador ?? string.Empty,
-                            Telefono = string.Empty,
+                            Direccion = invoiceDto.DireccionComprador,
+                            Email = invoiceDto.EmailComprador,
+                            Telefono = null,
                             FechaCreacion = DateTime.UtcNow,
                             EstaActivo = true
                         };
                         _context.Clientes.Add(cliente);
-                        clienteId = cliente.Id;
                     }
 
                     var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
                     var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"];
-
-                    if (string.IsNullOrEmpty(establishmentCode) || string.IsNullOrEmpty(emissionPointCode))
-                    {
-                        throw new InvalidOperationException("El código de establecimiento y el punto de emisión deben estar configurados en appsettings.json.");
-                    }
 
                     var secuencial = await _context.Secuenciales
                         .FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
 
                     if (secuencial == null)
                     {
-                        secuencial = new Secuencial {
+                        secuencial = new Secuencial { 
                             Id = Guid.NewGuid(),
-                            Establecimiento = establishmentCode,
-                            PuntoEmision = emissionPointCode,
-                            UltimoSecuencialFactura = 0
+                            Establecimiento = establishmentCode!, 
+                            PuntoEmision = emissionPointCode!, 
+                            UltimoSecuencialFactura = 0 
                         };
                         _context.Secuenciales.Add(secuencial);
                     }
@@ -123,7 +134,7 @@ namespace FacturasSRI.Infrastructure.Services
                     var invoice = new Factura
                     {
                         Id = Guid.NewGuid(),
-                        ClienteId = clienteId, // Usar la variable nulable
+                        ClienteId = cliente.Id,
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroSecuencial,
                         Estado = EstadoFactura.Generada,
@@ -171,7 +182,7 @@ namespace FacturasSRI.Infrastructure.Services
                             }
                             else
                             {
-                                DescontarStockGeneral(producto, detalle.Cantidad);
+                                await DescontarStockGeneral(producto, detalle.Cantidad);
                             }
                         }
 
@@ -188,7 +199,7 @@ namespace FacturasSRI.Infrastructure.Services
                     {
                         Id = Guid.NewGuid(),
                         FacturaId = invoice.Id,
-                        ClienteId = clienteId, // Usar la variable nulable
+                        ClienteId = cliente.Id,
                         FechaEmision = invoice.FechaEmision,
                         FechaVencimiento = invoice.FechaEmision.AddDays(30),
                         MontoTotal = invoice.Total,
@@ -202,6 +213,9 @@ namespace FacturasSRI.Infrastructure.Services
                     
                     var rucEmisor = _configuration["CompanyInfo:Ruc"];
                     var tipoAmbiente = _configuration["CompanyInfo:EnvironmentType"];
+                    var certificatePath = _configuration["CompanyInfo:CertificatePath"];
+                    var certificatePassword = _configuration["CompanyInfo:CertificatePassword"];
+
                     var claveAcceso = GenerarClaveAcceso(invoice.FechaEmision, "01", rucEmisor!, establishmentCode!, emissionPointCode!, numeroSecuencial, tipoAmbiente!);
                     
                     var facturaSri = new FacturaSRI
@@ -214,7 +228,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                     await _context.SaveChangesAsync();
                     
-                    var xmlFirmado = _xmlGeneratorService.GenerarYFirmarFactura(claveAcceso, invoice, cliente);
+                    var xmlFirmado = _xmlGeneratorService.GenerarYFirmarFactura(claveAcceso, invoice, cliente, certificatePath!, certificatePassword!);
                     facturaSri.XmlFirmado = xmlFirmado;
                     
                     string respuestaRecepcionXml = await _sriApiClientService.EnviarRecepcionAsync(xmlFirmado);
@@ -353,7 +367,7 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
 
-        private void DescontarStockGeneral(Producto producto, int cantidadADescontar)
+        private async Task DescontarStockGeneral(Producto producto, int cantidadADescontar)
         {
             if (producto.StockTotal < cantidadADescontar)
             {
@@ -471,13 +485,13 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public async Task<List<InvoiceDto>> GetInvoicesAsync()
+        public Task<List<InvoiceDto>> GetInvoicesAsync()
         {
-            return await (from invoice in _context.Facturas
-                        join cliente in _context.Clientes on invoice.ClienteId equals cliente.Id into clienteJoin
-                        from cliente in clienteJoin.DefaultIfEmpty()
+            return (from invoice in _context.Facturas
                         join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
                         from usuario in usuarioJoin.DefaultIfEmpty()
+                        join cliente in _context.Clientes on invoice.ClienteId equals cliente.Id into clienteJoin
+                        from cliente in clienteJoin.DefaultIfEmpty()
                         orderby invoice.FechaCreacion descending
                         select new InvoiceDto
                         {
@@ -549,10 +563,10 @@ namespace FacturasSRI.Infrastructure.Services
                 Id = invoice.Id,
                 NumeroFactura = invoice.NumeroFactura,
                 FechaEmision = invoice.FechaEmision,
-                ClienteNombre = invoice.Cliente?.RazonSocial ?? "CONSUMIDOR FINAL",
-                ClienteIdentificacion = invoice.Cliente?.NumeroIdentificacion ?? "9999999999",
-                ClienteDireccion = invoice.Cliente?.Direccion ?? "N/A",
-                ClienteEmail = invoice.Cliente?.Email ?? "N/A",
+                ClienteNombre = invoice.Cliente.RazonSocial,
+                ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion,
+                ClienteDireccion = invoice.Cliente.Direccion,
+                ClienteEmail = invoice.Cliente.Email,
                 SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
                 TotalIVA = invoice.TotalIVA,
                 Total = invoice.Total,
