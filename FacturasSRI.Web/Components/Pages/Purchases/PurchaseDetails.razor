@@ -6,6 +6,7 @@
 @using FacturasSRI.Domain.Enums
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
+@using FacturasSRI.Web.Components.Shared
 
 @inject IPurchaseService PurchaseService
 @inject NavigationManager Navigation
@@ -107,7 +108,8 @@ else
                         
                         @if (userIsAdmin && purchase.Estado == EstadoCompra.Vencida)
                         {
-                             <button class="btn btn-danger" @onclick="HandleAnularCompra">
+                             <!-- El botón ahora llama al método que MUESTRA el modal -->
+                             <button class="btn btn-danger" @onclick="ShowAnnulmentConfirmation">
                                 <i class="bi bi-x-circle"></i> Anular Compra
                             </button>
                         }
@@ -118,6 +120,16 @@ else
     </div>
 }
 
+<!-- AÑADIMOS EL COMPONENTE DEL MODAL AL FINAL DE LA PÁGINA -->
+<ConfirmationModal 
+    IsVisible="isConfirmModalVisible"
+    Title="Confirmar Anulación"
+    Message="Se anulará la compra y se revertirá el inventario asociado. ¿Estás seguro de que deseas continuar?"
+    OnConfirm="HandleAnnulmentConfirmed"
+    OnCancel="CancelAnnulment"
+/>
+
+
 @code {
     [Parameter]
     public Guid PurchaseId { get; set; }
@@ -127,6 +139,8 @@ else
     private bool userIsAdmin;
     private string? statusMessage;
     private bool isSuccess;
+
+    private bool isConfirmModalVisible = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,8 +161,22 @@ else
         }
     }
 
-    private async Task HandleAnularCompra()
+    private void ShowAnnulmentConfirmation()
     {
+        isConfirmModalVisible = true;
+        StateHasChanged();
+    }
+    
+    private void CancelAnnulment()
+    {
+        isConfirmModalVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleAnnulmentConfirmed()
+    {
+        isConfirmModalVisible = false;
+
         try
         {
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -161,9 +189,6 @@ else
                 isSuccess = false;
                 return;
             }
-
-            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Se anulará la compra y se revertirá el inventario asociado. ¿Estás seguro?");
-            if (!confirmed) return;
 
             await PurchaseService.AnularCompraAsync(PurchaseId, Guid.Parse(userId));
             
