@@ -74,26 +74,27 @@ namespace FacturasSRI.Infrastructure.Services
             await SendEmailAsync(toEmail, subject, htmlContent, plainTextContent);
         }
 
-        public async Task SendInvoiceEmailAsync(string toEmail, string clienteNombre, string numeroFactura, byte[] pdfBytes, string xmlSignedContent)
+        public async Task SendInvoiceEmailAsync(string toEmail, string clienteNombre, string numeroFactura, Guid invoiceId, byte[] pdfBytes, string xmlSignedContent)
         {
             if (string.IsNullOrWhiteSpace(toEmail) || toEmail == "consumidorfinal@example.com")
             {
                 return;
             }
 
+            var baseUrl = _configuration["App:BaseUrl"] ?? "https://tu-dominio.com";
+            baseUrl = baseUrl.TrimEnd('/');
+            var downloadLink = $"{baseUrl}/api/public/invoice-ride/{invoiceId}";
+
             var subject = $"Comprobante Electrónico - Factura {numeroFactura}";
             var plainTextContent = $"Estimado(a) {clienteNombre},\n\nAdjunto encontrará su factura electrónica No. {numeroFactura}.\n\nGracias por su compra.";
 
             var htmlContent = BuildEmailTemplate("Nuevo Comprobante Electrónico",
-                $"<p>Estimado(a) <strong>{clienteNombre}</strong>,</p>" +
-                $"<p>Le informamos que se ha generado su comprobante electrónico <strong>No. {numeroFactura}</strong>.</p>" +
-                "<p>Adjunto a este correo encontrará:</p>" +
-                "<ul>" +
-                "<li>El formato RIDE (PDF) para visualización.</li>" +
-                "<li>El archivo XML autorizado (Requisito legal).</li>" +
-                "</ul>" +
-                "<p>Gracias por preferirnos.</p>",
-                "#", "Ver en Web");
+            $"<p>Estimado(a) <strong>{clienteNombre}</strong>,</p>" +
+            $"<p>Le informamos que se ha generado su comprobante electrónico <strong>No. {numeroFactura}</strong>.</p>" +
+            "<p>Adjunto a este correo encontrará los archivos XML y PDF.</p>" +
+            "<p>Si lo prefiere, puede descargar la versión visual (RIDE) haciendo clic en el siguiente botón:</p>",
+            downloadLink,
+            "Descargar Factura PDF");
 
             var client = new SendGridClient(_apiKey);
             var msg = new SendGridMessage()

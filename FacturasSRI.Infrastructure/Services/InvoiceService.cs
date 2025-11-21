@@ -410,7 +410,8 @@ namespace FacturasSRI.Infrastructure.Services
                                 await _emailService.SendInvoiceEmailAsync(
                                     invoice.Cliente.Email, 
                                     invoice.Cliente.RazonSocial, 
-                                    invoice.NumeroFactura, 
+                                    invoice.NumeroFactura,
+                                    invoice.Id,
                                     pdfBytes, 
                                     xmlFirmado
                                 );

@@ -64,7 +64,7 @@ namespace FacturasSRI.Infrastructure.Services
                             r.AutoItem().Height(70).Image(logoPath).FitArea();
                         }
                         r.ConstantItem(10);
-                        r.RelativeItem().PaddingTop(10).Text("AETHER TECH")
+                        r.RelativeItem().PaddingTop(10).Text("Aether Tecnologías")
                             .Bold().FontSize(16).FontColor(Colors.Blue.Darken2);
                     });
 

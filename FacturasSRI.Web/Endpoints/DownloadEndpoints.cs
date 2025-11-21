@@ -24,16 +24,19 @@ namespace FacturasSRI.Web.Endpoints
                                     .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = "Cookies" })
                                     .IgnoreAntiforgeryToken();
 
+            var publicGroup = app.MapGroup("/api/public")
+                                 .AllowAnonymous()
+                                 .IgnoreAntiforgeryToken();
+
             downloadsGroup.MapGet("/purchase-receipt/{id}", async (
                 Guid id,
-                [FromQuery] string? type, // "invoice" or "payment"
+                [FromQuery] string? type,
                 HttpContext httpContext,
                 FacturasSRIDbContext dbContext,
                 Client supabase,
                 ILoggerFactory loggerFactory) =>
             {
                 var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-                logger.LogInformation("Descarga de comprobante de compra solicitada. ID: {Id}, Tipo: {Type}", id, type);
                 
                 var cuentaPorPagar = await dbContext.CuentasPorPagar.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
 
@@ -48,7 +51,6 @@ namespace FacturasSRI.Web.Endpoints
 
                 if (string.IsNullOrEmpty(filePath))
                 {
-                    logger.LogWarning("No se encontró la ruta del archivo. ID: {Id}, Tipo: {Type}", id, type);
                     return Results.NotFound("El archivo solicitado no fue encontrado.");
                 }
 
@@ -58,23 +60,21 @@ namespace FacturasSRI.Web.Endpoints
 
                 if (cuentaPorPagar.UsuarioIdCreador.ToString() != userId && !isAdmin)
                 {
-                    logger.LogWarning("Acceso denegado. Usuario: {UserId}, Creador: {CreatorId}", userId, cuentaPorPagar.UsuarioIdCreador);
                     return Results.Forbid();
                 }
 
                 try
                 {
-                    logger.LogInformation("Descargando archivo desde Supabase: {Path}", filePath);
                     var fileBytes = await supabase.Storage
                         .From("comprobantes-compra")
                         .Download(filePath, null);
                     
                     var fileName = Path.GetFileName(filePath);
-                    var contentType = "application/octet-stream"; // Generic default
+                    var contentType = "application/octet-stream";
+                    
                     if(fileName.EndsWith(".pdf")) contentType = "application/pdf";
                     if(fileName.EndsWith(".png")) contentType = "image/png";
                     if(fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
-
 
                     return Results.File(fileBytes, contentType, fileDownloadName: fileName);
                 }
@@ -85,16 +85,14 @@ namespace FacturasSRI.Web.Endpoints
                 }
             });
 
-             downloadsGroup.MapGet("/invoice-ride/{id}", async (
+            downloadsGroup.MapGet("/invoice-ride/{id}", async (
                 Guid id,
                 IInvoiceService invoiceService,
                 PdfGeneratorService pdfGenerator,
                 ILoggerFactory loggerFactory) =>
             {
                 var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-                logger.LogInformation("Generación de RIDE solicitada. InvoiceID: {Id}", id);
 
-                // 1. Obtener los datos de la factura (incluye info del SRI)
                 var factura = await invoiceService.GetInvoiceDetailByIdAsync(id);
 
                 if (factura == null)
@@ -104,16 +102,41 @@ namespace FacturasSRI.Web.Endpoints
 
                 try
                 {
-                    // 2. Generar el PDF en memoria
                     var pdfBytes = pdfGenerator.GenerarFacturaPdf(factura);
-
-                    // 3. Devolver el archivo directamente
                     var fileName = $"RIDE_{factura.NumeroFactura}.pdf";
                     return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error generando el RIDE para la factura {Id}", id);
+                    return Results.Problem("Ocurrió un error al generar el PDF.");
+                }
+            });
+
+            publicGroup.MapGet("/invoice-ride/{id}", async (
+                Guid id,
+                IInvoiceService invoiceService,
+                PdfGeneratorService pdfGenerator,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("DownloadEndpoints");
+
+                var factura = await invoiceService.GetInvoiceDetailByIdAsync(id);
+
+                if (factura == null)
+                {
+                    return Results.NotFound("La factura solicitada no existe.");
+                }
+
+                try
+                {
+                    var pdfBytes = pdfGenerator.GenerarFacturaPdf(factura);
+                    var fileName = $"RIDE_{factura.NumeroFactura}.pdf";
+                    return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error generando el RIDE público para la factura {Id}", id);
                     return Results.Problem("Ocurrió un error al generar el PDF.");
                 }
             });
