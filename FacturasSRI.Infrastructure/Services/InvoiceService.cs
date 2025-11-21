@@ -15,6 +15,7 @@ using FacturasSRI.Core.Models;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using FacturasSRI.Infrastructure.Services;
 
 namespace FacturasSRI.Infrastructure.Services
 {
@@ -28,6 +29,8 @@ namespace FacturasSRI.Infrastructure.Services
         private readonly SriApiClientService _sriApiClientService;
         private readonly SriResponseParserService _sriResponseParserService;
         private static readonly SemaphoreSlim _invoiceCreationSemaphore = new SemaphoreSlim(1, 1);
+        private readonly IEmailService _emailService;
+        private readonly PdfGeneratorService _pdfGenerator;
 
         public InvoiceService(
             FacturasSRIDbContext context,
@@ -36,7 +39,9 @@ namespace FacturasSRI.Infrastructure.Services
             FirmaDigitalService firmaDigitalService,
             XmlGeneratorService xmlGeneratorService,
             SriApiClientService sriApiClientService,
-            SriResponseParserService sriResponseParserService
+            SriResponseParserService sriResponseParserService,
+            IEmailService emailService,  
+            PdfGeneratorService pdfGenerator
             )
         {
             _context = context;
@@ -46,6 +51,8 @@ namespace FacturasSRI.Infrastructure.Services
             _xmlGeneratorService = xmlGeneratorService;
             _sriApiClientService = sriApiClientService;
             _sriResponseParserService = sriResponseParserService;
+            _emailService = emailService; 
+            _pdfGenerator = pdfGenerator; 
         }
 
         private async Task<Cliente> GetOrCreateConsumidorFinalClientAsync()
@@ -356,6 +363,7 @@ namespace FacturasSRI.Infrastructure.Services
         {
             var invoice = await _context.Facturas
                 .Include(i => i.InformacionSRI)
+                .Include(i => i.Cliente)
                 .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
             if (invoice == null || invoice.InformacionSRI == null || string.IsNullOrEmpty(invoice.InformacionSRI.ClaveAcceso))
@@ -364,9 +372,8 @@ namespace FacturasSRI.Infrastructure.Services
                 return null;
             }
 
-            if (invoice.Estado == EstadoFactura.Autorizada)
+             if (invoice.Estado == EstadoFactura.Autorizada)
             {
-                _logger.LogInformation("La factura {InvoiceId} ya está autorizada. No se consulta al SRI.", invoiceId);
                 return await GetInvoiceDetailByIdAsync(invoiceId);
             }
 
@@ -382,11 +389,47 @@ namespace FacturasSRI.Infrastructure.Services
                         invoice.InformacionSRI.NumeroAutorizacion = respuestaAutorizacion.NumeroAutorizacion;
                         invoice.InformacionSRI.FechaAutorizacion = respuestaAutorizacion.FechaAutorizacion;
                         invoice.InformacionSRI.RespuestaSRI = "AUTORIZADO";
+
+                        await _context.SaveChangesAsync();
+
+                        // Intentamos enviar el correo (Fire & Forget safe)
+                        try 
+                        {
+                            // Obtenemos el DTO completo para poder generar el PDF
+                            var invoiceDetailDto = await GetInvoiceDetailByIdAsync(invoiceId);
+                            
+                            if (invoiceDetailDto != null && !string.IsNullOrEmpty(invoice.Cliente.Email))
+                            {
+                                // 1. Generar PDF en memoria
+                                byte[] pdfBytes = _pdfGenerator.GenerarFacturaPdf(invoiceDetailDto);
+
+                                // 2. Obtener XML firmado (string)
+                                string xmlFirmado = invoice.InformacionSRI.XmlFirmado ?? "";
+
+                                // 3. Enviar Correo
+                                await _emailService.SendInvoiceEmailAsync(
+                                    invoice.Cliente.Email, 
+                                    invoice.Cliente.RazonSocial, 
+                                    invoice.NumeroFactura, 
+                                    pdfBytes, 
+                                    xmlFirmado
+                                );
+                                
+                                _logger.LogInformation("Correo de factura enviado exitosamente a {Email}", invoice.Cliente.Email);
+                            }
+                        }
+                        catch (Exception emailEx)
+                        {
+                            // Si falla el correo, NO revertimos la factura. Solo logueamos.
+                            _logger.LogError(emailEx, "La factura se autorizó pero falló el envío de correo.");
+                        }
+
                         break;
 
                     case "NO AUTORIZADO":
                         invoice.Estado = EstadoFactura.RechazadaSRI;
                         invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuestaAutorizacion.Errores);
+                        await _context.SaveChangesAsync();
                         break;
 
                     case "PROCESANDO":
@@ -402,6 +445,7 @@ namespace FacturasSRI.Infrastructure.Services
                     default:
                         invoice.Estado = EstadoFactura.RechazadaSRI;
                         invoice.InformacionSRI.RespuestaSRI = $"Respuesta desconocida: {respuestaAutorizacion.Estado}";
+                        await _context.SaveChangesAsync();
                         _logger.LogWarning("Respuesta desconocida del SRI: {Estado}", respuestaAutorizacion.Estado);
                         break;
                 }

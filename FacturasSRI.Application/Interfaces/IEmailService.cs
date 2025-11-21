@@ -6,5 +6,6 @@ namespace FacturasSRI.Application.Interfaces
     {
         Task SendWelcomeEmailAsync(string toEmail, string userName, string temporaryPassword);
         Task SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink);
+        Task SendInvoiceEmailAsync(string toEmail, string clienteNombre, string numeroFactura, byte[] pdfBytes, string xmlSignedContent);
     }
 }

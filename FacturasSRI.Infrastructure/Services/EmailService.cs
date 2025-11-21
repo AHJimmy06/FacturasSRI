@@ -2,6 +2,7 @@ using FacturasSRI.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using System;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -34,20 +35,18 @@ namespace FacturasSRI.Infrastructure.Services
             };
             msg.AddTo(new EmailAddress(toEmail));
 
-            // En un escenario real, aquí se añadiría logging para la respuesta.
             await client.SendEmailAsync(msg);
         }
 
         public async Task SendWelcomeEmailAsync(string toEmail, string userName, string temporaryPassword)
         {
             var subject = $"¡Bienvenido a {_fromName}!";
-            
             var baseUrl = _configuration["App:BaseUrl"] ?? "http://localhost:5000";
             string loginUrl = $"{baseUrl}/login";
 
             var plainTextContent = $"Hola {userName},\n\nTu cuenta para {_fromName} ha sido creada.\n\nUsuario: {toEmail}\nContraseña Temporal: {temporaryPassword}\n\nInicia sesión aquí: {loginUrl}\n\nPor seguridad, cambia tu contraseña después de iniciar sesión.";
-            
-            var htmlContent = BuildEmailTemplate($"¡Bienvenido, {userName}!", 
+
+            var htmlContent = BuildEmailTemplate($"¡Bienvenido, {userName}!",
                 "<p>Tu cuenta ha sido creada exitosamente. A continuación encontrarás tus credenciales de acceso:</p>" +
                 $"<div style='background-color: #f9f9f9; padding: 15px 20px; border-radius: 5px; border: 1px solid #eeeeee; text-align: center;'>" +
                 $"<p style='margin: 5px 0;'><strong>Usuario:</strong> {toEmail}</p>" +
@@ -62,7 +61,7 @@ namespace FacturasSRI.Infrastructure.Services
         public async Task SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink)
         {
             var subject = $"Restablecimiento de Contraseña para {_fromName}";
-            
+
             var plainTextContent = $"Hola {userName},\n\nHas solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:\n{resetLink}\n\nSi no solicitaste esto, puedes ignorar este correo.\n\nEl enlace expirará en 30 minutos.";
 
             var htmlContent = BuildEmailTemplate("Solicitud de Restablecimiento de Contraseña",
@@ -75,6 +74,47 @@ namespace FacturasSRI.Infrastructure.Services
             await SendEmailAsync(toEmail, subject, htmlContent, plainTextContent);
         }
 
+        public async Task SendInvoiceEmailAsync(string toEmail, string clienteNombre, string numeroFactura, byte[] pdfBytes, string xmlSignedContent)
+        {
+            if (string.IsNullOrWhiteSpace(toEmail) || toEmail == "consumidorfinal@example.com")
+            {
+                return;
+            }
+
+            var subject = $"Comprobante Electrónico - Factura {numeroFactura}";
+            var plainTextContent = $"Estimado(a) {clienteNombre},\n\nAdjunto encontrará su factura electrónica No. {numeroFactura}.\n\nGracias por su compra.";
+
+            var htmlContent = BuildEmailTemplate("Nuevo Comprobante Electrónico",
+                $"<p>Estimado(a) <strong>{clienteNombre}</strong>,</p>" +
+                $"<p>Le informamos que se ha generado su comprobante electrónico <strong>No. {numeroFactura}</strong>.</p>" +
+                "<p>Adjunto a este correo encontrará:</p>" +
+                "<ul>" +
+                "<li>El formato RIDE (PDF) para visualización.</li>" +
+                "<li>El archivo XML autorizado (Requisito legal).</li>" +
+                "</ul>" +
+                "<p>Gracias por preferirnos.</p>",
+                "#", "Ver en Web");
+
+            var client = new SendGridClient(_apiKey);
+            var msg = new SendGridMessage()
+            {
+                From = new EmailAddress(_fromEmail, _fromName),
+                Subject = subject,
+                PlainTextContent = plainTextContent,
+                HtmlContent = htmlContent
+            };
+            msg.AddTo(new EmailAddress(toEmail));
+
+            var pdfBase64 = Convert.ToBase64String(pdfBytes);
+            msg.AddAttachment($"Factura_{numeroFactura}.pdf", pdfBase64, "application/pdf");
+
+            var xmlBytes = Encoding.UTF8.GetBytes(xmlSignedContent);
+            var xmlBase64 = Convert.ToBase64String(xmlBytes);
+            msg.AddAttachment($"Factura_{numeroFactura}.xml", xmlBase64, "application/xml");
+
+            await client.SendEmailAsync(msg);
+        }
+
         private string BuildEmailTemplate(string title, string bodyContent, string buttonUrl, string buttonText)
         {
             string companyName = _configuration["CompanyInfo:NombreComercial"] ?? _fromName;
@@ -84,7 +124,7 @@ namespace FacturasSRI.Infrastructure.Services
             html.Append("<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'></head>");
             html.Append($"<body style='font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6;'>");
             html.Append($"<div style='width: 90%; max-width: 600px; margin: 20px auto; border: 1px solid #dcdcdc; border-radius: 8px; overflow: hidden; background-color: #ffffff;'>");
-            
+
             html.Append($"<div style='background-color: #004a99; color: #ffffff; padding: 20px 30px; text-align: center;'>");
             html.Append($"<h1 style='margin: 0; font-size: 24px;'>{title}</h1>");
             html.Append("</div>");
