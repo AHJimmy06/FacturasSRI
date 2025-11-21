@@ -52,6 +52,7 @@ builder.Services.AddScoped<IAjusteInventarioService, AjusteInventarioService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
+builder.Services.AddScoped<ICobroService, CobroService>();
 
 builder.Services.AddScoped<FacturasSRI.Core.Services.FirmaDigitalService>();
 builder.Services.AddScoped<FacturasSRI.Core.Services.XmlGeneratorService>();

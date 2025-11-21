@@ -150,8 +150,8 @@ namespace FacturasSRI.Infrastructure.Services
                             TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
                             NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
                             RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
-                            Direccion = invoiceDto.DireccionComprador,
-                            Email = invoiceDto.EmailComprador,
+                            Direccion = invoiceDto.DireccionComprador ?? "",
+                            Email = invoiceDto.EmailComprador ?? "",
                             FechaCreacion = DateTime.UtcNow,
                             EstaActivo = true
                         };
@@ -248,22 +248,82 @@ namespace FacturasSRI.Infrastructure.Services
                     invoice.SubtotalSinImpuestos = subtotalSinImpuestos;
                     invoice.TotalIVA = totalIva;
                     invoice.Total = subtotalSinImpuestos + totalIva;
-
-                    var cuentaPorCobrar = new CuentaPorCobrar
-                    {
-                        Id = Guid.NewGuid(),
-                        FacturaId = invoice.Id,
-                        ClienteId = cliente.Id,
-                        FechaEmision = invoice.FechaEmision,
-                        FechaVencimiento = invoice.FechaEmision.AddDays(30),
-                        MontoTotal = invoice.Total,
-                        SaldoPendiente = invoice.Total,
-                        UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
-                        FechaCreacion = DateTime.UtcNow
-                    };
+                    
+                    // Assign payment terms to the invoice
+                    invoice.FormaDePago = invoiceDto.FormaDePago;
+                    invoice.DiasCredito = invoiceDto.DiasCredito;
 
                     _context.Facturas.Add(invoice);
-                    _context.CuentasPorCobrar.Add(cuentaPorCobrar);
+
+                    // Handle Accounts Receivable and initial payments
+                    if (invoiceDto.FormaDePago == FormaDePago.Contado)
+                    {
+                        // Create a fully paid CuentaPorCobrar
+                        var cuentaPorCobrar = new CuentaPorCobrar
+                        {
+                            Id = Guid.NewGuid(),
+                            FacturaId = invoice.Id,
+                            ClienteId = cliente.Id,
+                            FechaEmision = invoice.FechaEmision,
+                            FechaVencimiento = invoice.FechaEmision, // Paid immediately
+                            MontoTotal = invoice.Total,
+                            SaldoPendiente = 0,
+                            Pagada = true,
+                            UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                            FechaCreacion = DateTime.UtcNow
+                        };
+                        _context.CuentasPorCobrar.Add(cuentaPorCobrar);
+
+                        // Create a Cobro record for the full payment
+                        var cobro = new Cobro
+                        {
+                            Id = Guid.NewGuid(),
+                            FacturaId = invoice.Id,
+                            FechaCobro = DateTime.UtcNow,
+                            Monto = invoice.Total,
+                            MetodoDePago = "Contado", // Or a more specific method if available
+                            UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                            FechaCreacion = DateTime.UtcNow
+                        };
+                        _context.Cobros.Add(cobro);
+                    }
+                    else // FormaDePago.Credito
+                    {
+                        decimal saldoPendiente = invoice.Total;
+                        
+                        // If there's an initial payment, create a Cobro for it
+                        if (invoiceDto.MontoAbonoInicial > 0)
+                        {
+                            var abonoInicial = new Cobro
+                            {
+                                Id = Guid.NewGuid(),
+                                FacturaId = invoice.Id,
+                                FechaCobro = DateTime.UtcNow,
+                                Monto = invoiceDto.MontoAbonoInicial,
+                                MetodoDePago = "Abono Inicial", // Or a more specific method
+                                UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                                FechaCreacion = DateTime.UtcNow
+                            };
+                            _context.Cobros.Add(abonoInicial);
+                            saldoPendiente -= invoiceDto.MontoAbonoInicial;
+                        }
+
+                        // Create the CuentaPorCobrar with the remaining balance
+                        var cuentaPorCobrar = new CuentaPorCobrar
+                        {
+                            Id = Guid.NewGuid(),
+                            FacturaId = invoice.Id,
+                            ClienteId = cliente.Id,
+                            FechaEmision = invoice.FechaEmision,
+                            FechaVencimiento = invoice.FechaEmision.AddDays(invoiceDto.DiasCredito ?? 30), // Default 30 days
+                            MontoTotal = invoice.Total,
+                            SaldoPendiente = saldoPendiente,
+                            Pagada = saldoPendiente <= 0,
+                            UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                            FechaCreacion = DateTime.UtcNow
+                        };
+                        _context.CuentasPorCobrar.Add(cuentaPorCobrar);
+                    }
 
                     var rucEmisor = _configuration["CompanyInfo:Ruc"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:Ruc'.");
                     var environmentType = _configuration["CompanyInfo:EnvironmentType"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EnvironmentType'.");
@@ -297,6 +357,11 @@ namespace FacturasSRI.Infrastructure.Services
 
             var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == factura.Id);
 
+            if (string.IsNullOrEmpty(facturaSri.ClaveAcceso))
+            {
+                throw new InvalidOperationException("La clave de acceso no se ha generado para esta factura.");
+            }
+
             var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarFactura(facturaSri.ClaveAcceso, factura, cliente, certificatePath, certificatePassword);
 
             return (xmlGenerado, xmlFirmadoBytes, facturaSri.ClaveAcceso);
@@ -309,6 +374,11 @@ namespace FacturasSRI.Infrastructure.Services
                 try
                 {
                     var invoice = await _context.Facturas.FindAsync(facturaId);
+                    if (invoice == null)
+                    {
+                        _logger.LogWarning("No se encontró la factura con ID {FacturaId} para procesar la respuesta del SRI.", facturaId);
+                        return;
+                    }
                     var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == facturaId);
 
                     RespuestaRecepcion respuestaRecepcion = _sriResponseParserService.ParsearRespuestaRecepcion(respuestaRecepcionXml);
@@ -620,39 +690,75 @@ namespace FacturasSRI.Infrastructure.Services
                         }).ToListAsync();
         }
 
-        public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
-        {
-            var invoice = await _context.Facturas
-                .Include(i => i.Cliente)
-                .Include(i => i.InformacionSRI)
-                .Include(i => i.Detalles)
-                    .ThenInclude(d => d.Producto)
-                        .ThenInclude(p => p.ProductoImpuestos)
-                            .ThenInclude(pi => pi.Impuesto)
-                .Where(i => i.Id == id)
-                .FirstOrDefaultAsync();
+                public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
 
-            if (invoice == null)
-            {
-                return null;
-            }
-
-            var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
-            {
-                ProductoId = d.ProductoId,
-                ProductName = d.Producto.Nombre,
-                Cantidad = d.Cantidad,
-                PrecioVentaUnitario = d.PrecioVentaUnitario,
-                Subtotal = d.Subtotal,
-                Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto
                 {
-                    Id = pi.Impuesto.Id,
-                    Nombre = pi.Impuesto.Nombre,
-                    CodigoSRI = pi.Impuesto.CodigoSRI,
-                    Porcentaje = pi.Impuesto.Porcentaje,
-                    EstaActivo = pi.Impuesto.EstaActivo
-                }).ToList()
-            }).ToList();
+
+                    var invoice = await _context.Facturas
+
+                        .Include(i => i.Cliente)
+
+                        .Include(i => i.InformacionSRI)
+
+                        .Include(i => i.Detalles)
+
+                            .ThenInclude(d => d.Producto)
+
+                                .ThenInclude(p => p.ProductoImpuestos)
+
+                                    .ThenInclude(pi => pi.Impuesto)
+
+                        .Where(i => i.Id == id)
+
+                        .FirstOrDefaultAsync();
+
+        
+
+                    if (invoice == null)
+
+                    {
+
+                        return null;
+
+                    }
+
+                    
+
+                    var cuentaPorCobrar = await _context.CuentasPorCobrar.FirstOrDefaultAsync(c => c.FacturaId == invoice.Id);
+
+        
+
+                    var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
+
+                    {
+
+                        ProductoId = d.ProductoId,
+
+                        ProductName = d.Producto.Nombre,
+
+                        Cantidad = d.Cantidad,
+
+                        PrecioVentaUnitario = d.PrecioVentaUnitario,
+
+                        Subtotal = d.Subtotal,
+
+                        Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto
+
+                        {
+
+                            Id = pi.Impuesto.Id,
+
+                            Nombre = pi.Impuesto.Nombre,
+
+                            CodigoSRI = pi.Impuesto.CodigoSRI,
+
+                            Porcentaje = pi.Impuesto.Porcentaje,
+
+                            EstaActivo = pi.Impuesto.EstaActivo
+
+                        }).ToList()
+
+                    }).ToList();
 
             var taxSummaries = items
                 .SelectMany(item => item.Taxes.Select(tax => new {
@@ -684,6 +790,8 @@ namespace FacturasSRI.Infrastructure.Services
                 Items = items,
                 TaxSummaries = taxSummaries,
                 Estado = invoice.Estado,
+                FormaDePago = invoice.FormaDePago,
+                SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
                 ClaveAcceso = invoice.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = invoice.InformacionSRI?.NumeroAutorizacion,
                 RespuestaSRI = invoice.InformacionSRI?.RespuestaSRI

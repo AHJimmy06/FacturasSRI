@@ -31,6 +31,7 @@ namespace FacturasSRI.Infrastructure.Persistence
         public DbSet<Secuencial> Secuenciales { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<UsuarioRol> UsuarioRoles { get; set; }
+        public DbSet<Cobro> Cobros { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -52,8 +53,22 @@ namespace FacturasSRI.Infrastructure.Persistence
             modelBuilder.Entity<Rol>().ToTable("Roles");
             modelBuilder.Entity<Secuencial>().ToTable("Secuenciales");
             modelBuilder.Entity<Usuario>().ToTable("Usuarios");
+            modelBuilder.Entity<Cobro>().ToTable("Cobros");
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(FacturasSRIDbContext).Assembly);
+
+            // Configure the relationship between Factura and Cobro
+            modelBuilder.Entity<Factura>()
+                .HasMany(f => f.Cobros)
+                .WithOne(c => c.Factura)
+                .HasForeignKey(c => c.FacturaId);
+
+            // Configure the relationship between Cobro and Usuario
+            modelBuilder.Entity<Cobro>()
+                .HasOne(c => c.UsuarioCreador)
+                .WithMany() // Assuming a user can create many payments, but we don't need a navigation property back on Usuario
+                .HasForeignKey(c => c.UsuarioIdCreador)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent deleting a user if they have created payments
             
             var adminRoleId = new Guid("d3b1b4a9-2f7b-4e6a-9f6b-1c2c3d4e5f6a");
             var vendedorRoleId = new Guid("e2a87c46-e5b3-4f9e-8c6e-1f2a3b4c5d6e");

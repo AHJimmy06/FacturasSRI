@@ -20,6 +20,8 @@ namespace FacturasSRI.Application.Dtos
         public List<TaxSummary> TaxSummaries { get; set; } = new();
 
         public EstadoFactura Estado { get; set; }
+        public FormaDePago FormaDePago { get; set; }
+        public decimal SaldoPendiente { get; set; }
         public string? ClaveAcceso { get; set; }
         public string? NumeroAutorizacion { get; set; }
         public string? RespuestaSRI { get; set; }

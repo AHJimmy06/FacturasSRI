@@ -1,0 +1,94 @@
+@page "/payments"
+@attribute [Authorize(Roles = "Administrador, Vendedor")]
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@inject ICobroService CobroService
+@inject NavigationManager Navigation
+
+<PageTitle>Historial de Pagos</PageTitle>
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1>Historial de Pagos</h1>
+        <p>Consulta todos los pagos y abonos registrados en el sistema.</p>
+    </div>
+</div>
+
+<div class="mb-3">
+    <input type="text" class="form-control" placeholder="Buscar por número de factura, cliente o método de pago..." @bind-value="searchTerm" @bind-value:event="oninput" />
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        @if (allCobros == null)
+        {
+            <p><em>Cargando historial de pagos...</em></p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Número de Factura</th>
+                            <th>Cliente</th>
+                            <th>Fecha de Cobro</th>
+                            <th>Método de Pago</th>
+                            <th>Registrado Por</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var cobro in FilteredCobros)
+                        {
+                            <tr>
+                                <td><strong>@cobro.NumeroFactura</strong></td>
+                                <td>@cobro.ClienteNombre</td>
+                                <td>@cobro.FechaCobro.ToLocalTime().ToString("g")</td>
+                                <td>@cobro.MetodoDePago</td>
+                                <td>@cobro.CreadoPor</td>
+                                <td class="text-end">@cobro.Monto.ToString("C")</td>
+                                <td class="text-center">
+                                    <a href="@($"invoices/{cobro.FacturaId}")" class="btn btn-sm btn-outline-primary" title="Ver Factura">
+                                        <i class="bi bi-file-earmark-text"></i> Ver Factura
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<CobroDto>? allCobros;
+    private string? errorMessage;
+    private string searchTerm = string.Empty;
+
+    private List<CobroDto> FilteredCobros => string.IsNullOrWhiteSpace(searchTerm)
+        ? allCobros ?? new()
+        : allCobros?.Where(c => c.NumeroFactura.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                (c.ClienteNombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                c.MetodoDePago.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                      .ToList() ?? new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            allCobros = await CobroService.GetAllCobrosAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudo cargar el historial de pagos. Detalles: {ex.Message}";
+        }
+    }
+}

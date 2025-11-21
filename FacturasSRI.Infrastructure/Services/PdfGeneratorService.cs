@@ -159,7 +159,7 @@ namespace FacturasSRI.Infrastructure.Services
                     return data.ToArray();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Ahora si fallara, al menos verías el texto rojo en el PDF
                 // Console.WriteLine(ex.ToString()); // Útil si pudieras ver la consola

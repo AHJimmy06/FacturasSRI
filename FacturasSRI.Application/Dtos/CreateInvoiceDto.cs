@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using FacturasSRI.Domain.Enums; // Added for TipoIdentificacion
+using FacturasSRI.Domain.Enums;
 
 namespace FacturasSRI.Application.Dtos
 {
@@ -9,6 +9,11 @@ namespace FacturasSRI.Application.Dtos
         public Guid? ClienteId { get; set; } // Made nullable
         public Guid UsuarioIdCreador { get; set; }
         public List<InvoiceItemDto> Items { get; set; } = new();
+
+        // Payment details
+        public FormaDePago FormaDePago { get; set; }
+        public int? DiasCredito { get; set; }
+        public decimal MontoAbonoInicial { get; set; }
 
         public bool EsConsumidorFinal { get; set; }
 

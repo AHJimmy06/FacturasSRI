@@ -4,7 +4,10 @@
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Domain.Enums
+@using Microsoft.AspNetCore.Components.Authorization
 @inject IInvoiceService InvoiceService
+@inject ICobroService CobroService
+@inject IUserService UserService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject IJSRuntime JSRuntime
@@ -132,7 +135,7 @@ else
                             <div class="card h-100">
                                 <div class="card-body">
                                     <h5 class="card-title">Información Adicional</h5>
-                                    <p>Cualquier duda sobre esta factura, contáctenos.</p>
+                                     <p><strong>Forma de Pago:</strong> @invoice.FormaDePago.ToString()</p>
                                 </div>
                             </div>
                         </div>
@@ -163,7 +166,7 @@ else
         </div>
 
         <div class="col-lg-4">
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header bg-light">
                     <h5 class="card-title mb-0"><i class="bi bi-shield-check me-2"></i>Estado SRI</h5>
                 </div>
@@ -206,24 +209,134 @@ else
                     </div>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="bi bi-wallet2 me-2"></i>Historial de Pagos</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <p class="fs-4"><strong>Saldo Pendiente:</strong> <span class="text-danger">@invoice.SaldoPendiente.ToString("C")</span></p>
+                    </div>
+
+                    @if(cobros == null)
+                    {
+                        <p>Cargando pagos...</p>
+                    }
+                    else if (!cobros.Any())
+                    {
+                        <p>No se han registrado pagos para esta factura.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach(var cobro in cobros)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="mb-0"><strong>@cobro.Monto.ToString("C")</strong> - @cobro.MetodoDePago</p>
+                                        <small class="text-muted">@cobro.FechaCobro.ToString("g") por @cobro.CreadoPor</small>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+                @if(invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0)
+                {
+                    <div class="card-footer text-center">
+                        <button class="btn btn-primary" @onclick="() => showRegistrarPagoModal = true">
+                            <i class="bi bi-plus-circle me-2"></i>Registrar Pago
+                        </button>
+                    </div>
+                }
+            </div>
         </div>
     </div>
+
+    @if (showRegistrarPagoModal)
+    {
+        <div class="modal fade show" tabindex="-1" style="display:block;" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Registrar Nuevo Pago</h5>
+                        <button type="button" class="btn-close" @onclick="() => showRegistrarPagoModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(paymentErrorMessage))
+                        {
+                            <div class="alert alert-danger">@paymentErrorMessage</div>
+                        }
+                        <EditForm Model="nuevoCobro" OnValidSubmit="HandleRegistrarPago">
+                            <DataAnnotationsValidator />
+                            <div class="mb-3">
+                                <label class="form-label">Monto</label>
+                                <InputNumber @bind-Value="nuevoCobro.Monto" class="form-control" />
+                                <ValidationMessage For="@(() => nuevoCobro.Monto)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Método de Pago</label>
+                                <InputText @bind-Value="nuevoCobro.MetodoDePago" class="form-control" />
+                                <ValidationMessage For="@(() => nuevoCobro.MetodoDePago)" />
+                            </div>
+                             <div class="mb-3">
+                                <label class="form-label">Fecha del Cobro</label>
+                                <InputDate @bind-Value="nuevoCobro.FechaCobro" class="form-control" />
+                                <ValidationMessage For="@(() => nuevoCobro.FechaCobro)" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Referencia (Opcional)</label>
+                                <InputText @bind-Value="nuevoCobro.Referencia" class="form-control" />
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="() => showRegistrarPagoModal = false">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">Guardar Pago</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
 }
+
 
 @code {
     [Parameter]
     public Guid InvoiceId { get; set; }
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
     private InvoiceDetailViewDto? invoice;
+    private List<CobroDto> cobros = new();
+    private RegistrarCobroDto nuevoCobro = new();
+    
     private string? errorMessage;
     private string? sriCheckMessage;
     private string? emailMessage;
+    private string? paymentErrorMessage;
+
     private bool isCheckingStatus = false;
     private bool sendingEmail = false;
     private bool emailSuccess = false;
+    private bool showRegistrarPagoModal = false;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        if (user.Identity.IsAuthenticated)
+        {
+            var userId = user.FindFirst(c => c.Type == "sub")?.Value;
+            if(!string.IsNullOrEmpty(userId))
+            {
+                var userIdSafe = userId;
+                nuevoCobro.UsuarioIdCreador = Guid.Parse(userIdSafe);
+            }
+        }
         await LoadInvoiceData();
     }
 
@@ -232,7 +345,12 @@ else
         try
         {
             invoice = await InvoiceService.GetInvoiceDetailByIdAsync(InvoiceId);
-            if (invoice == null)
+            if (invoice != null)
+            {
+                cobros = await CobroService.GetCobrosByFacturaIdAsync(InvoiceId);
+                nuevoCobro.FacturaId = invoice.Id;
+            }
+            else
             {
                 errorMessage = "No se encontró la factura solicitada o no se pudo cargar su detalle.";
             }
@@ -240,6 +358,22 @@ else
         catch (Exception ex)
         {
             errorMessage = $"No se pudieron cargar los detalles de la factura. {ex.Message}";
+        }
+    }
+
+    private async Task HandleRegistrarPago()
+    {
+        paymentErrorMessage = null;
+        try
+        {
+            await CobroService.RegistrarCobroAsync(nuevoCobro);
+            showRegistrarPagoModal = false;
+            nuevoCobro = new RegistrarCobroDto { UsuarioIdCreador = nuevoCobro.UsuarioIdCreador }; // Reset form
+            await LoadInvoiceData(); // Refresh data
+        }
+        catch (Exception ex)
+        {
+            paymentErrorMessage = ex.Message;
         }
     }
 
