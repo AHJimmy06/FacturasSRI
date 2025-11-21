@@ -366,9 +366,11 @@ else
         paymentErrorMessage = null;
         try
         {
+            var usuarioId = nuevoCobro.UsuarioIdCreador;
             await CobroService.RegistrarCobroAsync(nuevoCobro);
             showRegistrarPagoModal = false;
-            nuevoCobro = new RegistrarCobroDto { UsuarioIdCreador = nuevoCobro.UsuarioIdCreador }; // Reset form
+            nuevoCobro = new RegistrarCobroDto();
+            nuevoCobro.UsuarioIdCreador = usuarioId;
             await LoadInvoiceData(); // Refresh data
         }
         catch (Exception ex)

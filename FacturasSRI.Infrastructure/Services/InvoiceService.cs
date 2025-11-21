@@ -820,25 +820,29 @@ namespace FacturasSRI.Infrastructure.Services
         }
     }
 }
-public async Task ResendInvoiceEmailAsync(Guid invoiceId)
+public Task ResendInvoiceEmailAsync(Guid invoiceId)
 {
-    var invoice = await GetInvoiceDetailByIdAsync(invoiceId);
-    var invoiceEntity = await _context.Facturas.Include(i => i.InformacionSRI).FirstOrDefaultAsync(i => i.Id == invoiceId);
+    Task.Run(async () =>
+    {
+        var invoice = await GetInvoiceDetailByIdAsync(invoiceId);
+        var invoiceEntity = await _context.Facturas.Include(i => i.InformacionSRI).FirstOrDefaultAsync(i => i.Id == invoiceId);
 
-    if (invoice == null || invoiceEntity == null) throw new Exception("Factura no encontrada");
-    if (string.IsNullOrEmpty(invoice.ClienteEmail)) throw new Exception("El cliente no tiene email registrado");
+        if (invoice == null || invoiceEntity == null) throw new Exception("Factura no encontrada");
+        if (string.IsNullOrEmpty(invoice.ClienteEmail)) throw new Exception("El cliente no tiene email registrado");
 
-    var pdfBytes = _pdfGenerator.GenerarFacturaPdf(invoice);
-    var xmlFirmado = invoiceEntity.InformacionSRI?.XmlFirmado ?? "";
+        var pdfBytes = _pdfGenerator.GenerarFacturaPdf(invoice);
+        var xmlFirmado = invoiceEntity.InformacionSRI?.XmlFirmado ?? "";
 
-    await _emailService.SendInvoiceEmailAsync(
-        invoice.ClienteEmail,
-        invoice.ClienteNombre,
-        invoice.NumeroFactura,
-        invoice.Id,
-        pdfBytes,
-        xmlFirmado
-    );
+        await _emailService.SendInvoiceEmailAsync(
+            invoice.ClienteEmail,
+            invoice.ClienteNombre,
+            invoice.NumeroFactura,
+            invoice.Id,
+            pdfBytes,
+            xmlFirmado
+        );
+    });
+    return Task.CompletedTask;
 }
     }
 }
