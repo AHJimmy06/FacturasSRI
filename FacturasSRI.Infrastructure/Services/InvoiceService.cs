@@ -50,7 +50,7 @@ namespace FacturasSRI.Infrastructure.Services
 
         private async Task<Cliente> GetOrCreateConsumidorFinalClientAsync()
         {
-            var consumidorFinalId = "9999999999";
+            var consumidorFinalId = "9999999999999";
 
             var consumidorFinalClient = await _context.Clientes
                 .FirstOrDefaultAsync(c => c.NumeroIdentificacion == consumidorFinalId);

@@ -7,6 +7,7 @@ using FacturasSRI.Domain.Enums;
 using System.Globalization;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 using FacturaDominio = FacturasSRI.Domain.Entities.Factura;
 using ClienteDominio = FacturasSRI.Domain.Entities.Cliente;
@@ -24,6 +25,7 @@ namespace FacturasSRI.Core.Services
     public class XmlGeneratorService
     {
         private readonly FirmaDigitalService _firmaService;
+        private readonly ILogger<XmlGeneratorService> _logger;
 
         private const string RUC_EMISOR = "1850641927001";
         private const string RAZON_SOCIAL_EMISOR = "AÑILEMA HOFFMANN JIMMY ALEXANDER";
@@ -36,9 +38,10 @@ namespace FacturasSRI.Core.Services
         
         private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
 
-        public XmlGeneratorService(FirmaDigitalService firmaService)
+        public XmlGeneratorService(FirmaDigitalService firmaService, ILogger<XmlGeneratorService> logger)
         {
             _firmaService = firmaService;
+            _logger = logger;
         }
 
         public (string XmlGenerado, byte[] XmlFirmadoBytes) GenerarYFirmarFactura(
@@ -52,6 +55,8 @@ namespace FacturasSRI.Core.Services
             FacturaXml facturaXml = GenerarXmlFactura(claveAcceso, facturaDominio, clienteDominio);
             
             string xmlSinFirmar = SerializarObjeto(facturaXml);
+
+            _logger.LogWarning("--- INICIO XML SIN FIRMAR ---\n{Xml}\n--- FIN XML SIN FIRMAR ---", xmlSinFirmar);
 
             byte[] xmlFirmadoBytes = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
 
@@ -99,18 +104,16 @@ namespace FacturasSRI.Core.Services
                 RazonSocialComprador = NormalizeString(clienteDominio.RazonSocial),
                 IdentificacionComprador = clienteDominio.NumeroIdentificacion,
                 
-                TotalSinImpuestos = facturaDominio.SubtotalSinImpuestos,
-                TotalDescuento = facturaDominio.TotalDescuento,
-                Propina = 0.00m,
+                TotalSinImpuestos = facturaDominio.SubtotalSinImpuestos.ToString("F2", _cultureInfo),
+                TotalDescuento = facturaDominio.TotalDescuento.ToString("F2", _cultureInfo),
+                Propina = "0.00",
                 PropinaSpecified = true,
-                ImporteTotal = facturaDominio.Total
+                ImporteTotal = facturaDominio.Total.ToString("F2", _cultureInfo)
             };
             
             facturaXml.InfoFactura.Pagos.Add(new PagosPago {
                 FormaPago = "01",
-                Total = facturaDominio.Total,
-                Plazo = 0m,
-                PlazoSpecified = true
+                Total = facturaDominio.Total.ToString("F2", _cultureInfo)
             });
             
             var gruposImpuestos = facturaDominio.Detalles
@@ -120,8 +123,8 @@ namespace FacturasSRI.Core.Services
                 {
                     Codigo = g.Key.Codigo, 
                     CodigoPorcentaje = g.Key.CodigoPorcentaje, 
-                    BaseImponible = g.Sum(x => x.Detalle.Subtotal),
-                    Valor = g.Sum(x => x.Detalle.ValorIVA)
+                    BaseImponible = g.Sum(x => x.Detalle.Subtotal).ToString("F2", _cultureInfo),
+                    Valor = g.Sum(x => x.Detalle.ValorIVA).ToString("F2", _cultureInfo)
                 });
 
             foreach (var grupo in gruposImpuestos)
@@ -135,10 +138,10 @@ namespace FacturasSRI.Core.Services
                 {
                     CodigoPrincipal = detalle.Producto.CodigoPrincipal,
                     Descripcion = NormalizeString(detalle.Producto.Nombre),
-                    Cantidad = detalle.Cantidad,
-                    PrecioUnitario = detalle.PrecioVentaUnitario,
-                    Descuento = detalle.Descuento,
-                    PrecioTotalSinImpuesto = detalle.Subtotal
+                    Cantidad = detalle.Cantidad.ToString("F2", _cultureInfo),
+                    PrecioUnitario = detalle.PrecioVentaUnitario.ToString("F2", _cultureInfo),
+                    Descuento = detalle.Descuento.ToString("F2", _cultureInfo),
+                    PrecioTotalSinImpuesto = detalle.Subtotal.ToString("F2", _cultureInfo)
                 };
 
                 var impuestosDetalle = detalle.Producto.ProductoImpuestos
@@ -146,9 +149,9 @@ namespace FacturasSRI.Core.Services
                     {
                         Codigo = "2", 
                         CodigoPorcentaje = pi.Impuesto.CodigoSRI, 
-                        Tarifa = pi.Impuesto.Porcentaje,
-                        BaseImponible = detalle.Subtotal,
-                        Valor = detalle.Subtotal * (pi.Impuesto.Porcentaje / 100)
+                        Tarifa = pi.Impuesto.Porcentaje.ToString("F2", _cultureInfo),
+                        BaseImponible = detalle.Subtotal.ToString("F2", _cultureInfo),
+                        Valor = (detalle.Subtotal * (pi.Impuesto.Porcentaje / 100)).ToString("F2", _cultureInfo)
                     });
 
                 foreach (var impuesto in impuestosDetalle)
@@ -218,7 +221,7 @@ namespace FacturasSRI.Core.Services
 
         private string MapearTipoIdentificacion(TipoIdentificacion tipo, string numeroIdentificacion)
         {
-            if (numeroIdentificacion == "9999999999")
+            if (numeroIdentificacion == "9999999999999")
             {
                 return "07"; 
             }

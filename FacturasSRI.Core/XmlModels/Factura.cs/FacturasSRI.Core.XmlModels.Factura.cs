@@ -1606,7 +1606,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("total")]
-        public decimal Total { get; set; }
+        public string Total { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -1614,7 +1614,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// <para xml:lang="en">Minimum inclusive value: 0.</para>
         /// </summary>
         [System.Xml.Serialization.XmlElementAttribute("plazo")]
-        public decimal Plazo { get; set; }
+        public string Plazo { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Gets or sets a value indicating whether the Plazo property is specified.</para>
@@ -1726,7 +1726,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("tarifa")]
-        public decimal Tarifa { get; set; }
+        public string Tarifa { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -1735,7 +1735,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("baseImponible")]
-        public decimal BaseImponible { get; set; }
+        public string BaseImponible { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -1744,7 +1744,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("valor")]
-        public decimal Valor { get; set; }
+        public string Valor { get; set; }
     }
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("XmlSchemaClassGenerator", "3.0.1188.0")]
@@ -2478,7 +2478,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("totalSinImpuestos")]
-        public decimal TotalSinImpuestos { get; set; }
+        public string TotalSinImpuestos { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -2511,7 +2511,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("totalDescuento")]
-        public decimal TotalDescuento { get; set; }
+        public string TotalDescuento { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Pattern: [0-9]{2,3}.</para>
@@ -2625,7 +2625,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// <para xml:lang="en">Minimum inclusive value: 0.</para>
         /// </summary>
         [System.Xml.Serialization.XmlElementAttribute("propina")]
-        public decimal Propina { get; set; }
+        public string Propina { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Gets or sets a value indicating whether the Propina property is specified.</para>
@@ -2696,7 +2696,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("importeTotal")]
-        public decimal ImporteTotal { get; set; }
+        public string ImporteTotal { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Minimum length: 1.</para>
@@ -2864,7 +2864,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("baseImponible")]
-        public decimal BaseImponible { get; set; }
+        public string BaseImponible { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 4.</para>
@@ -2887,7 +2887,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("valor")]
-        public decimal Valor { get; set; }
+        public string Valor { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -2998,7 +2998,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("cantidad")]
-        public decimal Cantidad { get; set; }
+        public string Cantidad { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 18.</para>
@@ -3007,7 +3007,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("precioUnitario")]
-        public decimal PrecioUnitario { get; set; }
+        public string PrecioUnitario { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 18.</para>
@@ -3030,7 +3030,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("descuento")]
-        public decimal Descuento { get; set; }
+        public string Descuento { get; set; }
         
         /// <summary>
         /// <para xml:lang="en">Total number of digits: 14.</para>
@@ -3039,7 +3039,7 @@ namespace FacturasSRI.Core.XmlModels.Factura
         /// </summary>
         [System.ComponentModel.DataAnnotations.RequiredAttribute(AllowEmptyStrings=true)]
         [System.Xml.Serialization.XmlElementAttribute("precioTotalSinImpuesto")]
-        public decimal PrecioTotalSinImpuesto { get; set; }
+        public string PrecioTotalSinImpuesto { get; set; }
         
         [System.Xml.Serialization.XmlIgnoreAttribute()]
         private System.Collections.ObjectModel.Collection<FacturaDetallesDetalleDetallesAdicionalesDetAdicional> _detallesAdicionales;

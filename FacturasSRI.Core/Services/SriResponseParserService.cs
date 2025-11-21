@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using FacturasSRI.Core.Models;
+using Microsoft.Extensions.Logging;
 
 namespace FacturasSRI.Core.Services
 {
@@ -10,15 +11,28 @@ namespace FacturasSRI.Core.Services
     {
         private static XNamespace ns2 = "http://ec.gob.sri.ws.recepcion";
         private static XNamespace ns2_auth = "http://ec.gob.sri.ws.autorizacion";
+        private readonly ILogger<SriResponseParserService> _logger;
+
+        public SriResponseParserService(ILogger<SriResponseParserService> logger)
+        {
+            _logger = logger;
+        }
 
         public RespuestaRecepcion ParsearRespuestaRecepcion(string soapResponse)
         {
+            _logger.LogWarning("--- INICIO RESPUESTA SRI (RECEPCIÓN) ---\n{Xml}\n--- FIN RESPUESTA SRI (RECEPCIÓN) ---", soapResponse);
+
             var respuesta = new RespuestaRecepcion();
             var xmlDoc = XDocument.Parse(soapResponse);
 
             var respuestaNode = xmlDoc.Descendants(ns2 + "validarComprobanteResponse").FirstOrDefault();
             if (respuestaNode == null)
             {
+                var faultString = xmlDoc.Descendants("faultstring").FirstOrDefault()?.Value;
+                if (!string.IsNullOrEmpty(faultString))
+                {
+                    throw new Exception($"El servicio del SRI devolvió un error (SOAP Fault): {faultString}");
+                }
                 throw new Exception("No se encontró 'validarComprobanteResponse' en la respuesta SOAP.");
             }
 
