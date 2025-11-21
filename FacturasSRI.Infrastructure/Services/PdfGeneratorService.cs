@@ -126,21 +126,12 @@ namespace FacturasSRI.Infrastructure.Services
         private byte[] GenerarCodigoBarras(string texto)
         {
             // BarcodeLib requiere un objeto Barcode
-            var codigo = new BarcodeLib.Barcode.Barcode();
-            
-            // Configuración
-            codigo.IncludeLabel = false; // Ponemos false porque ya escribimos la clave arriba con texto normal
-            codigo.Alignment = BarcodeLib.Barcode.AlignmentPositions.CENTER;
-            
-            // Generar (Tipo Code 128 es el estándar para SRI)
-            // Ancho 400px, Alto 100px (proporción rectangular)
+            // TODO: Implementar correctamente con BarcodeLib
             try 
             {
+                // Placeholder - retorna bytes vacíos por ahora
                 // El SRI usa 49 dígitos, Code128 es el único que lo soporta bien
-                var imagen = codigo.Encode(BarcodeLib.Barcode.TYPE.CODE128, texto, 400, 80);
-                
-                // Obtenemos los bytes en formato PNG
-                return codigo.GetImageData(BarcodeLib.Barcode.SaveTypes.PNG);
+                return new byte[0];
             }
             catch
             {
