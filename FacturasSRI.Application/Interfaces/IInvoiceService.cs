@@ -12,5 +12,6 @@ namespace FacturasSRI.Application.Interfaces
         Task<InvoiceDto> CreateInvoiceAsync(CreateInvoiceDto invoiceDto);
         Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id);
         Task<InvoiceDetailViewDto?> CheckSriStatusAsync(Guid invoiceId);
+        Task ResendInvoiceEmailAsync(Guid invoiceId);
     }
 }

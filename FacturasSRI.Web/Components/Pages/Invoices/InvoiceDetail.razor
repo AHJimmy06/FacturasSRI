@@ -7,6 +7,7 @@
 @inject IInvoiceService InvoiceService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Detalle de Factura - @(invoice?.NumeroFactura ?? "...")</PageTitle>
 
@@ -31,11 +32,36 @@ else
             <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
                 <i class="bi bi-arrow-left-circle me-2"></i>Volver
             </button>
-            <button class="btn btn-primary" disabled>
-                <i class="bi bi-printer me-2"></i>Imprimir
-            </button>
+            
+            <a href="/api/public/invoice-ride/@invoice.Id" target="_blank" class="btn btn-danger me-2">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
+            </a>
+
+            @if (invoice.Estado == EstadoFactura.Autorizada)
+            {
+                <button class="btn btn-success" @onclick="ResendEmail" disabled="@sendingEmail">
+                    @if (sendingEmail)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                        <span>Enviando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-envelope me-2"></i>
+                        <span>Reenviar Correo</span>
+                    }
+                </button>
+            }
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(emailMessage))
+    {
+        <div class="alert @(emailSuccess ? "alert-success" : "alert-warning") alert-dismissible fade show" role="alert">
+            @emailMessage
+            <button type="button" class="btn-close" @onclick="() => emailMessage = null"></button>
+        </div>
+    }
 
     <div class="row">
         <div class="col-lg-8">
@@ -191,7 +217,10 @@ else
     private InvoiceDetailViewDto? invoice;
     private string? errorMessage;
     private string? sriCheckMessage;
+    private string? emailMessage;
     private bool isCheckingStatus = false;
+    private bool sendingEmail = false;
+    private bool emailSuccess = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -210,7 +239,7 @@ else
         }
         catch (Exception ex)
         {
-            errorMessage = $"No se pudieron cargar los detalles de la factura. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
+            errorMessage = $"No se pudieron cargar los detalles de la factura. {ex.Message}";
         }
     }
 
@@ -235,11 +264,33 @@ else
         }
         catch (Exception ex)
         {
-            errorMessage = $"Ocurrió un error al consultar el estado de la factura en el SRI. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
+            errorMessage = $"Error al consultar SRI: {ex.Message}";
         }
         finally
         {
             isCheckingStatus = false;
+        }
+    }
+
+    private async Task ResendEmail()
+    {
+        sendingEmail = true;
+        emailMessage = null;
+
+        try
+        {
+            await InvoiceService.ResendInvoiceEmailAsync(InvoiceId);
+            emailSuccess = true;
+            emailMessage = "Correo enviado exitosamente al cliente.";
+        }
+        catch (Exception ex)
+        {
+            emailSuccess = false;
+            emailMessage = $"Error al enviar correo: {ex.Message}";
+        }
+        finally
+        {
+            sendingEmail = false;
         }
     }
 
