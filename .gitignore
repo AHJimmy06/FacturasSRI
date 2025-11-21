@@ -47,3 +47,10 @@ appsettings.Development.json
 
 # Ignorar el appsettings de Infraestructura
 FacturasSRI.Infrastructure/appsettings.json
+
+#Ignorar archivos de certificados y claves privadas
+*.pfx
+*.key
+*.cer
+*.pem
+*.p12

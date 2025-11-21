@@ -161,17 +161,16 @@ namespace FacturasSRI.Infrastructure.Services
                     secuencial.UltimoSecuencialFactura++;
                     var numeroSecuencial = secuencial.UltimoSecuencialFactura.ToString("D9");
 
-                    var invoice = new Factura
-                    {
-                        Id = Guid.NewGuid(),
-                        ClienteId = cliente.Id,
-                        FechaEmision = DateTime.UtcNow,
-                        NumeroFactura = numeroSecuencial,
-                        Estado = EstadoFactura.Pendiente, // New state
-                        UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
-                        FechaCreacion = DateTime.UtcNow
-                    };
-
+                                var invoice = new Factura
+                                {
+                                    Id = Guid.NewGuid(),
+                                    ClienteId = cliente.Id,
+                                    FechaEmision = DateTime.UtcNow.AddYears(-2), // Use a past date to avoid "fecha extemporanea" error
+                                    NumeroFactura = numeroSecuencial,
+                                    Estado = EstadoFactura.Pendiente, // New state
+                                    UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                                    FechaCreacion = DateTime.UtcNow
+                                };
                     decimal subtotalSinImpuestos = 0;
                     decimal totalIva = 0;
 
