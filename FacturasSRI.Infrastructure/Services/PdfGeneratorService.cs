@@ -6,7 +6,10 @@ using QuestPDF.Infrastructure;
 using System;
 using System.IO;
 using System.Linq;
-using SkiaSharp;
+using SkiaSharp;                 
+using ZXing;                     
+using ZXing.SkiaSharp;           
+using ZXing.Common;             
 
 namespace FacturasSRI.Infrastructure.Services
 {
@@ -50,10 +53,9 @@ namespace FacturasSRI.Infrastructure.Services
         {
             container.Row(row =>
             {
-                // --- COLUMNA IZQUIERDA ---
+                // COLUMNA IZQUIERDA
                 row.RelativeItem().Column(column =>
                 {
-                    // Logo y Nombre
                     column.Item().Row(r =>
                     {
                         var logoPath = Path.Combine(_env.WebRootPath, "logo.png");
@@ -61,16 +63,13 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             r.AutoItem().Height(70).Image(logoPath).FitArea();
                         }
-
                         r.ConstantItem(10);
-
                         r.RelativeItem().PaddingTop(10).Text("AETHER TECH")
-                            .Bold().FontSize(16).FontColor(Colors.Blue.Darken2); 
+                            .Bold().FontSize(16).FontColor(Colors.Blue.Darken2);
                     });
 
                     column.Item().PaddingBottom(5);
 
-                    // Info Emisor
                     column.Item().Element(ContainerBox).Column(col =>
                     {
                         col.Item().Text("AÑILEMA HOFFMANN JIMMY ALEXANDER").Bold().FontSize(10);
@@ -82,7 +81,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                 row.ConstantItem(10);
 
-                // --- COLUMNA DERECHA (RIDE) ---
+                // COLUMNA DERECHA (RIDE)
                 row.RelativeItem().Element(ContainerBox).Column(column =>
                 {
                     column.Item().Text("R.U.C.: 1850641927001").Bold().FontSize(12);
@@ -97,8 +96,9 @@ namespace FacturasSRI.Infrastructure.Services
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text("FECHA Y HORA DE AUTORIZACIÓN").SemiBold().FontSize(6);
-                            var fechaAuth = factura.FechaEmision; 
-                            c.Item().Text($"{fechaAuth:dd/MM/yyyy HH:mm:ss}").FontSize(8);
+                            // Validación básica de fecha para evitar errores si viene null
+                            var fecha = factura.FechaEmision == default ? DateTime.Now : factura.FechaEmision;
+                            c.Item().Text($"{fecha:dd/MM/yyyy HH:mm:ss}").FontSize(8);
                         });
                     });
 
@@ -109,42 +109,67 @@ namespace FacturasSRI.Infrastructure.Services
                     var claveAcceso = factura.ClaveAcceso ?? "0000000000000000000000000000000000000000000000000";
                     column.Item().Text(claveAcceso).FontSize(8);
 
-                    // --- CÓDIGO DE BARRAS ---
-                    // Generamos los bytes del código de barras
+                    // --- GENERACIÓN CÓDIGO DE BARRAS ---
                     byte[] barcodeBytes = GenerarCodigoBarras(claveAcceso);
-                    
-                    column.Item().PaddingTop(10)
-                          .AlignCenter()
-                          .Height(40) // Altura fija para las barras
-                          .Image(barcodeBytes)
-                          .FitArea(); // Ajusta la imagen al ancho disponible sin deformarla
+
+                    if (barcodeBytes.Length > 0)
+                    {
+                        column.Item().PaddingTop(10)
+                              .AlignCenter()
+                              .Height(40)
+                              .Image(barcodeBytes) // QuestPDF acepta los bytes de Skia perfectamente
+                              .FitArea();
+                    }
+                    else
+                    {
+                        // Mensaje de error visible en el PDF si falla la generación
+                        column.Item().PaddingTop(10).Text("[ERROR GENERANDO BARRAS]").FontColor(Colors.Red.Medium);
+                    }
                 });
             });
         }
 
-        // --- MÉTODO ACTUALIZADO PARA BARRAS ---
+        // --- MÉTODO ACTUALIZADO PARA USAR SKIASHARP ---
         private byte[] GenerarCodigoBarras(string texto)
         {
-            // BarcodeLib requiere un objeto Barcode
-            // TODO: Implementar correctamente con BarcodeLib
-            try 
+            if (string.IsNullOrWhiteSpace(texto)) return Array.Empty<byte>();
+
+            try
             {
-                // Placeholder - retorna bytes vacíos por ahora
-                // El SRI usa 49 dígitos, Code128 es el único que lo soporta bien
-                return new byte[0];
+                // Usamos BarcodeWriterPixelData que es compatible con Skia
+                var writer = new BarcodeWriter
+                {
+                    Format = BarcodeFormat.CODE_128,
+                    Options = new EncodingOptions
+                    {
+                        Width = 400, // Un poco más ancho para las claves del SRI
+                        Height = 60,
+                        PureBarcode = true, 
+                        Margin = 0
+                    }
+                };
+
+                // Generamos la imagen como un SKBitmap (Nativo de SkiaSharp)
+                var bitmap = writer.Write(texto);
+
+                // Convertimos el SKBitmap a bytes PNG
+                using (var image = SKImage.FromBitmap(bitmap))
+                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                {
+                    return data.ToArray();
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // Si falla (ej. texto vacío), devolvemos una imagen vacía o lanzamos error
-                return new byte[0];
+                // Ahora si fallara, al menos verías el texto rojo en el PDF
+                // Console.WriteLine(ex.ToString()); // Útil si pudieras ver la consola
+                return Array.Empty<byte>();
             }
         }
 
-        // ... (El resto del método ComposeContent y los estilos se mantienen igual) ...
-        
         private void ComposeContent(IContainer container, InvoiceDetailViewDto factura)
         {
-             container.PaddingVertical(10).Column(column =>
+            container.PaddingVertical(10).Column(column =>
             {
                 // Datos Cliente
                 column.Item().Element(ContainerBox).Column(col =>
@@ -157,24 +182,24 @@ namespace FacturasSRI.Infrastructure.Services
                     col.Item().Row(row =>
                     {
                         row.RelativeItem(6).Text($"Fecha Emisión: {factura.FechaEmision:dd/MM/yyyy}").FontSize(8);
-                        row.RelativeItem(4).Text($"Guía Remisión:").FontSize(8); 
+                        row.RelativeItem(4).Text($"Guía Remisión:").FontSize(8);
                     });
                     col.Item().Text($"Dirección: {factura.ClienteDireccion ?? "N/A"}").FontSize(8);
                 });
 
                 column.Item().PaddingVertical(5);
 
-                // Tabla Detalle
+                // Tabla
                 column.Item().Table(table =>
                 {
                     table.ColumnsDefinition(columns =>
                     {
-                        columns.ConstantColumn(50); 
-                        columns.ConstantColumn(30); 
-                        columns.RelativeColumn();   
-                        columns.ConstantColumn(50); 
-                        columns.ConstantColumn(40); 
-                        columns.ConstantColumn(50); 
+                        columns.ConstantColumn(50);
+                        columns.ConstantColumn(30);
+                        columns.RelativeColumn();
+                        columns.ConstantColumn(50);
+                        columns.ConstantColumn(40);
+                        columns.ConstantColumn(50);
                     });
 
                     table.Header(header =>
@@ -198,10 +223,9 @@ namespace FacturasSRI.Infrastructure.Services
                     }
                 });
 
-                // Footer (Info y Totales)
+                // Totales
                 column.Item().PaddingTop(5).Row(row =>
                 {
-                    // Info Adicional
                     row.RelativeItem(6).Column(c =>
                     {
                         c.Item().Element(ContainerBox).Column(info =>
@@ -214,17 +238,13 @@ namespace FacturasSRI.Infrastructure.Services
 
                     row.ConstantItem(10);
 
-                    // Totales
                     row.RelativeItem(4).Element(ContainerBox).Column(c =>
                     {
                         decimal totalIva = factura.TotalIVA;
                         decimal baseImponible15 = 0;
-                        
                         var summary15 = factura.TaxSummaries.FirstOrDefault(x => x.TaxRate > 0);
                         if (summary15 != null && summary15.TaxRate > 0)
-                        {
                             baseImponible15 = summary15.Amount / (summary15.TaxRate / 100m);
-                        }
 
                         decimal baseImponible0 = factura.SubtotalSinImpuestos - baseImponible15;
                         if (baseImponible0 < 0) baseImponible0 = 0;
@@ -248,21 +268,9 @@ namespace FacturasSRI.Infrastructure.Services
             });
         }
 
-        // --- ESTILOS ---
-        static IContainer ContainerBox(IContainer container)
-        {
-            return container.Border(1).BorderColor(Colors.Black).Padding(4);
-        }
-
-        static IContainer HeaderCellStyle(IContainer container)
-        {
-            return container.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3).Padding(2).AlignCenter();
-        }
-
-        static IContainer CellStyle(IContainer container)
-        {
-            return container.BorderLeft(1).BorderRight(1).BorderBottom(1).BorderColor(Colors.Black).Padding(2);
-        }
+        static IContainer ContainerBox(IContainer container) => container.Border(1).BorderColor(Colors.Black).Padding(4);
+        static IContainer HeaderCellStyle(IContainer container) => container.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3).Padding(2).AlignCenter();
+        static IContainer CellStyle(IContainer container) => container.BorderLeft(1).BorderRight(1).BorderBottom(1).BorderColor(Colors.Black).Padding(2);
 
         void TotalesRow(ColumnDescriptor column, string label, decimal value)
         {
