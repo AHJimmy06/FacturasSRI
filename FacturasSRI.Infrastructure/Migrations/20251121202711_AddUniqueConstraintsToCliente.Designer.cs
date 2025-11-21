@@ -3,6 +3,7 @@ using System;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FacturasSRI.Infrastructure.Migrations
 {
     [DbContext(typeof(FacturasSRIDbContext))]
-    partial class FacturasSRIDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251121202711_AddUniqueConstraintsToCliente")]
+    partial class AddUniqueConstraintsToCliente
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -70,10 +73,24 @@ namespace FacturasSRI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Nombre")
-                        .IsUnique();
-
                     b.ToTable("Categorias");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("fc127df0-c9ec-4203-8016-5880b4cf4ee1"),
+                            Nombre = "Servicios Técnicos"
+                        },
+                        new
+                        {
+                            Id = new Guid("37d86aff-3a26-4f14-98c3-63f2488796d8"),
+                            Nombre = "Soporte y Mantenimiento"
+                        },
+                        new
+                        {
+                            Id = new Guid("127dea85-8977-482a-ba61-a1e6226705c9"),
+                            Nombre = "Servicios Profesionales"
+                        });
                 });
 
             modelBuilder.Entity("FacturasSRI.Domain.Entities.Cliente", b =>
@@ -399,12 +416,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("numeric");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CodigoSRI")
-                        .IsUnique();
-
-                    b.HasIndex("Nombre")
-                        .IsUnique();
 
                     b.ToTable("Impuestos", (string)null);
                 });
@@ -732,9 +743,6 @@ namespace FacturasSRI.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique();
 
                     b.ToTable("Usuarios", (string)null);
                 });

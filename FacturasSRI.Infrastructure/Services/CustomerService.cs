@@ -27,6 +27,16 @@ namespace FacturasSRI.Infrastructure.Services
             {
                 throw new InvalidOperationException("El número de identificación no es válido.");
             }
+            
+            var existingCustomer = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.NumeroIdentificacion == customerDto.NumeroIdentificacion || 
+                                           c.RazonSocial == customerDto.RazonSocial || 
+                                           c.Telefono == customerDto.Telefono);
+
+            if (existingCustomer != null)
+            {
+                throw new InvalidOperationException("Ya existe un cliente con el mismo número de identificación, razón social o teléfono.");
+            }
 
             var customer = new Cliente
             {
@@ -130,6 +140,17 @@ namespace FacturasSRI.Infrastructure.Services
             if (!_validationService.IsValid(customerDto.NumeroIdentificacion, customerDto.TipoIdentificacion.ToString()))
             {
                 throw new InvalidOperationException("El número de identificación no es válido.");
+            }
+            
+            var existingCustomer = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.Id != customerDto.Id && 
+                                           (c.NumeroIdentificacion == customerDto.NumeroIdentificacion || 
+                                            c.RazonSocial == customerDto.RazonSocial || 
+                                            c.Telefono == customerDto.Telefono));
+
+            if (existingCustomer != null)
+            {
+                throw new InvalidOperationException("Ya existe otro cliente con el mismo número de identificación, razón social o teléfono.");
             }
 
             var customer = await _context.Clientes.FindAsync(customerDto.Id);

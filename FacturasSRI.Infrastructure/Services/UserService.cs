@@ -95,6 +95,10 @@ namespace FacturasSRI.Infrastructure.Services
         
         public async Task<UserDto> CreateUserAsync(UserDto userDto)
         {
+            if (await _context.Usuarios.AnyAsync(u => u.Email == userDto.Email))
+            {
+                throw new InvalidOperationException("Ya existe un usuario con el mismo correo electrónico.");
+            }
             var temporaryPassword = GenerateTemporaryPassword();
 
             var user = new Usuario
@@ -209,6 +213,10 @@ namespace FacturasSRI.Infrastructure.Services
 
             if (user != null)
             {
+                if (await _context.Usuarios.AnyAsync(u => u.Id != user.Id && u.Email == userDto.Email))
+                {
+                    throw new InvalidOperationException("Ya existe otro usuario con el mismo correo electrónico.");
+                }
                 user.PrimerNombre = userDto.PrimerNombre;
                 user.SegundoNombre = userDto.SegundoNombre;
                 user.PrimerApellido = userDto.PrimerApellido;

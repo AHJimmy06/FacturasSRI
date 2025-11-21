@@ -10,9 +10,9 @@ namespace FacturasSRI.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(c => c.Id);
             builder.Property(c => c.Nombre).IsRequired().HasMaxLength(100);
-
+            builder.HasIndex(c => c.Nombre).IsUnique();
             // Categorías tecnológicas para Aether Tech
-           /* 
+           /*
            builder.HasData(
                 new Categoria { Id = Guid.NewGuid(), Nombre = "Computadores y Laptops" },
                 new Categoria { Id = Guid.NewGuid(), Nombre = "Componentes de PC" }, // RAM, Discos, Procesadores
@@ -21,7 +21,10 @@ namespace FacturasSRI.Infrastructure.Persistence.Configurations
                 new Categoria { Id = Guid.NewGuid(), Nombre = "Impresión y Suministros" },
                 new Categoria { Id = Guid.NewGuid(), Nombre = "Software y Licencias" },
                 new Categoria { Id = Guid.NewGuid(), Nombre = "Servidores y Enterprise" },
-                new Categoria { Id = Guid.NewGuid(), Nombre = "Accesorios y Cables" }
+                new Categoria { Id = Guid.NewGuid(), Nombre = "Accesorios y Cables" },
+                new Categoria { Id = Guid.NewGuid(), Nombre = "Servicios Técnicos" },
+                new Categoria { Id = Guid.NewGuid(), Nombre = "Soporte y Mantenimiento" },
+                new Categoria { Id = Guid.NewGuid(), Nombre = "Servicios Profesionales" }
             );
             */
         }

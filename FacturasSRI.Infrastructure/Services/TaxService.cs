@@ -21,6 +21,10 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<TaxDto> CreateTaxAsync(TaxDto taxDto)
         {
+            if (await _context.Impuestos.AnyAsync(t => t.Nombre == taxDto.Nombre || t.CodigoSRI == taxDto.CodigoSRI))
+            {
+                throw new InvalidOperationException("Ya existe un impuesto con el mismo nombre o código SRI.");
+            }
             var tax = new Impuesto
             {
                 Id = Guid.NewGuid(),
@@ -91,6 +95,10 @@ namespace FacturasSRI.Infrastructure.Services
             var tax = await _context.Impuestos.FindAsync(taxDto.Id);
             if (tax != null)
             {
+                if (await _context.Impuestos.AnyAsync(t => t.Id != tax.Id && (t.Nombre == taxDto.Nombre || t.CodigoSRI == taxDto.CodigoSRI)))
+                {
+                    throw new InvalidOperationException("Ya existe otro impuesto con el mismo nombre o código SRI.");
+                }
                 tax.Nombre = taxDto.Nombre;
                 tax.CodigoSRI = taxDto.CodigoSRI;
                 tax.Porcentaje = taxDto.Porcentaje;
