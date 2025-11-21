@@ -85,7 +85,7 @@ namespace FacturasSRI.Core.Services
                 
                 if (DateTime.TryParse(autorizacionNode.Descendants("fechaAutorizacion").FirstOrDefault()?.Value, out DateTime fecha))
                 {
-                    respuesta.FechaAutorizacion = fecha;
+                    respuesta.FechaAutorizacion = fecha.ToUniversalTime(); 
                 }
             }
             else if (respuesta.Estado == "NO AUTORIZADO")
