@@ -6,9 +6,9 @@
 
 <PageTitle>Panel Principal</PageTitle>
 
-<div class="dashboard-header">
+<div class="dashboard-header mb-4">
     <h1>Panel Principal</h1>
-    <p>Bienvenido de nuevo, aquí tienes un resumen del estado de la empresa.</p>
+    <p class="text-muted">Bienvenido de nuevo, aquí tienes un resumen del estado de la empresa.</p>
 </div>
 
 @if (stats == null && errorMessage == null)
@@ -31,39 +31,39 @@ else if (stats != null)
 {
     <div class="row g-4 mb-5">
         <div class="col-md-6 col-lg-4">
-            <div class="card summary-card summary-card-invoices">
+            <div class="card summary-card summary-card-invoices h-100">
                 <div class="card-body">
                     <div class="card-icon">
                         <i class="bi bi-file-earmark-text"></i>
                     </div>
                     <div class="card-content">
-                        <h4>Facturas Emitidas</h4>
+                        <h4>Facturas Autorizadas</h4>
                         <p>@stats.TotalFacturasEmitidas</p>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-6 col-lg-4">
-            <div class="card summary-card summary-card-clients">
+            <div class="card summary-card summary-card-clients h-100">
                 <div class="card-body">
                     <div class="card-icon">
                         <i class="bi bi-people"></i>
                     </div>
                     <div class="card-content">
-                        <h4>Clientes Registrados</h4>
+                        <h4>Clientes Activos</h4>
                         <p>@stats.TotalClientesRegistrados</p>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-6 col-lg-4">
-            <div class="card summary-card summary-card-income">
+            <div class="card summary-card summary-card-income h-100">
                 <div class="card-body">
                     <div class="card-icon">
                         <i class="bi bi-cash-stack"></i>
                     </div>
                     <div class="card-content">
-                        <h4>Ingresos del Mes</h4>
+                        <h4>Ingresos Cobrados (Mes)</h4>
                         <p>@stats.IngresosEsteMes.ToString("C")</p>
                     </div>
                 </div>
@@ -72,25 +72,82 @@ else if (stats != null)
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    Últimas Facturas
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Últimas Facturas</h5>
+                    <a href="/invoices" class="btn btn-sm btn-outline-primary">Ver todas</a>
                 </div>
-                <div class="card-body">
-                    <p class="text-muted">Aquí se mostrarán las últimas facturas.</p>
-                    <a href="/invoices" class="btn btn-outline-primary btn-sm">Ver todas las facturas</a>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Nro. Factura</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th class="text-end pe-4">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (stats.RecentInvoices.Any())
+                                {
+                                    @foreach (var invoice in stats.RecentInvoices)
+                                    {
+                                        <tr>
+                                            <td class="ps-4 fw-bold text-primary">@invoice.NumeroFactura</td>
+                                            <td>@invoice.ClienteNombre</td>
+                                            <td>@invoice.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                            <td class="text-end pe-4">@invoice.Total.ToString("C")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No hay facturas recientes.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header">
-                    Productos Más Vendidos
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Productos Más Vendidos</h5>
+                    <a href="/products" class="btn btn-sm btn-outline-primary">Inventario</a>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">Aquí se mostrarán los productos más vendidos.</p>
-                    <a href="/products" class="btn btn-outline-primary btn-sm">Ver todos los productos</a>
+                    @if (stats.TopProducts.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var product in stats.TopProducts)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light p-2 rounded me-3 text-secondary">
+                                            <i class="bi bi-box-seam"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">@product.ProductName</h6>
+                                            <small class="text-muted">Ingresos: @product.TotalRevenue.ToString("C")</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">@product.QuantitySold unds.</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-basket fs-1 d-block mb-2"></i>
+                            No hay ventas registradas aún.
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -109,7 +166,7 @@ else if (stats != null)
         }
         catch (Exception ex)
         {
-            errorMessage = $"No se pudieron cargar las estadísticas del panel. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
+            errorMessage = $"No se pudieron cargar las estadísticas. {ex.Message}";
         }
     }
 }

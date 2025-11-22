@@ -3,32 +3,28 @@
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Domain.Enums
-@using FacturasSRI.Web.Components.Shared
 @using System.Security.Claims
 @inject IInvoiceService InvoiceService
-@inject ICustomerService CustomerService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<PageTitle>Facturas</PageTitle>
+<PageTitle>Facturas Emitidas</PageTitle>
 
-<div class="page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h1>Facturas Emitidas</h1>
-        <p>Consulta el historial de facturas generadas.</p>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Facturas Emitidas</h1>
     <button class="btn btn-primary" @onclick="GoToCreateInvoice">
         <i class="bi bi-plus-circle-fill me-2"></i>Crear Nueva Factura
     </button>
 </div>
 
-<div class="row mb-3">
+<div class="row g-2 mb-3">
     <div class="col-md-4">
-        <input type="text" class="form-control" placeholder="Buscar facturas por número o cliente..." @bind-value="searchTerm" @bind-value:event="oninput" />
+        <input type="text" class="form-control" placeholder="Buscar por número o cliente..." 
+               @bind-value="searchTerm" @bind-value:event="oninput" />
     </div>
     <div class="col-md-3">
         <InputSelect class="form-select" @bind-Value="selectedStatus">
-            <option value="">Todos los Estados</option>
+            <option value="">Todos los estados de factura</option>
             @foreach (var s in Enum.GetValues(typeof(EstadoFactura)))
             {
                 <option value="@s">@s.ToString()</option>
@@ -46,8 +42,8 @@
     </div>
     <div class="col-md-2">
         <InputSelect class="form-select" @bind-Value="selectedPaymentStatus">
-            <option value="All">Todos los estados de pago</option>
-            <option value="Pending">Pendientes de Pago</option>
+            <option value="All">Todos los estados</option>
+            <option value="Pending">Pendientes</option>
             <option value="Paid">Pagadas</option>
         </InputSelect>
     </div>
@@ -55,81 +51,115 @@
 
 @if (errorMessage != null)
 {
-    <div class="alert alert-danger">@errorMessage</div>
+    <div class="alert alert-danger mb-4" role="alert">
+        @errorMessage
+    </div>
 }
 
-<div class="card">
-    <div class="card-body">
-        @if (allInvoices == null) // Check allInvoices for loading state
-        {
-            <p><em>Cargando facturas...</em></p>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Número de Factura</th>
-                            <th>Cliente</th>
-                            <th>Forma de Pago</th>
-                            <th>Estado</th>
-                            <th class="text-end">Saldo Pendiente</th>
-                            <th class="text-end">Total</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var invoice in FilteredInvoices) // Use FilteredInvoices
-                        {
-                            <tr class="@(invoice.SaldoPendiente > 0 ? "table-warning" : "")">
-                                <td><strong>@invoice.NumeroFactura</strong></td>
-                                <td>@invoice.ClienteNombre</td>
-                                <td>
-                                    <span class="badge @(invoice.FormaDePago == FormaDePago.Credito ? "bg-info text-dark" : "bg-light text-dark")">
-                                        @invoice.FormaDePago.ToString()
+@if (allInvoices == null)
+{
+    <p><em>Cargando facturas...</em></p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Cliente</th>
+                    <th>Fecha</th>
+                    <th>Forma Pago</th>
+                    <th>Estado SRI</th>
+                    <th class="text-end">Saldo / Estado</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var invoice in FilteredInvoices)
+                {
+                    <tr>
+                        <td class="fw-bold">@invoice.NumeroFactura</td>
+                        <td>@invoice.ClienteNombre</td>
+                        <td>@invoice.FechaEmision.ToShortDateString()</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">
+                                @invoice.FormaDePago
+                            </span>
+                        </td>
+                        <td>
+                            @* LOGICA ESTADO SRI: Solo 'Autorizada' es verde. El resto es error/invalido *@
+                            @if (invoice.Estado == EstadoFactura.Autorizada)
+                            {
+                                <span class="badge bg-success">Autorizada</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>@invoice.Estado
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @* LOGICA SALDO: Si no está autorizada, no importa el saldo *@
+                            @if (invoice.Estado != EstadoFactura.Autorizada)
+                            {
+                                <span class="text-muted small">No aplica</span>
+                            }
+                            else
+                            {
+                                @if (invoice.SaldoPendiente <= 0)
+                                {
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Pagada
                                     </span>
-                                </td>
-                                <td>@invoice.Estado</td>
-                                <td class="text-end">
-                                    <span class="@(invoice.SaldoPendiente > 0 ? "text-danger fw-bold" : "text-success")">
+                                }
+                                else
+                                {
+                                    <span class="text-danger fw-bold">
                                         @invoice.SaldoPendiente.ToString("C")
                                     </span>
-                                </td>
-                                <td class="text-end">@invoice.Total.ToString("C")</td>
-                                <td class="text-center">
-                                    <a href="@($"invoices/{invoice.Id}")" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye-fill"></i> Ver Detalles
-                                    </a>
-                                    @if (invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0)
-                                    {
-                                        <a href="@($"invoices/register-payment/{invoice.Id}")" class="btn btn-sm btn-success ms-1">
-                                            <i class="bi bi-cash-coin"></i> Registrar Pago
-                                        </a>
-                                    }
-                                    <a href="/api/downloads/invoice-ride/@invoice.Id" target="_blank" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
-                                        <i class="bi bi-file-earmark-pdf"></i> PDF
-                                    </a>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>
-</div>
+                                }
+                            }
+                        </td>
+                        <td class="text-end fw-bold">@invoice.Total.ToString("C")</td>
+                        <td class="text-end">
+                            <div class="btn-group" role="group">
+                                <a href="@($"invoices/{invoice.Id}")" class="btn btn-sm btn-outline-secondary" title="Ver Detalles">
+                                    <i class="bi bi-eye-fill"></i>
+                                </a>
 
+                                @* BOTON PAGO: Solo aparece si es Credito, Debe dinero Y está Autorizada *@
+                                @if (invoice.FormaDePago == FormaDePago.Credito 
+                                    && invoice.SaldoPendiente > 0 
+                                    && invoice.Estado == EstadoFactura.Autorizada)
+                                {
+                                    <a href="@($"invoices/register-payment/{invoice.Id}")" class="btn btn-sm btn-outline-success" title="Registrar Pago">
+                                        <i class="bi bi-cash-coin"></i>
+                                    </a>
+                                }
+
+                                <a href="/api/downloads/invoice-ride/@invoice.Id" target="_blank" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @code {
-    private List<InvoiceDto>? allInvoices; // Holds all invoices
+    private List<InvoiceDto>? allInvoices;
     private string? errorMessage;
 
     private string searchTerm = string.Empty;
     private EstadoFactura? selectedStatus;
     private FormaDePago? selectedFormaDePago;
-    private string selectedPaymentStatus = "All"; // "All", "Pending", "Paid"
-    private Guid currentUserId;
+    private string selectedPaymentStatus = "All";
 
     private List<InvoiceDto> FilteredInvoices
     {
@@ -139,17 +169,19 @@
 
             if (filtered == null) return new List<InvoiceDto>();
 
+            // Filtro Estado SRI
             if (selectedStatus.HasValue)
             {
                 filtered = filtered.Where(i => i.Estado == selectedStatus.Value).ToList();
             }
 
+            // Filtro Forma Pago
             if (selectedFormaDePago.HasValue)
             {
                 filtered = filtered.Where(i => i.FormaDePago == selectedFormaDePago.Value).ToList();
             }
 
-            // Apply payment status filter
+            // Filtro Estado Pago (Pagado vs Pendiente)
             if (selectedPaymentStatus == "Pending")
             {
                 filtered = filtered.Where(i => i.SaldoPendiente > 0).ToList();
@@ -159,6 +191,7 @@
                 filtered = filtered.Where(i => i.SaldoPendiente <= 0).ToList();
             }
 
+            // Filtro Buscador Texto
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 filtered = filtered.Where(invoice => invoice.NumeroFactura.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
@@ -172,16 +205,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity.IsAuthenticated)
-        {
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!string.IsNullOrEmpty(userId))
-            {
-                currentUserId = Guid.Parse(userId);
-            }
-        }
         await LoadInvoices();
     }
 
@@ -189,11 +212,11 @@
     {
         try
         {
-            allInvoices = await InvoiceService.GetInvoicesAsync(); // Load all invoices
+            allInvoices = await InvoiceService.GetInvoicesAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"No se pudieron cargar las facturas. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
+            errorMessage = $"Error al cargar facturas: {ex.Message}";
         }
     }
 
