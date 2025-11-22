@@ -23,7 +23,7 @@
 </div>
 
 <div class="row mb-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <input type="text" class="form-control" placeholder="Buscar facturas por número o cliente..." @bind-value="searchTerm" @bind-value:event="oninput" />
     </div>
     <div class="col-md-3">
@@ -42,6 +42,13 @@
             {
                 <option value="@s">@s.ToString()</option>
             }
+        </InputSelect>
+    </div>
+    <div class="col-md-2">
+        <InputSelect class="form-select" @bind-Value="selectedPaymentStatus">
+            <option value="All">Todos los estados de pago</option>
+            <option value="Pending">Pendientes de Pago</option>
+            <option value="Paid">Pagadas</option>
         </InputSelect>
     </div>
 </div>
@@ -75,7 +82,7 @@
                     <tbody>
                         @foreach (var invoice in FilteredInvoices) // Use FilteredInvoices
                         {
-                            <tr>
+                            <tr class="@(invoice.SaldoPendiente > 0 ? "table-warning" : "")">
                                 <td><strong>@invoice.NumeroFactura</strong></td>
                                 <td>@invoice.ClienteNombre</td>
                                 <td>
@@ -84,7 +91,11 @@
                                     </span>
                                 </td>
                                 <td>@invoice.Estado</td>
-                                <td class="text-end">@invoice.SaldoPendiente.ToString("C")</td>
+                                <td class="text-end">
+                                    <span class="@(invoice.SaldoPendiente > 0 ? "text-danger fw-bold" : "text-success")">
+                                        @invoice.SaldoPendiente.ToString("C")
+                                    </span>
+                                </td>
                                 <td class="text-end">@invoice.Total.ToString("C")</td>
                                 <td class="text-center">
                                     <a href="@($"invoices/{invoice.Id}")" class="btn btn-sm btn-outline-primary">
@@ -117,6 +128,7 @@
     private string searchTerm = string.Empty;
     private EstadoFactura? selectedStatus;
     private FormaDePago? selectedFormaDePago;
+    private string selectedPaymentStatus = "All"; // "All", "Pending", "Paid"
     private Guid currentUserId;
 
     private List<InvoiceDto> FilteredInvoices
@@ -135,6 +147,16 @@
             if (selectedFormaDePago.HasValue)
             {
                 filtered = filtered.Where(i => i.FormaDePago == selectedFormaDePago.Value).ToList();
+            }
+
+            // Apply payment status filter
+            if (selectedPaymentStatus == "Pending")
+            {
+                filtered = filtered.Where(i => i.SaldoPendiente > 0).ToList();
+            }
+            else if (selectedPaymentStatus == "Paid")
+            {
+                filtered = filtered.Where(i => i.SaldoPendiente <= 0).ToList();
             }
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
