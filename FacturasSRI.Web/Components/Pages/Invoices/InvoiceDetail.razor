@@ -200,17 +200,42 @@ else
                         <textarea class="form-control" rows="4" readonly>@invoice.RespuestaSRI</textarea>
                     </div>
                     
-                    <div class="d-grid">
-                        <button class="btn btn-outline-primary" @onclick="HandleCheckSriStatus" disabled="@(isCheckingStatus || invoice.Estado == EstadoFactura.Autorizada)">
+                    <div class="d-grid gap-2">
+                        @if (invoice.Estado == EstadoFactura.EnviadaSRI)
+                        {
+                            <div class="alert alert-warning py-2 text-center small mb-2">
+                                <i class="bi bi-info-circle-fill me-1"></i>
+                                La factura fue recibida. <strong>Debe autorizarla</strong> para enviar el correo.
+                            </div>
+                        }
+                        @if (invoice.Estado == EstadoFactura.Pendiente)
+                        {
+                            <div class="alert alert-danger py-2 text-center small mb-2">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                El SRI no respondió al emitir. <strong>Intente enviar de nuevo.</strong>
+                            </div>
+                        }
+
+                        <button class="btn @(invoice.Estado == EstadoFactura.EnviadaSRI || invoice.Estado == EstadoFactura.Pendiente ? "btn-primary pulse-button" : "btn-outline-primary")" 
+                                @onclick="HandleCheckSriStatus" 
+                                disabled="@(isCheckingStatus || invoice.Estado == EstadoFactura.Autorizada)">
                             @if(isCheckingStatus)
                             {
                                 <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                <span>Consultando...</span>
+                                <span>Conectando con SRI...</span>
                             }
                             else
                             {
                                 <i class="bi bi-arrow-clockwise me-2"></i>
-                                <span>Consultar Estado SRI</span>
+                                <span>
+                                    @if(invoice.Estado == EstadoFactura.Pendiente) {
+                                        <text>Reintentar Envío SRI</text>
+                                    } else if (invoice.Estado == EstadoFactura.EnviadaSRI) {
+                                        <text>Autorizar y Enviar Correo</text>
+                                    } else {
+                                        <text>Consultar Estado SRI</text>
+                                    }
+                                </span>
                             }
                         </button>
                     </div>
@@ -236,153 +261,164 @@ else
                     }
                     else
                     {
-                                                <ul class="list-group list-group-flush">
-                                                    @foreach(var cobro in cobros)
-                                                    {
-                                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                            <div>
-                                                                <p class="mb-0"><strong>@cobro.Monto.ToString("C")</strong> - @cobro.MetodoDePago</p>
-                                                                <small class="text-muted">@cobro.FechaCobro.ToString("g") por @cobro.CreadoPor</small>
-                                                            </div>
-                                                            @if (!string.IsNullOrEmpty(cobro.ComprobantePagoPath))
-                                                            {
-                                                                <button class="btn btn-sm btn-outline-success" @onclick="() => DownloadCobroReceipt(cobro.Id)">
-                                                                    <i class="bi bi-download"></i>
-                                                                </button>
-                                                            }
-                                                        </li>
-                                                    }
-                                                </ul>
-                                            }
-                                        </div>
-                                        @if(invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0)
-                                        {
-                                            <div class="card-footer text-center">
-                                                <a href="@($"invoices/register-payment/{InvoiceId}")" class="btn btn-primary">
-                                                    <i class="bi bi-plus-circle me-2"></i>Registrar Pago
-                                                </a>
-                                            </div>
-                                        }
+                        <ul class="list-group list-group-flush">
+                            @foreach(var cobro in cobros)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="mb-0"><strong>@cobro.Monto.ToString("C")</strong> - @cobro.MetodoDePago</p>
+                                        <small class="text-muted">@cobro.FechaCobro.ToString("g") por @cobro.CreadoPor</small>
                                     </div>
-                                </div>
-                            </div>
-                        }
-                        
-                        
-                        @code {
-                            [Parameter]
-                            public Guid InvoiceId { get; set; }
-                        
-                            [CascadingParameter]
-                            private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
-                        
-                            private InvoiceDetailViewDto? invoice;
-                            private List<CobroDto> cobros = new();
-                            
-                            private string? errorMessage;
-                            private string? sriCheckMessage;
-                            private string? emailMessage;
-                        
-                            private bool isCheckingStatus = false;
-                            private bool sendingEmail = false;
-                            private bool emailSuccess = false;
-                            private Guid currentUserId;
-                        
-                            protected override async Task OnInitializedAsync()
-                            {
-                                var authState = await AuthenticationStateTask;
-                                var user = authState.User;
-                                if (user.Identity.IsAuthenticated)
-                                {
-                                    var userId = user.FindFirst(c => c.Type == "sub")?.Value;
-                                    if(!string.IsNullOrEmpty(userId))
+                                    @if (!string.IsNullOrEmpty(cobro.ComprobantePagoPath))
                                     {
-                                        currentUserId = Guid.Parse(userId);
+                                        <button class="btn btn-sm btn-outline-success" @onclick="() => DownloadCobroReceipt(cobro.Id)">
+                                            <i class="bi bi-download"></i>
+                                        </button>
                                     }
-                                }
-                                await LoadInvoiceData();
+                                </li>
                             }
-                        
-                            private async Task LoadInvoiceData()
-                            {
-                                try
-                                {
-                                    invoice = await InvoiceService.GetInvoiceDetailByIdAsync(InvoiceId);
-                                    if (invoice != null)
-                                    {
-                                        cobros = await CobroService.GetCobrosByFacturaIdAsync(InvoiceId);
-                                    }
-                                    else
-                                    {
-                                        errorMessage = "No se encontró la factura solicitada o no se pudo cargar su detalle.";
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessage = $"No se pudieron cargar los detalles de la factura. {ex.Message}";
-                                }
-                            }
-                        
-                            private async Task DownloadCobroReceipt(Guid cobroId)
-                            {
-                                var url = $"/api/downloads/invoice-receipt/{cobroId}";
-                                await JSRuntime.InvokeVoidAsync("open", url, "_blank");
-                            }
-                        
-                            private async Task HandleCheckSriStatus()
-                            {
-                                isCheckingStatus = true;
-                                sriCheckMessage = null;
-                                errorMessage = null;
-                        
-                                try
-                                {
-                                    var updatedInvoice = await InvoiceService.CheckSriStatusAsync(InvoiceId);
-                                    if (updatedInvoice != null)
-                                    {
-                                        invoice = updatedInvoice;
-                                        sriCheckMessage = $"Estado actualizado a las {DateTime.Now:T}: {invoice.Estado}";
-                                    }
-                                    else
-                                    {
-                                        errorMessage = "No se pudo actualizar el estado de la factura.";
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessage = $"Error al consultar SRI: {ex.Message}";
-                                }
-                                finally
-                                {
-                                    isCheckingStatus = false;
-                                }
-                            }
-                        
-                            private async Task ResendEmail()
-                            {
-                                sendingEmail = true;
-                                emailMessage = null;
-                        
-                                try
-                                {
-                                    await InvoiceService.ResendInvoiceEmailAsync(InvoiceId);
-                                    emailSuccess = true;
-                                    emailMessage = "Correo enviado exitosamente al cliente.";
-                                }
-                                catch (Exception ex)
-                                {
-                                    emailSuccess = false;
-                                    emailMessage = $"Error al enviar correo: {ex.Message}";
-                                }
-                                finally
-                                {
-                                    sendingEmail = false;
-                                }
-                            }
-                        
-                            private void GoBack()
-                            {
-                                Navigation.NavigateTo("/invoices");
-                            }
-                        }
-                        
+                        </ul>
+                    }
+                </div>
+                @if(invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0)
+                {
+                    <div class="card-footer text-center">
+                        <a href="@($"invoices/register-payment/{InvoiceId}")" class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-2"></i>Registrar Pago
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .pulse-button {
+        animation: pulse 2s infinite;
+    }
+    @@keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public Guid InvoiceId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private InvoiceDetailViewDto? invoice;
+    private List<CobroDto> cobros = new();
+    
+    private string? errorMessage;
+    private string? sriCheckMessage;
+    private string? emailMessage;
+
+    private bool isCheckingStatus = false;
+    private bool sendingEmail = false;
+    private bool emailSuccess = false;
+    private Guid currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        var user = authState.User;
+        if (user.Identity.IsAuthenticated)
+        {
+            var userId = user.FindFirst(c => c.Type == "sub")?.Value;
+            if(!string.IsNullOrEmpty(userId))
+            {
+                currentUserId = Guid.Parse(userId);
+            }
+        }
+        await LoadInvoiceData();
+    }
+
+    private async Task LoadInvoiceData()
+    {
+        try
+        {
+            invoice = await InvoiceService.GetInvoiceDetailByIdAsync(InvoiceId);
+            if (invoice != null)
+            {
+                cobros = await CobroService.GetCobrosByFacturaIdAsync(InvoiceId);
+            }
+            else
+            {
+                errorMessage = "No se encontró la factura solicitada o no se pudo cargar su detalle.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"No se pudieron cargar los detalles de la factura. {ex.Message}";
+        }
+    }
+
+    private async Task DownloadCobroReceipt(Guid cobroId)
+    {
+        var url = $"/api/downloads/invoice-receipt/{cobroId}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    private async Task HandleCheckSriStatus()
+    {
+        isCheckingStatus = true;
+        sriCheckMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            // Esta función ahora es inteligente: si está Pendiente hace recepción, si no, hace autorización
+            var updatedInvoice = await InvoiceService.CheckSriStatusAsync(InvoiceId);
+            
+            if (updatedInvoice != null)
+            {
+                invoice = updatedInvoice;
+                sriCheckMessage = $"Estado actualizado a las {DateTime.Now:T}: {invoice.Estado}";
+            }
+            else
+            {
+                errorMessage = "No se pudo actualizar el estado de la factura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error SRI: {ex.Message}";
+        }
+        finally
+        {
+            isCheckingStatus = false;
+        }
+    }
+
+    private async Task ResendEmail()
+    {
+        sendingEmail = true;
+        emailMessage = null;
+
+        try
+        {
+            await InvoiceService.ResendInvoiceEmailAsync(InvoiceId);
+            emailSuccess = true;
+            emailMessage = "Correo enviado exitosamente al cliente.";
+        }
+        catch (Exception ex)
+        {
+            emailSuccess = false;
+            emailMessage = $"Error al enviar correo: {ex.Message}";
+        }
+        finally
+        {
+            sendingEmail = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/invoices");
+    }
+}

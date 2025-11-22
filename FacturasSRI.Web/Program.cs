@@ -13,6 +13,8 @@ using SendGrid.Extensions.DependencyInjection;
 using Supabase;
 using FacturasSRI.Web.Endpoints;
 
+System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");

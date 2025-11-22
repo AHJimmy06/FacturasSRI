@@ -17,7 +17,7 @@ namespace FacturasSRI.Core.Services
         public SriApiClientService(ILogger<SriApiClientService> logger)
         {
             _httpClient = new HttpClient();
-            _httpClient.Timeout = TimeSpan.FromSeconds(30); 
+            _httpClient.Timeout = TimeSpan.FromSeconds(120); 
             _logger = logger;
         }
 
