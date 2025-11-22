@@ -1,0 +1,284 @@
+@page "/credit-notes/{Id:guid}"
+@attribute [Authorize]
+
+@using FacturasSRI.Application.Dtos
+@using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
+@using FacturasSRI.Infrastructure.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject CreditNoteService CreditNoteService
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+
+<PageTitle>Nota de Crédito - @(creditNote?.NumeroNotaCredito ?? "...")</PageTitle>
+
+@if (creditNote == null && !string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (creditNote == null)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-3">Cargando detalles de la Nota de Crédito...</p>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Detalle de Nota de Crédito</h1>
+        <div>
+            <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
+                <i class="bi bi-arrow-left-circle me-2"></i>Volver
+            </button>
+            
+            @if (creditNote.Estado == EstadoNotaDeCredito.Autorizada)
+            {
+                <a href="/api/public/nc-ride/@creditNote.Id" target="_blank" class="btn btn-danger me-2">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA: DATOS DEL DOCUMENTO -->
+        <div class="col-lg-8">
+            <div class="card invoice-card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <!-- CABECERA -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <img src="/logo.png" alt="Logo" style="max-height: 80px;"/>
+                            <h4 class="mt-3">@Configuration["CompanyInfo:NombreComercial"]</h4>
+                            <p class="mb-0">@Configuration["CompanyInfo:DireccionMatriz"]</p>
+                            <p class="mb-0">RUC: @Configuration["CompanyInfo:Ruc"]</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <h2 class="text-uppercase">Nota de Crédito</h2>
+                            <h5 class="text-danger">@creditNote.NumeroNotaCredito</h5>
+                            <p class="mb-0"><strong>Fecha Emisión:</strong> @creditNote.FechaEmision.ToString("dd/MM/yyyy")</p>
+                        </div>
+                    </div>
+                    <hr/>
+                    
+                    <!-- DATOS CLIENTE Y FACTURA -->
+                    <div class="row my-4">
+                        <div class="col-md-6">
+                            <div class="card h-100 bg-light border-0">
+                                <div class="card-header bg-transparent fw-bold">
+                                    <i class="bi bi-person me-2"></i>Cliente
+                                </div>
+                                <div class="card-body pt-2">
+                                    <p class="mb-1"><strong>Nombre:</strong> @creditNote.ClienteNombre</p>
+                                    <p class="mb-1"><strong>RUC/CI:</strong> @creditNote.ClienteIdentificacion</p>
+                                    <p class="mb-1"><strong>Dirección:</strong> @creditNote.ClienteDireccion</p>
+                                    <p class="mb-0"><strong>Email:</strong> @creditNote.ClienteEmail</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card h-100 bg-warning bg-opacity-10 border-0">
+                                <div class="card-header bg-transparent fw-bold text-warning text-opacity-75">
+                                    <i class="bi bi-file-earmark-text me-2"></i>Documento Modificado
+                                </div>
+                                <div class="card-body pt-2">
+                                    <p class="mb-1"><strong>Factura:</strong> @creditNote.NumeroFacturaModificada</p>
+                                    <p class="mb-1"><strong>Fecha Factura:</strong> @creditNote.FechaEmisionFacturaModificada.ToString("dd/MM/yyyy")</p>
+                                    <hr class="my-2" />
+                                    <p class="mb-0"><strong>Razón Modificación:</strong></p>
+                                    <p class="mb-0 fst-italic">@creditNote.RazonModificacion</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABLA DE ITEMS -->
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center">Cant. Devuelta</th>
+                                    <th>Descripción</th>
+                                    <th class="text-end">Precio Unitario</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in creditNote.Items)
+                                {
+                                    <tr>
+                                        <td class="text-center fw-bold text-primary">@item.Cantidad</td>
+                                        <td>@item.ProductName</td>
+                                        <td class="text-end">@item.PrecioVentaUnitario.ToString("C")</td>
+                                        <td class="text-end">@item.Subtotal.ToString("C")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- TOTALES -->
+                    <div class="row mt-4 justify-content-end">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tbody>
+                                    <tr>
+                                        <td class="text-end"><strong>Subtotal:</strong></td>
+                                        <td class="text-end" style="width: 150px;">@creditNote.SubtotalSinImpuestos.ToString("C")</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-end"><strong>IVA 15%:</strong></td>
+                                        <td class="text-end">@creditNote.TotalIVA.ToString("C")</td>
+                                    </tr>
+                                    <tr class="fs-5 table-light">
+                                        <td class="text-end"><strong>Total Devolución:</strong></td>
+                                        <td class="text-end"><strong>@creditNote.Total.ToString("C")</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: ESTADO SRI -->
+        <div class="col-lg-4">
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0"><i class="bi bi-shield-check me-2"></i>Estado SRI</h5>
+                </div>
+                <div class="card-body">
+                    @if(sriCheckMessage != null)
+                    {
+                        <div class="alert alert-info small">@sriCheckMessage</div>
+                    }
+                    
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Estado Actual</label>
+                        <div>@GetStatusBadge(creditNote.Estado)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Clave de Acceso</label>
+                        <textarea class="form-control form-control-sm bg-light" rows="3" readonly style="font-size: 0.75rem;">@creditNote.ClaveAcceso</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Número de Autorización</label>
+                        <input type="text" class="form-control form-control-sm bg-light" value="@(creditNote.NumeroAutorizacion ?? "PENDIENTE")" readonly />
+                    </div>
+                    
+                    @if(!string.IsNullOrEmpty(creditNote.RespuestaSRI))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label small text-muted">Respuesta SRI</label>
+                            <div class="p-2 bg-light border rounded small" style="max-height: 150px; overflow-y: auto;">
+                                @creditNote.RespuestaSRI
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="d-grid gap-2 mt-3">
+                        @if (creditNote.Estado != EstadoNotaDeCredito.Autorizada && creditNote.Estado != EstadoNotaDeCredito.Cancelada)
+                        {
+                            <button class="btn btn-primary" @onclick="HandleCheckSriStatus" disabled="@isCheckingStatus">
+                                @if (isCheckingStatus)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span> <span>Consultando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-clockwise me-2"></i> <span>Actualizar Estado SRI</span>
+                                }
+                            </button>
+                            <small class="text-muted text-center" style="font-size: 0.7rem;">
+                                Si la NC se quedó "Pendiente" o "Enviada", use este botón para consultar su estado real en el SRI.
+                            </small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private CreditNoteDetailViewDto? creditNote;
+    private string? errorMessage;
+    private string? sriCheckMessage;
+    private bool isCheckingStatus = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            creditNote = await CreditNoteService.GetCreditNoteDetailByIdAsync(Id);
+            if (creditNote == null)
+            {
+                errorMessage = "Nota de crédito no encontrada.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar detalles: {ex.Message}";
+        }
+    }
+
+    private async Task HandleCheckSriStatus()
+    {
+        isCheckingStatus = true;
+        sriCheckMessage = null;
+        try
+        {
+            // El método GetCreditNoteDetailByIdAsync del servicio YA incluye la lógica de CheckSriStatusAsync internamente
+            // Así que solo recargamos la data.
+            await LoadData();
+            sriCheckMessage = "Consulta realizada. Estado actualizado.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error consultando SRI: {ex.Message}";
+        }
+        finally
+        {
+            isCheckingStatus = false;
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/credit-notes");
+
+    private RenderFragment GetStatusBadge(EstadoNotaDeCredito estado)
+    {
+        return builder =>
+        {
+            var (badgeClass, iconClass, text) = estado switch
+            {
+                EstadoNotaDeCredito.Autorizada => ("bg-success", "bi-check-circle-fill", "Autorizada"),
+                EstadoNotaDeCredito.Pendiente => ("bg-warning text-dark", "bi-hourglass-split", "Pendiente"),
+                EstadoNotaDeCredito.EnviadaSRI => ("bg-info text-dark", "bi-send", "Enviada SRI"),
+                EstadoNotaDeCredito.RechazadaSRI => ("bg-danger", "bi-x-circle-fill", "Rechazada"),
+                EstadoNotaDeCredito.Cancelada => ("bg-secondary", "bi-trash", "Anulada"),
+                _ => ("bg-secondary", "bi-question-circle", estado.ToString())
+            };
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", $"badge {badgeClass} fs-6");
+            builder.OpenElement(2, "i");
+            builder.AddAttribute(3, "class", $"bi {iconClass} me-1");
+            builder.CloseElement();
+            builder.AddContent(4, text);
+            builder.CloseElement();
+        };
+    }
+}

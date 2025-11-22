@@ -1,21 +1,17 @@
+using FacturasSRI.Domain.Enums;
 using System;
-using System.Collections.Generic;
 
 namespace FacturasSRI.Application.Dtos
 {
-    public class CreateCreditNoteDto
+    public class CreditNoteDto
     {
-        public Guid FacturaId { get; set; }
-        public string RazonModificacion { get; set; } = string.Empty;
-        public Guid UsuarioIdCreador { get; set; }
-        
-        // Lista de items a devolver
-        public List<CreditNoteItemDto> Items { get; set; } = new List<CreditNoteItemDto>();
-    }
-
-    public class CreditNoteItemDto
-    {
-        public Guid ProductoId { get; set; }
-        public int CantidadDevolucion { get; set; } // Cuántos se devuelven
+        public Guid Id { get; set; }
+        public string NumeroNotaCredito { get; set; } = string.Empty;
+        public string NumeroFacturaModificada { get; set; } = string.Empty;
+        public string ClienteNombre { get; set; } = string.Empty;
+        public DateTime FechaEmision { get; set; }
+        public decimal Total { get; set; }
+        public EstadoNotaDeCredito Estado { get; set; }
+        public string? RazonModificacion { get; set; }
     }
 }

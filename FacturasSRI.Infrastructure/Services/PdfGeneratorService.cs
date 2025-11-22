@@ -244,43 +244,9 @@ namespace FacturasSRI.Infrastructure.Services
                     col.Item().Text($"Razón Modificación: {nc.RazonModificacion}").FontSize(8).Italic();
                 });
 
-                column.Item().PaddingVertical(5);
-
-                column.Item().Table(table =>
-                {
-                    table.ColumnsDefinition(columns =>
-                    {
-                        columns.ConstantColumn(50); // Cod
-                        columns.ConstantColumn(30); // Cant
-                        columns.RelativeColumn();   // Desc
-                        columns.ConstantColumn(50); // P.Unit
-                        columns.ConstantColumn(40); // Desc
-                        columns.ConstantColumn(50); // Total
-                    });
-
-                    table.Header(header =>
-                    {
-                        header.Cell().Element(HeaderCellStyle).Text("Cod.");
-                        header.Cell().Element(HeaderCellStyle).Text("Cant.");
-                        header.Cell().Element(HeaderCellStyle).Text("Descripción");
-                        header.Cell().Element(HeaderCellStyle).Text("P.Unit");
-                        header.Cell().Element(HeaderCellStyle).Text("Desc.");
-                        header.Cell().Element(HeaderCellStyle).Text("Total");
-                    });
-
-                    foreach (var item in nc.Items)
-                    {
-                        table.Cell().Element(CellStyle).Text("PROD");
-                        table.Cell().Element(CellStyle).AlignCenter().Text(item.Cantidad.ToString("N2"));
-                        table.Cell().Element(CellStyle).Text(item.ProductName);
-                        table.Cell().Element(CellStyle).AlignRight().Text(item.PrecioVentaUnitario.ToString("N2"));
-                        table.Cell().Element(CellStyle).AlignRight().Text("0.00");
-                        table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal.ToString("N2"));
-                    }
-                });
-
                 column.Item().PaddingTop(5).Row(row =>
                 {
+                    // Columna Izq (Info Adicional) - Igual
                     row.RelativeItem(6).Column(c =>
                     {
                         c.Item().Element(ContainerBox).Column(info =>
@@ -293,24 +259,37 @@ namespace FacturasSRI.Infrastructure.Services
 
                     row.ConstantItem(10);
 
+                    // Columna Der (TOTALES DINÁMICOS)
                     row.RelativeItem(4).Element(ContainerBox).Column(c =>
                     {
-                        // Lógica simplificada de totales para NC (replicando factura)
-                        decimal totalIva = nc.TotalIVA;
-                        decimal baseImponible15 = 0;
-                        
-                        // Si tienes TaxSummaries en NC, úsalos. Si no, calculo aprox para el PDF visual
-                        // Asumo que la mayor parte es IVA 15%
-                        if (totalIva > 0) baseImponible15 = totalIva / 0.15m;
-                        
-                        decimal baseImponible0 = nc.SubtotalSinImpuestos - baseImponible15;
-                        if (baseImponible0 < 0) baseImponible0 = 0;
-
-                        TotalesRow(c, "SUBTOTAL 15%", baseImponible15);
-                        TotalesRow(c, "SUBTOTAL 0%", baseImponible0);
+                        // 1. Subtotal Sin Impuestos (General)
                         TotalesRow(c, "SUBTOTAL SIN IMPUESTOS", nc.SubtotalSinImpuestos);
-                        TotalesRow(c, "IVA 15%", totalIva);
 
+                        // 2. Bases Imponibles por Tarifa (Ej: Subtotal 15%, Subtotal 12%, Subtotal 0%)
+                        // Recorremos los summaries para mostrar las bases
+                        foreach (var tax in nc.TaxSummaries)
+                        {
+                            decimal baseImponible = 0;
+                            if (tax.TaxRate > 0)
+                                baseImponible = tax.Amount / (tax.TaxRate / 100m);
+                            else
+                                baseImponible = nc.SubtotalSinImpuestos - nc.TaxSummaries.Where(t => t.TaxRate > 0).Sum(t => t.Amount / (t.TaxRate / 100m)); 
+                            
+                            // Ajuste visual: Si es tarifa 0, a veces es difícil calcular la base exacta si hay mezcla, 
+                            // pero para este proyecto podemos mostrar la etiqueta dinámica:
+                            string labelBase = $"SUBTOTAL {tax.TaxRate:0.#}%";
+                            // Si prefieres mostrar la base imponible aquí:
+                            TotalesRow(c, labelBase, baseImponible);
+                        }
+
+                        // 3. Valor de los Impuestos (Ej: IVA 15% -> $12.30)
+                        foreach (var tax in nc.TaxSummaries.Where(x => x.TaxRate > 0)) // Solo los que suman valor
+                        {
+                            string labelImpuesto = $"{tax.TaxName} {tax.TaxRate:0.#}%";
+                            TotalesRow(c, labelImpuesto, tax.Amount);
+                        }
+
+                        // 4. Total Final
                         c.Item().PaddingTop(2).BorderTop(1).Row(r =>
                         {
                             r.RelativeItem().Text("VALOR TOTAL").Bold();
