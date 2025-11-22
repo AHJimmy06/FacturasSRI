@@ -166,23 +166,24 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<List<FacturasConPagosDto>> GetFacturasConPagosAsync()
         {
-            var facturasConPagos = await _context.Facturas
-                .Include(f => f.Cliente)
-                .Include(f => f.Cobros)
-                .Include(f => _context.CuentasPorCobrar.Where(cpc => cpc.FacturaId == f.Id))
-                .Where(f => f.Cobros.Any()) // Only include invoices that have at least one payment
-                .Select(f => new FacturasConPagosDto
-                {
-                    FacturaId = f.Id,
-                    NumeroFactura = f.NumeroFactura,
-                    ClienteNombre = f.Cliente != null ? f.Cliente.RazonSocial : "N/A",
-                    TotalFactura = f.Total,
-                    SaldoPendiente = _context.CuentasPorCobrar.Where(cpc => cpc.FacturaId == f.Id).Select(cpc => cpc.SaldoPendiente).FirstOrDefault(),
-                    TotalPagado = f.Cobros.Sum(c => c.Monto),
-                    FormaDePago = f.FormaDePago,
-                    EstadoFactura = f.Estado
-                })
-                .ToListAsync();
+            var facturasConPagos = await (from f in _context.Facturas
+                                        join c in _context.Clientes on f.ClienteId equals c.Id into clienteJoin
+                                        from cliente in clienteJoin.DefaultIfEmpty()
+                                        join cpc in _context.CuentasPorCobrar on f.Id equals cpc.FacturaId into cpcJoin
+                                        from cuentaPorCobrar in cpcJoin.DefaultIfEmpty()
+                                        where f.Cobros.Any() // Only include invoices that have at least one payment
+                                        select new FacturasConPagosDto
+                                        {
+                                            FacturaId = f.Id,
+                                            NumeroFactura = f.NumeroFactura,
+                                            ClienteNombre = cliente != null ? cliente.RazonSocial : "N/A",
+                                            TotalFactura = f.Total,
+                                            SaldoPendiente = cuentaPorCobrar != null ? cuentaPorCobrar.SaldoPendiente : 0,
+                                            TotalPagado = f.Cobros.Sum(c => c.Monto),
+                                            FormaDePago = f.FormaDePago,
+                                            EstadoFactura = f.Estado
+                                        })
+                                        .ToListAsync();
 
             return facturasConPagos;
         }
