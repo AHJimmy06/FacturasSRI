@@ -32,10 +32,10 @@
         </InputSelect>
     </div>
     <div class="col-md-3">
-        <InputSelect class="form-select" @bind-Value="selectedFormaDePago">
+        <InputSelect class="form-select" @bind-Value="selectedFormaDePagoString">
             <option value="">Todas las Formas de Pago</option>
-            <option value="@(false)">Contado</option>
-            <option value="@(true)">Crédito</option>
+            <option value="False">Contado</option>
+            <option value="True">Crédito</option>
         </InputSelect>
     </div>
 </div>
@@ -112,8 +112,8 @@ else
     private bool isLoading = true;
     
     private string searchTerm = string.Empty;
-    private EstadoCompra? selectedStatus = EstadoCompra.Pendiente;
-    private bool? selectedFormaDePago;
+    private EstadoCompra? selectedStatus;
+    private string selectedFormaDePagoString = ""; // New string property for binding
 
     private List<PurchaseListItemDto> FilteredPurchases
     {
@@ -126,6 +126,13 @@ else
                 filtered = filtered.Where(p => p.Estado == selectedStatus.Value).ToList();
             }
             
+            // Parse selectedFormaDePagoString to bool?
+            bool? selectedFormaDePago = null;
+            if (!string.IsNullOrEmpty(selectedFormaDePagoString))
+            {
+                selectedFormaDePago = bool.Parse(selectedFormaDePagoString);
+            }
+
             if (selectedFormaDePago.HasValue)
             {
                 filtered = filtered.Where(p => p.EsCredito == selectedFormaDePago.Value).ToList();
@@ -147,6 +154,7 @@ else
         {
             isLoading = true;
             allPurchases = await PurchaseService.GetPurchasesAsync();
+            selectedFormaDePagoString = ""; // Initialize to empty string for "Todas las Formas de Pago"
         }
         finally
         {
