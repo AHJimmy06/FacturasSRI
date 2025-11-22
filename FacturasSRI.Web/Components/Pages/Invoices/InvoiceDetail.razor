@@ -62,6 +62,13 @@ else
                     }
                 </button>
             }
+            @if (invoice.Estado == EstadoFactura.Cancelada && userIsAdmin)
+            {
+                <button class="btn btn-warning" @onclick="HandleReactivateInvoice" disabled="@isCheckingStatus">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>
+                    <span>Reactivar como Borrador</span>
+                </button>
+            }
         </div>
     </div>
 
@@ -201,43 +208,62 @@ else
                     </div>
                     
                     <div class="d-grid gap-2">
-                        @if (invoice.Estado == EstadoFactura.EnviadaSRI)
+                        @if (invoice.Estado == EstadoFactura.Borrador)
                         {
                             <div class="alert alert-warning py-2 text-center small mb-2">
                                 <i class="bi bi-info-circle-fill me-1"></i>
-                                La factura fue recibida. <strong>Debe autorizarla</strong> para enviar el correo.
+                                Esta factura es un <strong>borrador</strong>. No tiene validez fiscal hasta que sea emitida.
                             </div>
+                            <button class="btn btn-primary" @onclick="OpenConfirmationModal" disabled="@isCheckingStatus">
+                                <i class="bi bi-send-check-fill me-2"></i>
+                                <span>Emitir Factura</span>
+                            </button>
                         }
-                        @if (invoice.Estado == EstadoFactura.Pendiente)
+                        else
                         {
-                            <div class="alert alert-danger py-2 text-center small mb-2">
-                                <i class="bi bi-exclamation-circle-fill me-1"></i>
-                                El SRI no respondió al emitir. <strong>Intente enviar de nuevo.</strong>
-                            </div>
-                        }
+                            @if (invoice.Estado == EstadoFactura.EnviadaSRI)
+                            {
+                                <div class="alert alert-warning py-2 text-center small mb-2">
+                                    <i class="bi bi-info-circle-fill me-1"></i>
+                                    La factura fue recibida. <strong>Debe autorizarla</strong> para enviar el correo.
+                                </div>
+                            }
+                            @if (invoice.Estado == EstadoFactura.Pendiente)
+                            {
+                                <div class="alert alert-danger py-2 text-center small mb-2">
+                                    <i class="bi bi-exclamation-circle-fill me-1"></i>
+                                    El SRI no respondió al emitir. <strong>Intente enviar de nuevo.</strong>
+                                </div>
+                            }
 
-                        <button class="btn @(invoice.Estado == EstadoFactura.EnviadaSRI || invoice.Estado == EstadoFactura.Pendiente ? "btn-primary pulse-button" : "btn-outline-primary")" 
-                                @onclick="HandleCheckSriStatus" 
-                                disabled="@(isCheckingStatus || invoice.Estado == EstadoFactura.Autorizada)">
-                            @if(isCheckingStatus)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                                <span>Conectando con SRI...</span>
-                            }
-                            else
-                            {
-                                <i class="bi bi-arrow-clockwise me-2"></i>
-                                <span>
-                                    @if(invoice.Estado == EstadoFactura.Pendiente) {
-                                        <text>Reintentar Envío SRI</text>
-                                    } else if (invoice.Estado == EstadoFactura.EnviadaSRI) {
-                                        <text>Autorizar y Enviar Correo</text>
-                                    } else {
-                                        <text>Consultar Estado SRI</text>
-                                    }
-                                </span>
-                            }
-                        </button>
+                            <button class="btn @(invoice.Estado == EstadoFactura.EnviadaSRI || invoice.Estado == EstadoFactura.Pendiente ? "btn-primary pulse-button" : "btn-outline-primary")"
+                                    @onclick="HandleCheckSriStatus"
+                                    disabled="@(isCheckingStatus || invoice.Estado == EstadoFactura.Autorizada || invoice.Estado == EstadoFactura.Cancelada)">
+                                @if (isCheckingStatus)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                                    <span>Conectando con SRI...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-clockwise me-2"></i>
+                                    <span>
+                                        @if (invoice.Estado == EstadoFactura.Pendiente)
+                                        {
+                                            <text>Reintentar Envío SRI</text>
+                                        }
+                                        else if (invoice.Estado == EstadoFactura.EnviadaSRI)
+                                        {
+                                            <text>Autorizar y Enviar Correo</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Consultar Estado SRI</text>
+                                        }
+                                    </span>
+                                }
+                            </button>
+                        }
                     </div>
                 </div>
             </div>
@@ -293,6 +319,35 @@ else
     </div>
 }
 
+@if (showConfirmationModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Emisión</h5>
+                    <button type="button" class="btn-close" @onclick="CloseConfirmationModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea emitir esta factura al SRI?</p>
+                    <p class="text-danger">Una vez emitida, la factura no podrá ser cancelada directamente y su estado cambiará a <strong>Pendiente</strong> para ser procesada por el SRI.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseConfirmationModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="HandleIssueInvoice" disabled="@isCheckingStatus">
+                        @if (isCheckingStatus)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Emitir Factura
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 <style>
     .pulse-button {
         animation: pulse 2s infinite;
@@ -322,6 +377,7 @@ else
     private bool sendingEmail = false;
     private bool emailSuccess = false;
     private Guid currentUserId;
+    private bool userIsAdmin = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -334,6 +390,7 @@ else
             {
                 currentUserId = Guid.Parse(userId);
             }
+            userIsAdmin = user.IsInRole("Administrador");
         }
         await LoadInvoiceData();
     }
@@ -420,5 +477,59 @@ else
     private void GoBack()
     {
         Navigation.NavigateTo("/invoices");
+    }
+
+    private bool showConfirmationModal = false;
+    private void OpenConfirmationModal() => showConfirmationModal = true;
+    private void CloseConfirmationModal() => showConfirmationModal = false;
+
+    private async Task HandleIssueInvoice()
+    {
+        isCheckingStatus = true;
+        errorMessage = null;
+
+        try
+        {
+            var updatedInvoice = await InvoiceService.IssueDraftInvoiceAsync(InvoiceId);
+            if (updatedInvoice != null)
+            {
+                invoice = updatedInvoice;
+                sriCheckMessage = $"Factura emitida y enviada al SRI a las {DateTime.Now:T}. Nuevo estado: {invoice.Estado}";
+            }
+            else
+            {
+                errorMessage = "No se pudo emitir la factura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al emitir: {ex.Message}";
+        }
+        finally
+        {
+            isCheckingStatus = false;
+            CloseConfirmationModal();
+        }
+    }
+
+    private async Task HandleReactivateInvoice()
+    {
+        isCheckingStatus = true;
+        errorMessage = null;
+
+        try
+        {
+            await InvoiceService.ReactivateCancelledInvoiceAsync(InvoiceId);
+            await LoadInvoiceData(); // Recargamos los datos
+            sriCheckMessage = "La factura ha sido reactivada como borrador.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al reactivar: {ex.Message}";
+        }
+        finally
+        {
+            isCheckingStatus = false;
+        }
     }
 }

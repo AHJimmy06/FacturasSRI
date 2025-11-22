@@ -850,5 +850,56 @@ namespace FacturasSRI.Infrastructure.Services
             invoice.Estado = EstadoFactura.Cancelada;
             await _context.SaveChangesAsync();
         }
+
+        public async Task<InvoiceDetailViewDto?> IssueDraftInvoiceAsync(Guid invoiceId)
+        {
+            var invoice = await _context.Facturas
+                .Include(i => i.Cliente)
+                .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+            if (invoice == null)
+            {
+                throw new InvalidOperationException("La factura no existe.");
+            }
+
+            if (invoice.Estado != EstadoFactura.Borrador)
+            {
+                throw new InvalidOperationException("Solo se pueden emitir facturas que están en estado Borrador.");
+            }
+            
+            _logger.LogInformation("Iniciando emisión de factura borrador ID: {Id}", invoiceId);
+
+            var (xmlGenerado, xmlFirmadoBytes, claveAcceso) = await GenerarYFirmarXmlAsync(invoice, invoice.Cliente);
+
+            var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == invoice.Id);
+            facturaSri.XmlGenerado = xmlGenerado;
+            facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+            
+            invoice.Estado = EstadoFactura.Pendiente;
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Factura borrador actualizada a Pendiente. Iniciando envío background para {Numero}", invoice.NumeroFactura);
+            _ = Task.Run(() => EnviarAlSriEnFondoAsync(invoice.Id, xmlFirmadoBytes, claveAcceso));
+
+            return await GetInvoiceDetailByIdAsync(invoiceId);
+        }
+
+        public async Task ReactivateCancelledInvoiceAsync(Guid invoiceId)
+        {
+            var invoice = await _context.Facturas.FindAsync(invoiceId);
+            if (invoice == null)
+            {
+                throw new InvalidOperationException("La factura no existe.");
+            }
+
+            if (invoice.Estado != EstadoFactura.Cancelada)
+            {
+                throw new InvalidOperationException("Solo se pueden reactivar facturas que están en estado Cancelada.");
+            }
+
+            invoice.Estado = EstadoFactura.Borrador;
+            await _context.SaveChangesAsync();
+        }
     }
 }
