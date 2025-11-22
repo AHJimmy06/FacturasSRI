@@ -16,7 +16,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using FacturasSRI.Application.Dtos;
 
 namespace FacturasSRI.Infrastructure.Services
 {
@@ -51,7 +50,7 @@ namespace FacturasSRI.Infrastructure.Services
             _sriResponseParserService = sriResponseParserService;
         }
 
-        // 1. PARA EL LISTADO (Ligero)
+        // 1. PARA EL LISTADO
         public async Task<List<CreditNoteDto>> GetCreditNotesAsync()
         {
             return await _context.NotasDeCredito
@@ -65,7 +64,7 @@ namespace FacturasSRI.Infrastructure.Services
                     NumeroNotaCredito = nc.NumeroNotaCredito,
                     FechaEmision = nc.FechaEmision,
                     ClienteNombre = nc.Cliente.RazonSocial,
-                    NumeroFacturaModificada = nc.Factura.NumeroFactura, 
+                    NumeroFacturaModificada = nc.Factura.NumeroFactura,
                     Total = nc.Total,
                     Estado = nc.Estado,
                     RazonModificacion = nc.RazonModificacion
@@ -73,9 +72,10 @@ namespace FacturasSRI.Infrastructure.Services
                 .ToListAsync();
         }
 
-        // 2. PARA VER DETALLES (Pesado - Con cálculo dinámico de impuestos)
+        // 2. PARA VER DETALLES
         public async Task<CreditNoteDetailViewDto?> GetCreditNoteDetailByIdAsync(Guid id)
-        {   
+        {
+            // Intentamos actualizar estado si no es definitivo
             await CheckSriStatusAsync(id);
 
             var nc = await _context.NotasDeCredito
@@ -90,7 +90,6 @@ namespace FacturasSRI.Infrastructure.Services
 
             if (nc == null) return null;
 
-            // 1. Mapeamos los items
             var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto
             {
                 ProductName = d.Producto.Nombre,
@@ -99,9 +98,9 @@ namespace FacturasSRI.Infrastructure.Services
                 Subtotal = d.Subtotal
             }).ToList();
 
-            // 2. CALCULO DINÁMICO DE IMPUESTOS (TaxSummaries)
+            // Cálculo de impuestos para visualización
             var taxSummaries = nc.Detalles
-                .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new 
+                .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new
                 {
                     d.Subtotal,
                     TaxName = pi.Impuesto.Nombre,
@@ -112,7 +111,7 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     TaxName = g.Key.TaxName,
                     TaxRate = g.Key.TaxRate,
-                    Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) 
+                    Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m))
                 })
                 .Where(x => x.Amount > 0 || x.TaxRate == 0)
                 .ToList();
@@ -135,13 +134,13 @@ namespace FacturasSRI.Infrastructure.Services
                 Estado = nc.Estado,
                 ClaveAcceso = nc.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = nc.InformacionSRI?.NumeroAutorizacion,
-                RespuestaSRI = nc.InformacionSRI?.RespuestaSRI, 
+                RespuestaSRI = nc.InformacionSRI?.RespuestaSRI,
                 Items = itemsDto,
                 TaxSummaries = taxSummaries
             };
         }
 
-        // 3. CREACIÓN
+        // 3. CREACIÓN (STOCK ELIMINADO DE AQUÍ)
         public async Task<NotaDeCredito> CreateCreditNoteAsync(CreateCreditNoteDto dto)
         {
             await _ncSemaphore.WaitAsync();
@@ -155,6 +154,7 @@ namespace FacturasSRI.Infrastructure.Services
                 if (factura == null) throw new InvalidOperationException("La factura original no existe.");
                 if (factura.Estado != EstadoFactura.Autorizada) throw new InvalidOperationException("Solo se pueden emitir Notas de Crédito a facturas AUTORIZADAS.");
 
+                // Configuración
                 var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
                 var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"];
                 var rucEmisor = _configuration["CompanyInfo:Ruc"];
@@ -162,16 +162,17 @@ namespace FacturasSRI.Infrastructure.Services
                 var certPath = _configuration["CompanyInfo:CertificatePath"];
                 var certPass = _configuration["CompanyInfo:CertificatePassword"];
 
+                // Secuencial
                 var secuencialEntity = await _context.Secuenciales.FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
                 if (secuencialEntity == null)
                 {
                     secuencialEntity = new Secuencial { Id = Guid.NewGuid(), Establecimiento = establishmentCode, PuntoEmision = emissionPointCode, UltimoSecuencialFactura = 0, UltimoSecuencialNotaCredito = 0 };
                     _context.Secuenciales.Add(secuencialEntity);
                 }
-
                 secuencialEntity.UltimoSecuencialNotaCredito++;
                 string numeroSecuencialStr = secuencialEntity.UltimoSecuencialNotaCredito.ToString("D9");
 
+                // Crear Entidad
                 var nc = new NotaDeCredito
                 {
                     Id = Guid.NewGuid(),
@@ -179,7 +180,7 @@ namespace FacturasSRI.Infrastructure.Services
                     ClienteId = factura.ClienteId.Value,
                     FechaEmision = DateTime.UtcNow,
                     NumeroNotaCredito = numeroSecuencialStr,
-                    Estado = EstadoNotaDeCredito.Pendiente,
+                    Estado = EstadoNotaDeCredito.Pendiente, // Inicia Pendiente
                     RazonModificacion = dto.RazonModificacion,
                     UsuarioIdCreador = dto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow
@@ -219,11 +220,8 @@ namespace FacturasSRI.Infrastructure.Services
                     subtotalAccum += subtotalItem;
                     ivaAccum += valorIvaItem;
 
-                    if (detalleFactura.Producto.ManejaInventario)
-                    {
-                        if (detalleFactura.Producto.ManejaLotes) await DevolverStockALotes(detalleFactura.Id, itemDto.CantidadDevolucion);
-                        else detalleFactura.Producto.StockTotal += itemDto.CantidadDevolucion;
-                    }
+                    // ¡¡IMPORTANTE!!: AQUÍ YA NO DEVOLVEMOS STOCK. 
+                    // El stock solo se devuelve si el SRI Autoriza.
                 }
 
                 nc.SubtotalSinImpuestos = subtotalAccum;
@@ -232,6 +230,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                 _context.NotasDeCredito.Add(nc);
 
+                // SRI Data
                 var fechaEcuador = GetEcuadorTime(nc.FechaEmision);
                 string claveAcceso = GenerarClaveAcceso(fechaEcuador, "04", rucEmisor, establishmentCode, emissionPointCode, numeroSecuencialStr, environmentType);
 
@@ -246,10 +245,13 @@ namespace FacturasSRI.Infrastructure.Services
 
                 ncSri.XmlGenerado = xmlGenerado;
                 ncSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+                
+                // Estado inicial para envío
                 nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
 
                 await _context.SaveChangesAsync();
 
+                // Lanzar proceso de fondo
                 _ = Task.Run(() => EnviarNcAlSriEnFondoAsync(nc.Id, xmlFirmadoBytes));
 
                 return nc;
@@ -265,33 +267,48 @@ namespace FacturasSRI.Infrastructure.Services
             }
         }
 
-        // 4. VERIFICACIÓN MANUAL / AUTOMÁTICA DE ESTADO
+        // 4. VERIFICACIÓN MANUAL DE ESTADO (Corrección de Stock aquí también)
         public async Task CheckSriStatusAsync(Guid ncId)
         {
-            var nc = await _context.NotasDeCredito.Include(n => n.InformacionSRI).FirstOrDefaultAsync(n => n.Id == ncId);
+            var nc = await _context.NotasDeCredito
+                .Include(n => n.InformacionSRI)
+                .Include(n => n.Detalles).ThenInclude(d => d.Producto) // Necesario para devolver stock
+                .FirstOrDefaultAsync(n => n.Id == ncId);
+
             if (nc == null || nc.InformacionSRI == null) return;
+            
+            // Si ya está autorizada o cancelada, no hacemos nada
             if (nc.Estado == EstadoNotaDeCredito.Autorizada || nc.Estado == EstadoNotaDeCredito.Cancelada) return;
 
             try
             {
-                if(string.IsNullOrEmpty(nc.InformacionSRI.ClaveAcceso)) return;
+                if (string.IsNullOrEmpty(nc.InformacionSRI.ClaveAcceso)) return;
 
                 string respAut = await _sriApiClientService.ConsultarAutorizacionAsync(nc.InformacionSRI.ClaveAcceso);
                 var autObj = _sriResponseParserService.ParsearRespuestaAutorizacion(respAut);
 
                 if (autObj.Estado == "AUTORIZADO")
                 {
+                    // === MOMENTO CRÍTICO: DEVOLVER STOCK ===
+                    // Solo si antes NO estaba autorizada (para evitar duplicados)
+                    if (nc.Estado != EstadoNotaDeCredito.Autorizada)
+                    {
+                        await RestaurarStockAsync(_context, nc);
+                    }
+
                     nc.Estado = EstadoNotaDeCredito.Autorizada;
                     nc.InformacionSRI.NumeroAutorizacion = autObj.NumeroAutorizacion;
                     nc.InformacionSRI.FechaAutorizacion = autObj.FechaAutorizacion;
                     nc.InformacionSRI.RespuestaSRI = "AUTORIZADO";
                     await _context.SaveChangesAsync();
                 }
-                else if (autObj.Estado == "NO AUTORIZADO" || (autObj.Errores != null && autObj.Errores.Any()))
+                else if (autObj.Estado == "NO AUTORIZADO")
                 {
-                     nc.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
-                     await _context.SaveChangesAsync();
+                    nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
+                    nc.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
+                    await _context.SaveChangesAsync();
                 }
+                // Si sigue en PROCESAMIENTO, no cambiamos estado
             }
             catch (Exception ex)
             {
@@ -299,23 +316,42 @@ namespace FacturasSRI.Infrastructure.Services
             }
         }
 
-        private async Task DevolverStockALotes(Guid detalleFacturaId, int cantidadADevolver)
+        // 5. MÉTODO PRIVADO PARA RESTAURAR STOCK (LÓGICA CENTRALIZADA)
+        private async Task RestaurarStockAsync(FacturasSRIDbContext context, NotaDeCredito nc)
         {
-            var consumos = await _context.FacturaDetalleConsumoLotes
-                .Where(c => c.FacturaDetalleId == detalleFacturaId)
-                .Include(c => c.Lote)
-                .OrderByDescending(c => c.Lote.FechaCaducidad)
-                .ToListAsync();
-
-            int remanente = cantidadADevolver;
-            foreach (var consumo in consumos)
+            foreach (var detalle in nc.Detalles)
             {
-                if (remanente <= 0) break;
-                consumo.Lote.CantidadDisponible += remanente;
-                remanente = 0; 
+                var producto = await context.Productos.FindAsync(detalle.ProductoId);
+                if (producto != null && producto.ManejaInventario)
+                {
+                    if (producto.ManejaLotes)
+                    {
+                        // Buscar los consumos de la FACTURA original para saber a qué lotes devolver
+                        var consumos = await context.FacturaDetalleConsumoLotes
+                            .Include(c => c.FacturaDetalle)
+                            .Where(c => c.FacturaDetalle.FacturaId == nc.FacturaId && c.FacturaDetalle.ProductoId == detalle.ProductoId)
+                            .Include(c => c.Lote)
+                            .OrderByDescending(c => c.Lote.FechaCaducidad)
+                            .ToListAsync();
+
+                        int remanente = detalle.Cantidad;
+                        foreach (var consumo in consumos)
+                        {
+                            if (remanente <= 0) break;
+                            consumo.Lote.CantidadDisponible += remanente; // Simplificación: devolvemos al más reciente disponible
+                            remanente = 0;
+                        }
+                    }
+                    else
+                    {
+                        producto.StockTotal += detalle.Cantidad;
+                    }
+                }
             }
+            _logger.LogInformation($"Stock restaurado para Nota de Crédito {nc.NumeroNotaCredito}");
         }
 
+        // 6. PROCESO DE FONDO
         private async Task EnviarNcAlSriEnFondoAsync(Guid ncId, byte[] xmlFirmadoBytes)
         {
             using (var scope = _serviceScopeFactory.CreateScope())
@@ -333,7 +369,7 @@ namespace FacturasSRI.Infrastructure.Services
                     string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
                     var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
 
-                    // Agregamos Includes de impuestos para poder calcular el PDF correctamente en background
+                    // Recuperar con relaciones necesarias para stock y PDF
                     var nc = await scopedContext.NotasDeCredito
                         .Include(n => n.Cliente)
                         .Include(n => n.Factura)
@@ -349,18 +385,22 @@ namespace FacturasSRI.Infrastructure.Services
                     {
                         nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
                         ncSri.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
+                        // NO SE DEVUELVE STOCK AQUÍ
                     }
                     else
                     {
                         // 2. AUTORIZACIÓN
                         try
                         {
-                            await Task.Delay(2000);
+                            await Task.Delay(2500); // Espera prudencial
                             string respAut = await scopedSriClient.ConsultarAutorizacionAsync(ncSri.ClaveAcceso);
                             var autObj = scopedParser.ParsearRespuestaAutorizacion(respAut);
 
                             if (autObj.Estado == "AUTORIZADO")
                             {
+                                // === DEVOLVER STOCK (BACKGROUND) ===
+                                await RestaurarStockAsync(scopedContext, nc);
+
                                 nc.Estado = EstadoNotaDeCredito.Autorizada;
                                 ncSri.NumeroAutorizacion = autObj.NumeroAutorizacion;
                                 ncSri.FechaAutorizacion = autObj.FechaAutorizacion;
@@ -376,23 +416,12 @@ namespace FacturasSRI.Infrastructure.Services
                                         Subtotal = d.Subtotal 
                                     }).ToList();
                                     
-                                    // CALCULAMOS IMPUESTOS DINÁMICOS PARA EL PDF DE FONDO
                                     var taxSummaries = nc.Detalles
                                         .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new 
-                                        {
-                                            d.Subtotal,
-                                            TaxName = pi.Impuesto.Nombre,
-                                            TaxRate = pi.Impuesto.Porcentaje
-                                        }))
+                                        { d.Subtotal, TaxName = pi.Impuesto.Nombre, TaxRate = pi.Impuesto.Porcentaje }))
                                         .GroupBy(x => new { x.TaxName, x.TaxRate })
-                                        .Select(g => new TaxSummary
-                                        {
-                                            TaxName = g.Key.TaxName,
-                                            TaxRate = g.Key.TaxRate,
-                                            Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) 
-                                        })
-                                        .Where(x => x.Amount > 0 || x.TaxRate == 0)
-                                        .ToList();
+                                        .Select(g => new TaxSummary { TaxName = g.Key.TaxName, TaxRate = g.Key.TaxRate, Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) })
+                                        .Where(x => x.Amount > 0 || x.TaxRate == 0).ToList();
 
                                     var ncDto = new CreditNoteDetailViewDto
                                     {
@@ -418,14 +447,22 @@ namespace FacturasSRI.Infrastructure.Services
                                     string xmlSigned = ncSri.XmlFirmado;
                                     await scopedEmail.SendCreditNoteEmailAsync(nc.Cliente.Email, nc.Cliente.RazonSocial, nc.NumeroNotaCredito, nc.Id, pdfBytes, xmlSigned);
                                 }
-                                catch { /* Log error email */ }
+                                catch(Exception exEmail) { scopedLogger.LogError(exEmail, "[BG-NC] Error correo"); }
                             }
-                            else
+                            else if (autObj.Estado == "NO AUTORIZADO")
                             {
+                                nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
+                                ncSri.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
+                            }
+                            else 
+                            {
+                                // Si sigue en proceso o hay errores temporales, dejamos como ENVIADA
                                 ncSri.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
                             }
                         }
-                        catch { /* Log error auth */ }
+                        catch (Exception exAuth) { 
+                            scopedLogger.LogError(exAuth, "[BG-NC] Error Auth"); 
+                        }
                     }
                     await scopedContext.SaveChangesAsync();
                 }
