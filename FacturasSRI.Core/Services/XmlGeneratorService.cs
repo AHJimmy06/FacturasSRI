@@ -9,16 +9,31 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.Extensions.Logging;
 
+// === ALIAS PARA DOMINIO ===
 using FacturaDominio = FacturasSRI.Domain.Entities.Factura;
+using NotaCreditoDominio = FacturasSRI.Domain.Entities.NotaDeCredito;
 using ClienteDominio = FacturasSRI.Domain.Entities.Cliente;
 
+// === ALIAS PARA XML FACTURA ===
 using FacturaXml = FacturasSRI.Core.XmlModels.Factura.Factura;
 using InfoTributariaXml = FacturasSRI.Core.XmlModels.Factura.InfoTributaria;
 using InfoFacturaXml = FacturasSRI.Core.XmlModels.Factura.FacturaInfoFactura;
 using DetalleXml = FacturasSRI.Core.XmlModels.Factura.FacturaDetallesDetalle;
 using TotalImpuestoXml = FacturasSRI.Core.XmlModels.Factura.FacturaInfoFacturaTotalConImpuestosTotalImpuesto;
 using ImpuestoDetalleXml = FacturasSRI.Core.XmlModels.Factura.Impuesto;
-using FacturasSRI.Core.XmlModels.Factura;
+using PagosPago = FacturasSRI.Core.XmlModels.Factura.PagosPago;
+
+// === ALIAS PARA XML NOTA DE CRÉDITO (Asegúrate que coincidan con tus namespaces generados) ===
+using NotaCreditoXml = FacturasSRI.Core.XmlModels.NotaCredito.NotaCredito;
+using ObligadoContabilidadFactura = FacturasSRI.Core.XmlModels.Factura.ObligadoContabilidad;
+using ObligadoContabilidadNC = FacturasSRI.Core.XmlModels.NotaCredito.ObligadoContabilidad;
+// InfoTributaria es casi igual, pero viene de otro namespace generado
+using InfoTributariaNCXml = FacturasSRI.Core.XmlModels.NotaCredito.InfoTributaria; 
+using InfoNotaCreditoXml = FacturasSRI.Core.XmlModels.NotaCredito.NotaCreditoInfoNotaCredito;
+using DetalleNCXml = FacturasSRI.Core.XmlModels.NotaCredito.NotaCreditoDetallesDetalle;
+using TotalImpuestoNCXml = FacturasSRI.Core.XmlModels.NotaCredito.TotalConImpuestosTotalImpuesto;
+using ImpuestoDetalleNCXml = FacturasSRI.Core.XmlModels.NotaCredito.Impuesto;
+
 
 namespace FacturasSRI.Core.Services
 {
@@ -33,7 +48,7 @@ namespace FacturasSRI.Core.Services
         private const string DIRECCION_MATRIZ_EMISOR = "AV. BENJAMIN FRANKLIN SNN Y EDWARD JENNER";
         private const string COD_ESTABLECIMIENTO = "001";
         private const string COD_PUNTO_EMISION = "001";
-        private const ObligadoContabilidad OBLIGADO_CONTABILIDAD = ObligadoContabilidad.No;
+        private const ObligadoContabilidadFactura OBLIGADO_CONTABILIDAD = ObligadoContabilidadFactura.No;
         private const string TIPO_AMBIENTE = "1"; 
         
         private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
@@ -55,8 +70,7 @@ namespace FacturasSRI.Core.Services
             FacturaXml facturaXml = GenerarXmlFactura(claveAcceso, facturaDominio, clienteDominio);
             
             string xmlSinFirmar = SerializarObjeto(facturaXml);
-
-            _logger.LogWarning("--- INICIO XML SIN FIRMAR ---\n{Xml}\n--- FIN XML SIN FIRMAR ---", xmlSinFirmar);
+            _logger.LogWarning("--- INICIO XML FACTURA SIN FIRMAR ---\n{Xml}\n--- FIN XML ---", xmlSinFirmar);
 
             byte[] xmlFirmadoBytes = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
 
@@ -73,7 +87,7 @@ namespace FacturasSRI.Core.Services
 
             var facturaXml = new FacturaXml 
             {
-                Id = FacturaId.Comprobante,
+                Id = FacturasSRI.Core.XmlModels.Factura.FacturaId.Comprobante,
                 IdSpecified = true,
                 Version = "1.1.0", 
             };
@@ -166,7 +180,138 @@ namespace FacturasSRI.Core.Services
 
             return facturaXml;
         }
+
+        // ===========================================================
+        //  NUEVA LÓGICA: NOTA DE CRÉDITO
+        // ===========================================================
+
+        public (string XmlGenerado, byte[] XmlFirmadoBytes) GenerarYFirmarNotaCredito(
+            string claveAcceso,
+            NotaCreditoDominio ncDominio,
+            ClienteDominio clienteDominio,
+            FacturaDominio facturaOriginal,
+            string rutaCertificado,
+            string passwordCertificado
+            )
+        {
+            NotaCreditoXml ncXml = GenerarXmlNotaCredito(claveAcceso, ncDominio, clienteDominio, facturaOriginal);
+
+            string xmlSinFirmar = SerializarObjeto(ncXml);
+            _logger.LogWarning("--- INICIO XML NOTA CREDITO SIN FIRMAR ---\n{Xml}\n--- FIN XML ---", xmlSinFirmar);
+
+            byte[] xmlFirmadoBytes = _firmaService.FirmarXml(xmlSinFirmar, rutaCertificado, passwordCertificado);
+
+            return (xmlSinFirmar, xmlFirmadoBytes);
+        }
+
+        private NotaCreditoXml GenerarXmlNotaCredito(
+            string claveAcceso,
+            NotaCreditoDominio ncDominio,
+            ClienteDominio clienteDominio,
+            FacturaDominio facturaOriginal
+            )
+        {
+            string secuencialFormateado = ncDominio.NumeroNotaCredito.PadLeft(9, '0');
+            var fechaEmisionEcuador = GetEcuadorTime(ncDominio.FechaEmision);
+            var fechaSustentoEcuador = GetEcuadorTime(facturaOriginal.FechaEmision);
+
+            var ncXml = new NotaCreditoXml
+            {
+                Id = FacturasSRI.Core.XmlModels.NotaCredito.NotaCreditoId.Comprobante,
+                Version = "1.1.0",
+                InfoTributaria = new InfoTributariaNCXml
+                {
+                    Ambiente = TIPO_AMBIENTE,
+                    TipoEmision = "1",
+                    RazonSocial = NormalizeString(RAZON_SOCIAL_EMISOR),
+                    NombreComercial = NormalizeString(NOMBRE_COMERCIAL_EMISOR),
+                    Ruc = RUC_EMISOR,
+                    ClaveAcceso = claveAcceso,
+                    CodDoc = "04", // 04 es Nota de Crédito
+                    Estab = COD_ESTABLECIMIENTO,
+                    PtoEmi = COD_PUNTO_EMISION,
+                    Secuencial = secuencialFormateado,
+                    DirMatriz = NormalizeString(DIRECCION_MATRIZ_EMISOR)
+                }
+            };
+
+            // Mapeo InfoNotaCredito
+            ncXml.InfoNotaCredito = new InfoNotaCreditoXml
+            {
+                FechaEmision = fechaEmisionEcuador.ToString("dd/MM/yyyy"),
+                DirEstablecimiento = NormalizeString(DIRECCION_MATRIZ_EMISOR),
+                TipoIdentificacionComprador = MapearTipoIdentificacion(clienteDominio.TipoIdentificacion, clienteDominio.NumeroIdentificacion),
+                RazonSocialComprador = NormalizeString(clienteDominio.RazonSocial),
+                IdentificacionComprador = clienteDominio.NumeroIdentificacion,
+                ObligadoContabilidad = ObligadoContabilidadNC.No,
+                ObligadoContabilidadSpecified = true,
+
+                // Referencia a la Factura Original
+                CodDocModificado = "01", // Factura
+                NumDocModificado = facturaOriginal.NumeroFactura, // Formato 001-001-000000XXX
+                FechaEmisionDocSustento = fechaSustentoEcuador.ToString("dd/MM/yyyy"),
+                
+                TotalSinImpuestos = ncDominio.SubtotalSinImpuestos,
+                ValorModificacion = ncDominio.Total,
+                Moneda = "DOLAR",
+                Motivo = NormalizeString(ncDominio.RazonModificacion)
+            };
+
+            // Agrupar impuestos (igual que en factura)
+            var gruposImpuestos = ncDominio.Detalles
+               .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new { Detalle = d, Impuesto = pi.Impuesto }))
+               .GroupBy(x => new { Codigo = "2", CodigoPorcentaje = x.Impuesto.CodigoSRI })
+               .Select(g => new TotalImpuestoNCXml
+               {
+                   Codigo = g.Key.Codigo,
+                   CodigoPorcentaje = g.Key.CodigoPorcentaje,
+                   BaseImponible = g.Sum(x => x.Detalle.Subtotal),
+                   Valor = g.Sum(x => x.Detalle.ValorIVA)
+               });
+
+            foreach (var grupo in gruposImpuestos)
+            {
+                ncXml.InfoNotaCredito.TotalConImpuestos.Add(grupo);
+            }
+
+            // Detalles
+            foreach (var detalle in ncDominio.Detalles)
+            {
+                var detalleXml = new DetalleNCXml
+                {
+                    CodigoInterno = detalle.Producto.CodigoPrincipal,
+                    Descripcion = NormalizeString(detalle.Producto.Nombre),
+                    Cantidad = detalle.Cantidad,
+                    PrecioUnitario = detalle.PrecioVentaUnitario,
+                    Descuento = detalle.DescuentoAplicado,
+                    PrecioTotalSinImpuesto = detalle.Subtotal
+                };
+
+                var impuestosDetalle = detalle.Producto.ProductoImpuestos
+                    .Select(pi => new ImpuestoDetalleNCXml
+                    {
+                        Codigo = "2",
+                        CodigoPorcentaje = pi.Impuesto.CodigoSRI,
+                        Tarifa = pi.Impuesto.Porcentaje,
+                        BaseImponible = detalle.Subtotal,
+                        Valor = (detalle.Subtotal * (pi.Impuesto.Porcentaje / 100))
+                    });
+
+                foreach (var impuesto in impuestosDetalle)
+                {
+                    detalleXml.Impuestos.Add(impuesto);
+                }
+
+                ncXml.Detalles.Add(detalleXml);
+            }
+
+            return ncXml;
+        }
         
+        // ===========================================================
+        //  MÉTODOS PRIVADOS COMPARTIDOS
+        // ===========================================================
+
         private string NormalizeString(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -198,11 +343,11 @@ namespace FacturasSRI.Core.Services
                 using (var stringWriter = new Utf8StringWriter())
                 {
                     var settings = new XmlWriterSettings
-            {
-                Indent = false,
-                Encoding = new UTF8Encoding(false),
-                OmitXmlDeclaration = true
-            };
+                    {
+                        Indent = false,
+                        Encoding = new UTF8Encoding(false),
+                        OmitXmlDeclaration = true
+                    };
 
                     using (var xmlWriter = XmlWriter.Create(stringWriter, settings))
                     {
@@ -243,25 +388,25 @@ namespace FacturasSRI.Core.Services
         }
 
         private DateTime GetEcuadorTime(DateTime utcTime)
-{
-    try
-    {
-        var tz = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
-        return TimeZoneInfo.ConvertTimeFromUtc(utcTime, tz);
-    }
-    catch
-    {
-        try 
         {
-            var tz = TimeZoneInfo.FindSystemTimeZoneById("America/Guayaquil");
-            return TimeZoneInfo.ConvertTimeFromUtc(utcTime, tz);
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcTime, tz);
+            }
+            catch
+            {
+                try 
+                {
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById("America/Guayaquil");
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcTime, tz);
+                }
+                catch
+                {
+                    return utcTime.AddHours(-5);
+                }
+            }
         }
-        catch
-        {
-            return utcTime.AddHours(-5);
-        }
-    }
-}
 
     }
 

@@ -8,5 +8,6 @@ namespace FacturasSRI.Domain.Entities
         public string Establecimiento { get; set; } = string.Empty;
         public string PuntoEmision { get; set; } = string.Empty;
         public int UltimoSecuencialFactura { get; set; }
+        public int UltimoSecuencialNotaCredito { get; set; }
     }
 }
