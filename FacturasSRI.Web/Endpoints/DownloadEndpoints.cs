@@ -165,6 +165,34 @@ namespace FacturasSRI.Web.Endpoints
                 }
             });
 
+            downloadsGroup.MapGet("/nc-ride/{id}", async (
+                Guid id,
+                CreditNoteService creditNoteService,
+                PdfGeneratorService pdfGenerator,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("DownloadEndpoints");
+
+                var nc = await creditNoteService.GetCreditNoteDetailByIdAsync(id);
+
+                if (nc == null)
+                {
+                    return Results.NotFound("La nota de crédito solicitada no existe.");
+                }
+
+                try
+                {
+                    var pdfBytes = pdfGenerator.GenerarNotaCreditoPdf(nc);
+                    var fileName = $"RIDE_{nc.NumeroNotaCredito}.pdf";
+                    return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error generando el RIDE para la nota de crédito {Id}", id);
+                    return Results.Problem("Ocurrió un error al generar el PDF.");
+                }
+            });
+
             publicGroup.MapGet("/invoice-ride/{id}", async (
                 Guid id,
                 IInvoiceService invoiceService,
@@ -189,6 +217,34 @@ namespace FacturasSRI.Web.Endpoints
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error generando el RIDE público para la factura {Id}", id);
+                    return Results.Problem("Ocurrió un error al generar el PDF.");
+                }
+            });
+
+            publicGroup.MapGet("/nc-ride/{id}", async (
+                Guid id,
+                CreditNoteService creditNoteService,
+                PdfGeneratorService pdfGenerator,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("DownloadEndpoints");
+
+                var nc = await creditNoteService.GetCreditNoteDetailByIdAsync(id);
+
+                if (nc == null)
+                {
+                    return Results.NotFound("La nota de crédito solicitada no existe.");
+                }
+
+                try
+                {
+                    var pdfBytes = pdfGenerator.GenerarNotaCreditoPdf(nc);
+                    var fileName = $"RIDE_{nc.NumeroNotaCredito}.pdf";
+                    return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error generando el RIDE público para la nota de crédito {Id}", id);
                     return Results.Problem("Ocurrió un error al generar el PDF.");
                 }
             });
