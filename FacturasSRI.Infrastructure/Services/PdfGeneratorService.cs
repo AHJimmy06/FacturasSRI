@@ -140,8 +140,35 @@ namespace FacturasSRI.Infrastructure.Services
                 });
                 column.Item().PaddingTop(5).Row(row =>
                 {
-                    row.RelativeItem(6).Column(c => { c.Item().Element(ContainerBox).Column(info => { info.Item().Text("Información Adicional").Bold().FontSize(8); info.Item().Text($"Email: {factura.ClienteEmail ?? "N/A"}").FontSize(7); info.Item().Text($"Forma de Pago: {factura.FormaDePago}").FontSize(7); }); });
+                    row.RelativeItem(6).Column(c => 
+                    { 
+                        c.Item().Element(ContainerBox).Column(info => 
+                        { 
+                            info.Item().Text("Información Adicional").Bold().FontSize(8); 
+                            info.Item().Text($"Email: {factura.ClienteEmail ?? "N/A"}").FontSize(7); 
+                            info.Item().Text($"Forma de Pago: {factura.FormaDePago}").FontSize(7); 
+
+                            // === AQUÍ ESTÁ LA LÓGICA DE CRÉDITO (PRESERVADA) ===
+                            if (factura.FormaDePago == FormaDePago.Credito)
+                            {
+                                decimal abono = factura.Total - factura.SaldoPendiente;
+                                info.Item().PaddingTop(3).Text("DETALLE DE CRÉDITO:").Bold().FontSize(7);
+                                
+                                info.Item().Row(r => {
+                                    r.RelativeItem().Text("Abono Inicial:").FontSize(7);
+                                    r.RelativeItem().AlignRight().Text(abono.ToString("N2")).FontSize(7);
+                                });
+                                
+                                info.Item().Row(r => {
+                                    r.RelativeItem().Text("Saldo Pendiente:").FontSize(7);
+                                    r.RelativeItem().AlignRight().Text(factura.SaldoPendiente.ToString("N2")).FontSize(7).Bold();
+                                });
+                            }
+                        }); 
+                    });
+                    
                     row.ConstantItem(10);
+                    
                     row.RelativeItem(4).Element(ContainerBox).Column(c => {
                         decimal totalIva = factura.TotalIVA;
                         decimal baseImponible15 = 0;
@@ -156,7 +183,7 @@ namespace FacturasSRI.Infrastructure.Services
             });
         }
 
-        // --- LÓGICA NOTA CRÉDITO (NUEVA) ---
+        // --- LÓGICA NOTA CRÉDITO (CON IMPUESTOS DINÁMICOS) ---
         private void ComposeHeaderNC(IContainer container, CreditNoteDetailViewDto nc)
         {
              container.Row(row =>
@@ -185,7 +212,6 @@ namespace FacturasSRI.Infrastructure.Services
                 row.RelativeItem().Element(ContainerBox).Column(column =>
                 {
                     column.Item().Text("R.U.C.: 1850641927001").Bold().FontSize(12);
-                    // CAMBIO CLAVE: NOTA DE CRÉDITO
                     column.Item().Text("NOTA DE CRÉDITO").Bold().FontSize(12);
                     column.Item().Text($"No. {nc.NumeroNotaCredito}").FontSize(10);
 
@@ -233,7 +259,6 @@ namespace FacturasSRI.Infrastructure.Services
                         row.RelativeItem(4).Text($"Dirección: {nc.ClienteDireccion}").FontSize(8);
                     });
                     
-                    // SECCION ESPECIFICA DE NC: DOCUMENTO MODIFICADO
                     col.Item().PaddingTop(5).LineHorizontal(0.5f);
                     col.Item().PaddingTop(2).Text("Comprobante Modificado").Bold().FontSize(8);
                     col.Item().Row(row =>
@@ -244,9 +269,43 @@ namespace FacturasSRI.Infrastructure.Services
                     col.Item().Text($"Razón Modificación: {nc.RazonModificacion}").FontSize(8).Italic();
                 });
 
+                column.Item().PaddingVertical(5);
+
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(columns =>
+                    {
+                        columns.ConstantColumn(50);
+                        columns.ConstantColumn(30);
+                        columns.RelativeColumn();
+                        columns.ConstantColumn(50);
+                        columns.ConstantColumn(40);
+                        columns.ConstantColumn(50);
+                    });
+
+                    table.Header(header =>
+                    {
+                        header.Cell().Element(HeaderCellStyle).Text("Cod.");
+                        header.Cell().Element(HeaderCellStyle).Text("Cant.");
+                        header.Cell().Element(HeaderCellStyle).Text("Descripción");
+                        header.Cell().Element(HeaderCellStyle).Text("P.Unit");
+                        header.Cell().Element(HeaderCellStyle).Text("Desc.");
+                        header.Cell().Element(HeaderCellStyle).Text("Total");
+                    });
+
+                    foreach (var item in nc.Items)
+                    {
+                        table.Cell().Element(CellStyle).Text("PROD");
+                        table.Cell().Element(CellStyle).AlignCenter().Text(item.Cantidad.ToString("N2"));
+                        table.Cell().Element(CellStyle).Text(item.ProductName);
+                        table.Cell().Element(CellStyle).AlignRight().Text(item.PrecioVentaUnitario.ToString("N2"));
+                        table.Cell().Element(CellStyle).AlignRight().Text("0.00");
+                        table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal.ToString("N2"));
+                    }
+                });
+
                 column.Item().PaddingTop(5).Row(row =>
                 {
-                    // Columna Izq (Info Adicional) - Igual
                     row.RelativeItem(6).Column(c =>
                     {
                         c.Item().Element(ContainerBox).Column(info =>
@@ -259,34 +318,38 @@ namespace FacturasSRI.Infrastructure.Services
 
                     row.ConstantItem(10);
 
-                    // Columna Der (TOTALES DINÁMICOS)
+                    // === TOTALES DE NOTA DE CRÉDITO (DINÁMICOS) ===
                     row.RelativeItem(4).Element(ContainerBox).Column(c =>
                     {
-                        // 1. Subtotal Sin Impuestos (General)
+                        // 1. Subtotal Sin Impuestos
                         TotalesRow(c, "SUBTOTAL SIN IMPUESTOS", nc.SubtotalSinImpuestos);
 
-                        // 2. Bases Imponibles por Tarifa (Ej: Subtotal 15%, Subtotal 12%, Subtotal 0%)
-                        // Recorremos los summaries para mostrar las bases
-                        foreach (var tax in nc.TaxSummaries)
+                        // 2. Bases Imponibles (Iteramos sobre los impuestos calculados en el servicio)
+                        if (nc.TaxSummaries != null)
                         {
-                            decimal baseImponible = 0;
-                            if (tax.TaxRate > 0)
-                                baseImponible = tax.Amount / (tax.TaxRate / 100m);
-                            else
-                                baseImponible = nc.SubtotalSinImpuestos - nc.TaxSummaries.Where(t => t.TaxRate > 0).Sum(t => t.Amount / (t.TaxRate / 100m)); 
-                            
-                            // Ajuste visual: Si es tarifa 0, a veces es difícil calcular la base exacta si hay mezcla, 
-                            // pero para este proyecto podemos mostrar la etiqueta dinámica:
-                            string labelBase = $"SUBTOTAL {tax.TaxRate:0.#}%";
-                            // Si prefieres mostrar la base imponible aquí:
-                            TotalesRow(c, labelBase, baseImponible);
-                        }
+                            foreach (var tax in nc.TaxSummaries)
+                            {
+                                decimal baseImponible = 0;
+                                // Intentamos calcular la base a partir del monto del impuesto
+                                if (tax.TaxRate > 0)
+                                    baseImponible = tax.Amount / (tax.TaxRate / 100m);
+                                else
+                                    // Si es 0%, es el remanente (aproximación)
+                                    baseImponible = nc.SubtotalSinImpuestos - nc.TaxSummaries.Where(t => t.TaxRate > 0).Sum(t => t.Amount / (t.TaxRate / 100m)); 
+                                
+                                TotalesRow(c, $"SUBTOTAL {tax.TaxRate:0.#}%", baseImponible);
+                            }
 
-                        // 3. Valor de los Impuestos (Ej: IVA 15% -> $12.30)
-                        foreach (var tax in nc.TaxSummaries.Where(x => x.TaxRate > 0)) // Solo los que suman valor
+                            // 3. Valores de Impuestos (Solo los > 0)
+                            foreach (var tax in nc.TaxSummaries.Where(x => x.TaxRate > 0))
+                            {
+                                TotalesRow(c, $"{tax.TaxName} {tax.TaxRate:0.#}%", tax.Amount);
+                            }
+                        }
+                        else 
                         {
-                            string labelImpuesto = $"{tax.TaxName} {tax.TaxRate:0.#}%";
-                            TotalesRow(c, labelImpuesto, tax.Amount);
+                            // Fallback si por alguna razón no llegaron summaries
+                            TotalesRow(c, "TOTAL IVA", nc.TotalIVA);
                         }
 
                         // 4. Total Final
