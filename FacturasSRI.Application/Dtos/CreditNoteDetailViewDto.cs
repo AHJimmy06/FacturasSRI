@@ -17,6 +17,7 @@ namespace FacturasSRI.Application.Dtos
         public string ClienteEmail { get; set; } = string.Empty;
 
         // Datos Factura Modificada
+        public Guid FacturaId { get; set; }
         public string NumeroFacturaModificada { get; set; } = string.Empty;
         public DateTime FechaEmisionFacturaModificada { get; set; }
         public string RazonModificacion { get; set; } = string.Empty;
@@ -38,6 +39,7 @@ namespace FacturasSRI.Application.Dtos
 
     public class CreditNoteItemDetailDto
     {
+        public Guid ProductoId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public int Cantidad { get; set; }
         public decimal PrecioVentaUnitario { get; set; }

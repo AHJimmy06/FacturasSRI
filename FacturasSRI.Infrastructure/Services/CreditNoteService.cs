@@ -19,7 +19,7 @@ using System.Threading.Tasks;
 
 namespace FacturasSRI.Infrastructure.Services
 {
-    public class CreditNoteService
+    public class CreditNoteService : ICreditNoteService
     {
         private readonly FacturasSRIDbContext _context;
         private readonly ILogger<CreditNoteService> _logger;
@@ -92,6 +92,7 @@ namespace FacturasSRI.Infrastructure.Services
 
             var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto
             {
+                ProductoId = d.ProductoId,
                 ProductName = d.Producto.Nombre,
                 Cantidad = d.Cantidad,
                 PrecioVentaUnitario = d.PrecioVentaUnitario,
@@ -125,6 +126,7 @@ namespace FacturasSRI.Infrastructure.Services
                 ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
                 ClienteDireccion = nc.Cliente.Direccion,
                 ClienteEmail = nc.Cliente.Email,
+                FacturaId = nc.FacturaId,
                 NumeroFacturaModificada = nc.Factura.NumeroFactura,
                 FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
                 RazonModificacion = nc.RazonModificacion,
@@ -180,7 +182,7 @@ namespace FacturasSRI.Infrastructure.Services
                     ClienteId = factura.ClienteId.Value,
                     FechaEmision = DateTime.UtcNow,
                     NumeroNotaCredito = numeroSecuencialStr,
-                    Estado = EstadoNotaDeCredito.Pendiente, // Inicia Pendiente
+                    Estado = dto.EsBorrador ? EstadoNotaDeCredito.Borrador : EstadoNotaDeCredito.Pendiente,
                     RazonModificacion = dto.RazonModificacion,
                     UsuarioIdCreador = dto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow
@@ -230,7 +232,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                 _context.NotasDeCredito.Add(nc);
 
-                // SRI Data
+                // SRI Data must be created for both drafts and regular notes to reserve the sequential number and clave de acceso
                 var fechaEcuador = GetEcuadorTime(nc.FechaEmision);
                 string claveAcceso = GenerarClaveAcceso(fechaEcuador, "04", rucEmisor, establishmentCode, emissionPointCode, numeroSecuencialStr, environmentType);
 
@@ -241,18 +243,27 @@ namespace FacturasSRI.Infrastructure.Services
                 };
                 _context.NotasDeCreditoSRI.Add(ncSri);
 
-                var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarNotaCredito(claveAcceso, nc, factura.Cliente, factura, certPath, certPass);
+                // If it's not a draft, proceed with XML generation and SRI submission
+                if (!dto.EsBorrador)
+                {
+                    var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarNotaCredito(claveAcceso, nc, factura.Cliente, factura, certPath, certPass);
 
-                ncSri.XmlGenerado = xmlGenerado;
-                ncSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
-                
-                // Estado inicial para envío
-                nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
+                    ncSri.XmlGenerado = xmlGenerado;
+                    ncSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+                    
+                    nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
 
-                await _context.SaveChangesAsync();
+                    // Save changes before starting background task
+                    await _context.SaveChangesAsync();
 
-                // Lanzar proceso de fondo
-                _ = Task.Run(() => EnviarNcAlSriEnFondoAsync(nc.Id, xmlFirmadoBytes));
+                    // Launch background process
+                    _ = Task.Run(() => EnviarNcAlSriEnFondoAsync(nc.Id, xmlFirmadoBytes));
+                }
+                else
+                {
+                    // Just save the draft and its associated SRI entity
+                    await _context.SaveChangesAsync();
+                }
 
                 return nc;
             }
@@ -486,6 +497,136 @@ namespace FacturasSRI.Infrastructure.Services
         private DateTime GetEcuadorTime(DateTime utcTime)
         {
             try { var tz = TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time"); return TimeZoneInfo.ConvertTimeFromUtc(utcTime, tz); } catch { return utcTime.AddHours(-5); }
+        }
+
+        public async Task CancelCreditNoteAsync(Guid creditNoteId)
+        {
+            var nc = await _context.NotasDeCredito.FindAsync(creditNoteId);
+            if (nc == null)
+            {
+                throw new InvalidOperationException("La nota de crédito no existe.");
+            }
+            if (nc.Estado != EstadoNotaDeCredito.Borrador)
+            {
+                throw new InvalidOperationException("Solo se pueden cancelar notas de crédito en estado Borrador.");
+            }
+            nc.Estado = EstadoNotaDeCredito.Cancelada;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task ReactivateCancelledCreditNoteAsync(Guid creditNoteId)
+        {
+            var nc = await _context.NotasDeCredito.FindAsync(creditNoteId);
+            if (nc == null)
+            {
+                throw new InvalidOperationException("La nota de crédito no existe.");
+            }
+            if (nc.Estado != EstadoNotaDeCredito.Cancelada)
+            {
+                throw new InvalidOperationException("Solo se pueden reactivar notas de crédito en estado Cancelada.");
+            }
+            nc.Estado = EstadoNotaDeCredito.Borrador;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<CreditNoteDetailViewDto?> IssueDraftCreditNoteAsync(Guid creditNoteId)
+        {
+            var nc = await _context.NotasDeCredito
+                .Include(n => n.Cliente)
+                .Include(n => n.Factura)
+                .Include(n => n.InformacionSRI)
+                .Include(n => n.Detalles).ThenInclude(d => d.Producto)
+                .FirstOrDefaultAsync(n => n.Id == creditNoteId);
+
+            if (nc == null) throw new InvalidOperationException("La nota de crédito no existe.");
+            if (nc.Estado != EstadoNotaDeCredito.Borrador) throw new InvalidOperationException("Solo se pueden emitir notas de crédito en estado Borrador.");
+            
+            _logger.LogInformation("Iniciando emisión de Nota de Crédito borrador ID: {Id}", creditNoteId);
+
+            var certPath = _configuration["CompanyInfo:CertificatePath"];
+            var certPass = _configuration["CompanyInfo:CertificatePassword"];
+
+            var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarNotaCredito(nc.InformacionSRI.ClaveAcceso, nc, nc.Cliente, nc.Factura, certPath, certPass);
+
+            nc.InformacionSRI.XmlGenerado = xmlGenerado;
+            nc.InformacionSRI.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+            nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
+
+            await _context.SaveChangesAsync();
+
+            _ = Task.Run(() => EnviarNcAlSriEnFondoAsync(nc.Id, xmlFirmadoBytes));
+            
+            return await GetCreditNoteDetailByIdAsync(nc.Id);
+        }
+
+        public async Task<CreditNoteDto?> UpdateCreditNoteAsync(UpdateCreditNoteDto dto)
+        {
+            var nc = await _context.NotasDeCredito
+                .Include(n => n.Detalles).ThenInclude(d => d.Producto).ThenInclude(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
+                .Include(n => n.Factura).ThenInclude(f => f.Detalles)
+                .FirstOrDefaultAsync(n => n.Id == dto.Id);
+
+            if (nc == null) throw new InvalidOperationException("La nota de crédito no existe.");
+            if (nc.Estado != EstadoNotaDeCredito.Borrador) throw new InvalidOperationException("Solo se pueden modificar borradores.");
+
+            nc.RazonModificacion = dto.RazonModificacion;
+
+            // Remove old items and recalculate totals
+            _context.NotaDeCreditoDetalles.RemoveRange(nc.Detalles);
+            nc.Detalles.Clear();
+
+            decimal subtotalAccum = 0;
+            decimal ivaAccum = 0;
+
+            foreach (var itemDto in dto.Items)
+            {
+                if (itemDto.CantidadDevolucion <= 0) continue;
+
+                var detalleFactura = nc.Factura.Detalles.FirstOrDefault(d => d.ProductoId == itemDto.ProductoId);
+                if (detalleFactura == null) throw new Exception($"Producto ID {itemDto.ProductoId} inválido.");
+                
+                // We reference the original invoice detail's returned quantity here
+                if (itemDto.CantidadDevolucion > (detalleFactura.Cantidad - detalleFactura.CantidadDevuelta)) throw new Exception($"La cantidad a devolver para el producto excede la cantidad disponible en la factura original.");
+
+                decimal precioUnit = detalleFactura.PrecioVentaUnitario;
+                decimal subtotalItem = itemDto.CantidadDevolucion * precioUnit;
+                decimal valorIvaItem = 0;
+                
+                var producto = await _context.Productos.Include(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto).FirstAsync(p => p.Id == itemDto.ProductoId);
+                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.Porcentaje > 0);
+                if (impuestoIva != null) valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
+
+                var detalleNc = new NotaDeCreditoDetalle
+                {
+                    Id = Guid.NewGuid(),
+                    NotaDeCreditoId = nc.Id,
+                    ProductoId = itemDto.ProductoId,
+                    Cantidad = itemDto.CantidadDevolucion,
+                    PrecioVentaUnitario = precioUnit,
+                    Subtotal = subtotalItem,
+                    ValorIVA = valorIvaItem
+                };
+                nc.Detalles.Add(detalleNc);
+
+                subtotalAccum += subtotalItem;
+                ivaAccum += valorIvaItem;
+            }
+
+            nc.SubtotalSinImpuestos = subtotalAccum;
+            nc.TotalIVA = ivaAccum;
+            nc.Total = subtotalAccum + ivaAccum;
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Borrador de Nota de Crédito {Id} actualizado.", nc.Id);
+
+            if (dto.EmitirTrasGuardar)
+            {
+                _logger.LogInformation("Flag 'EmitirTrasGuardar' detectado para NC. Emisión inmediata...");
+                await IssueDraftCreditNoteAsync(nc.Id);
+            }
+
+            var resultDto = await GetCreditNoteDetailByIdAsync(nc.Id);
+            return new CreditNoteDto { Id = resultDto.Id, NumeroNotaCredito = resultDto.NumeroNotaCredito }; // Simplified return
         }
     }
 }

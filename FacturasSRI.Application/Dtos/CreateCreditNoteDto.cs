@@ -9,6 +9,7 @@ namespace FacturasSRI.Application.Dtos
         public string RazonModificacion { get; set; } = string.Empty;
         public Guid UsuarioIdCreador { get; set; }
         public List<CreditNoteItemDto> Items { get; set; } = new List<CreditNoteItemDto>();
+        public bool EsBorrador { get; set; }
     }
 
     public class CreditNoteItemDto

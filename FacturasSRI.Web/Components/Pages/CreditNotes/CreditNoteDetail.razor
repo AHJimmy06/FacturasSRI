@@ -4,11 +4,11 @@
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Domain.Enums
-@using FacturasSRI.Infrastructure.Services
 @using Microsoft.AspNetCore.Components.Authorization
-@inject CreditNoteService CreditNoteService
+@inject ICreditNoteService CreditNoteService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Nota de Crédito - @(creditNote?.NumeroNotaCredito ?? "...")</PageTitle>
 
@@ -39,6 +39,12 @@ else
                 <a href="/api/downloads/nc-ride/@creditNote.Id" target="_blank" class="btn btn-danger me-2">
                     <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
                 </a>
+            }
+            @if (userIsAdmin && creditNote.Estado == EstadoNotaDeCredito.Cancelada)
+            {
+                <button class="btn btn-warning" @onclick="HandleReactivate">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Reactivar Borrador
+                </button>
             }
         </div>
     </div>
@@ -183,7 +189,18 @@ else
                     }
                     
                     <div class="d-grid gap-2 mt-3">
-                        @if (creditNote.Estado != EstadoNotaDeCredito.Autorizada && creditNote.Estado != EstadoNotaDeCredito.Cancelada)
+                        @if (creditNote.Estado == EstadoNotaDeCredito.Borrador)
+                        {
+                             <div class="alert alert-warning py-2 text-center small mb-2">
+                                <i class="bi bi-info-circle-fill me-1"></i>
+                                Esta nota de crédito es un <strong>borrador</strong>. No tiene validez fiscal hasta que sea emitida.
+                            </div>
+                            <button class="btn btn-primary" @onclick="OpenIssueModal" disabled="@isCheckingStatus">
+                                <i class="bi bi-send-check-fill me-2"></i>
+                                <span>Emitir Nota de Crédito</span>
+                            </button>
+                        }
+                        else if (creditNote.Estado != EstadoNotaDeCredito.Autorizada && creditNote.Estado != EstadoNotaDeCredito.Cancelada)
                         {
                             <button class="btn btn-primary" @onclick="HandleCheckSriStatus" disabled="@isCheckingStatus">
                                 @if (isCheckingStatus)
@@ -206,6 +223,35 @@ else
     </div>
 }
 
+@if (showIssueModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Emisión</h5>
+                    <button type="button" class="btn-close" @onclick="CloseIssueModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea emitir esta Nota de Crédito al SRI?</p>
+                    <p class="text-danger">Una vez emitida, la nota de crédito no podrá ser cancelada directamente y su estado cambiará para ser procesada por el SRI.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseIssueModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="HandleIssue" disabled="@isCheckingStatus">
+                        @if (isCheckingStatus)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Emitir NC
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     [Parameter]
     public Guid Id { get; set; }
@@ -214,12 +260,55 @@ else
     private string? errorMessage;
     private string? sriCheckMessage;
     private bool isCheckingStatus = false;
+    private bool userIsAdmin = false;
+    private bool showIssueModal = false;
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userIsAdmin = authState.User.IsInRole("Administrador");
         await LoadData();
     }
 
+    private void OpenIssueModal() => showIssueModal = true;
+    private void CloseIssueModal() => showIssueModal = false;
+
+    private async Task HandleIssue()
+    {
+        isCheckingStatus = true;
+        errorMessage = null;
+        try
+        {
+            await CreditNoteService.IssueDraftCreditNoteAsync(Id);
+            sriCheckMessage = "Emisión iniciada. El estado se actualizará en breve.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al emitir: {ex.Message}";
+        }
+        finally
+        {
+            isCheckingStatus = false;
+            CloseIssueModal();
+        }
+    }
+
+    private async Task HandleReactivate()
+    {
+        errorMessage = null;
+        try
+        {
+            await CreditNoteService.ReactivateCancelledCreditNoteAsync(Id);
+            sriCheckMessage = "Nota de crédito reactivada como borrador.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al reactivar: {ex.Message}";
+        }
+    }
+    
     private async Task LoadData()
     {
         try
@@ -268,8 +357,6 @@ else
                 EstadoNotaDeCredito.Autorizada => ("bg-success", "bi-check-circle-fill", "Autorizada"),
                 EstadoNotaDeCredito.Pendiente => ("bg-warning text-dark", "bi-hourglass-split", "Pendiente"),
                 EstadoNotaDeCredito.EnviadaSRI => ("bg-info text-dark", "bi-send", "Enviada SRI"),
-                EstadoNotaDeCredito.RechazadaSRI => ("bg-danger", "bi-x-circle-fill", "Rechazada"),
-                EstadoNotaDeCredito.Cancelada => ("bg-secondary", "bi-trash", "Anulada"),
                 _ => ("bg-secondary", "bi-question-circle", estado.ToString())
             };
             builder.OpenElement(0, "span");

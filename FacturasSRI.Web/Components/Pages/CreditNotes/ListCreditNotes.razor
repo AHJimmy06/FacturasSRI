@@ -1,10 +1,11 @@
 @page "/credit-notes"
 @attribute [Authorize]
 @using FacturasSRI.Application.Dtos
-@using FacturasSRI.Infrastructure.Services
+@using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Domain.Enums
-@inject CreditNoteService CreditNoteService
+@inject ICreditNoteService CreditNoteService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Notas de Crédito</PageTitle>
 
@@ -100,8 +101,23 @@ else
                                 <a href="@($"credit-notes/{nc.Id}")" class="btn btn-sm btn-outline-secondary" title="Ver Detalles">
                                     <i class="bi bi-eye-fill"></i>
                                 </a>
-                                
-                                @if (nc.Estado == EstadoNotaDeCredito.Autorizada)
+
+                                @if (nc.Estado == EstadoNotaDeCredito.Borrador)
+                                {
+                                    <a href="@($"credit-notes/edit/{nc.Id}")" class="btn btn-sm btn-outline-primary" title="Editar Borrador">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" title="Cancelar Borrador" @onclick="() => OpenCancelModal(nc.Id)">
+                                        <i class="bi bi-x-circle-fill"></i>
+                                    </button>
+                                }
+                                else if (nc.Estado == EstadoNotaDeCredito.Cancelada && userIsAdmin)
+                                {
+                                    <button class="btn btn-sm btn-outline-warning" title="Reactivar Borrador" @onclick="() => ReactivateCreditNote(nc.Id)">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                }
+                                else if (nc.Estado == EstadoNotaDeCredito.Autorizada)
                                 {
                                     <a href="/api/downloads/nc-ride/@nc.Id" target="_blank" class="btn btn-sm btn-outline-danger" title="Descargar PDF">
                                         <i class="bi bi-file-earmark-pdf"></i>
@@ -116,12 +132,35 @@ else
     </div>
 }
 
+@if (showCancelModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Cancelación</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCancelModal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea cancelar este borrador de nota de crédito?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">Cerrar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmCancel">Sí, Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
 @code {
     private List<CreditNoteDto>? allCreditNotes;
     private string? errorMessage;
 
     private string searchTerm = string.Empty;
     private EstadoNotaDeCredito? selectedStatus;
+    private bool userIsAdmin = false;
 
     private List<CreditNoteDto> FilteredCreditNotes
     {
@@ -153,6 +192,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        userIsAdmin = authState.User.IsInRole("Administrador");
         await LoadData();
     }
 
@@ -168,6 +209,51 @@ else
         }
     }
 
+    private bool showCancelModal = false;
+    private Guid? itemToCancelId;
+
+    private void OpenCancelModal(Guid id)
+    {
+        itemToCancelId = id;
+        showCancelModal = true;
+    }
+
+    private void CloseCancelModal()
+    {
+        itemToCancelId = null;
+        showCancelModal = false;
+    }
+
+    private async Task ConfirmCancel()
+    {
+        if (itemToCancelId.HasValue)
+        {
+            try
+            {
+                await CreditNoteService.CancelCreditNoteAsync(itemToCancelId.Value);
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+            }
+        }
+        CloseCancelModal();
+    }
+
+    private async Task ReactivateCreditNote(Guid id)
+    {
+        try
+        {
+            await CreditNoteService.ReactivateCancelledCreditNoteAsync(id);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
     private RenderFragment GetStatusBadge(EstadoNotaDeCredito estado)
     {
         return builder =>
@@ -177,6 +263,7 @@ else
                 EstadoNotaDeCredito.Autorizada => ("bg-success", "bi-check-circle-fill", "Autorizada"),
                 EstadoNotaDeCredito.Pendiente => ("bg-warning text-dark", "bi-hourglass-split", "Pendiente"),
                 EstadoNotaDeCredito.EnviadaSRI => ("bg-info text-dark", "bi-send", "Enviada SRI"),
+                EstadoNotaDeCredito.Borrador => ("bg-warning text-dark", "bi-pencil-square", "Borrador"),
                 EstadoNotaDeCredito.RechazadaSRI => ("bg-danger", "bi-x-circle-fill", "Rechazada"),
                 EstadoNotaDeCredito.Cancelada => ("bg-secondary", "bi-trash", "Anulada"),
                 _ => ("bg-secondary", "bi-question-circle", estado.ToString())

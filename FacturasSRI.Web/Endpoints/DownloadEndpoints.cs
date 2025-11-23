@@ -167,7 +167,7 @@ namespace FacturasSRI.Web.Endpoints
 
             downloadsGroup.MapGet("/nc-ride/{id}", async (
                 Guid id,
-                CreditNoteService creditNoteService,
+                [FromServices] ICreditNoteService creditNoteService,
                 PdfGeneratorService pdfGenerator,
                 ILoggerFactory loggerFactory) =>
             {
@@ -223,7 +223,7 @@ namespace FacturasSRI.Web.Endpoints
 
             publicGroup.MapGet("/nc-ride/{id}", async (
                 Guid id,
-                CreditNoteService creditNoteService,
+                [FromServices] ICreditNoteService creditNoteService,
                 PdfGeneratorService pdfGenerator,
                 ILoggerFactory loggerFactory) =>
             {
