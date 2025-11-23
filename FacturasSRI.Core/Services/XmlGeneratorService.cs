@@ -58,7 +58,7 @@ namespace FacturasSRI.Core.Services
             _logger = logger;
         }
 
-        // --- LÓGICA FACTURA (SE QUEDA CON STRING PORQUE ASÍ LO PIDE TU CLASE GENERADA DE FACTURA) ---
+        // --- LÓGICA FACTURA (SIN CAMBIOS) ---
         public (string XmlGenerado, byte[] XmlFirmadoBytes) GenerarYFirmarFactura(
             string claveAcceso,
             FacturaDominio facturaDominio, 
@@ -179,7 +179,7 @@ namespace FacturasSRI.Core.Services
         }
 
         // ===========================================================
-        //  NOTA DE CRÉDITO (CORREGIDA PARA USAR DECIMALES)
+        //  NOTA DE CRÉDITO (CORREGIDA - TARIFA SPECIFIED)
         // ===========================================================
 
         public (string XmlGenerado, byte[] XmlFirmadoBytes) GenerarYFirmarNotaCredito(
@@ -232,10 +232,8 @@ namespace FacturasSRI.Core.Services
                 }
             };
 
-            // FORMATO CORRECTO PARA EL SRI (ESTO ES STRING, ESTÁ BIEN)
             string numDocModificadoFormateado = $"{COD_ESTABLECIMIENTO}-{COD_PUNTO_EMISION}-{facturaOriginal.NumeroFactura.PadLeft(9, '0')}";
 
-            // CORRECCIÓN: ASIGNACIÓN DIRECTA DE DECIMALES (Sin .ToString())
             ncXml.InfoNotaCredito = new InfoNotaCreditoXml
             {
                 FechaEmision = fechaEmisionEcuador.ToString("dd/MM/yyyy"),
@@ -251,9 +249,8 @@ namespace FacturasSRI.Core.Services
                 
                 FechaEmisionDocSustento = fechaSustentoEcuador.ToString("dd/MM/yyyy"),
                 
-                // AQUI ESTABAN LOS ERRORES CS0029:
-                TotalSinImpuestos = ncDominio.SubtotalSinImpuestos, // Decimal directo
-                ValorModificacion = ncDominio.Total,               // Decimal directo
+                TotalSinImpuestos = ncDominio.SubtotalSinImpuestos,
+                ValorModificacion = ncDominio.Total,
                 Moneda = "DOLAR",
                 Motivo = NormalizeString(ncDominio.RazonModificacion)
             };
@@ -265,7 +262,6 @@ namespace FacturasSRI.Core.Services
                {
                    Codigo = g.Key.Codigo,
                    CodigoPorcentaje = g.Key.CodigoPorcentaje,
-                   // CORRECCIÓN DE TIPOS:
                    BaseImponible = g.Sum(x => x.Detalle.Subtotal),
                    Valor = g.Sum(x => x.Detalle.ValorIVA)
                });
@@ -281,8 +277,7 @@ namespace FacturasSRI.Core.Services
                 {
                     CodigoInterno = detalle.Producto.CodigoPrincipal,
                     Descripcion = NormalizeString(detalle.Producto.Nombre),
-                    // CORRECCIÓN DE TIPOS:
-                    Cantidad = detalle.Cantidad, 
+                    Cantidad = detalle.Cantidad,
                     PrecioUnitario = detalle.PrecioVentaUnitario,
                     Descuento = detalle.DescuentoAplicado,
                     PrecioTotalSinImpuesto = detalle.Subtotal
@@ -293,8 +288,12 @@ namespace FacturasSRI.Core.Services
                     {
                         Codigo = "2",
                         CodigoPorcentaje = pi.Impuesto.CodigoSRI,
-                        // CORRECCIÓN DE TIPOS:
                         Tarifa = pi.Impuesto.Porcentaje,
+                        // =================================================
+                        // CORRECCIÓN CLAVE: ESPECIFICAR QUE TARIFA EXISTE
+                        // =================================================
+                        TarifaSpecified = true, 
+                        
                         BaseImponible = detalle.Subtotal,
                         Valor = (detalle.Subtotal * (pi.Impuesto.Porcentaje / 100))
                     });
@@ -310,7 +309,7 @@ namespace FacturasSRI.Core.Services
             return ncXml;
         }
         
-        // ... (Resto de métodos privados iguales: NormalizeString, SerializarObjeto, etc.) ...
+        // ... Resto de métodos privados (NormalizeString, etc.) ...
         private string NormalizeString(string input)
         {
             if (string.IsNullOrEmpty(input)) return input;
