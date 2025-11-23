@@ -49,7 +49,7 @@
                                 <thead class="bg-white text-uppercase text-secondary border-bottom">
                                     <tr>
                                         <th class="ps-3" style="width: 40%;">Producto</th>
-                                        <th class="text-center" style="width: 15%;">Comprado</th>
+                                        <th class="text-center" style="width: 15%;">Disponible (Comprado)</th>
                                         <th class="text-center" style="width: 15%;">Devolver</th>
                                         <th class="text-end" style="width: 15%;">Precio</th>
                                         <th class="text-end pe-3" style="width: 15%;">Total Dev.</th>
@@ -73,14 +73,13 @@
                                                     <div class="fw-medium text-dark text-truncate" title="@item.ProductName">@item.ProductName</div>
                                                 </td>
                                                 <td class="text-center text-muted">
-                                                    @item.OriginalQuantity
+                                                    @item.AvailableQuantity <span class="text-body-tertiary">(@item.OriginalQuantity)</span>
                                                 </td>
                                                 <td class="text-center">
-                                                    <!-- Input controlado: No puede ser menor a 0 ni mayor a lo comprado -->
                                                     <InputNumber class="form-control form-control-sm text-center fw-bold border-0 p-0 shadow-none"
                                                                  @bind-Value="item.ReturnQuantity"
                                                                  @bind-Value:after="UpdateTotals"
-                                                                 min="0" max="@item.OriginalQuantity"
+                                                                 min="0" max="@item.AvailableQuantity"
                                                                  style="width: 60px; margin: 0 auto; background: transparent;" />
                                                 </td>
                                                 <td class="text-end text-muted">@item.UnitTestPrice.ToString("F2")</td>
@@ -251,7 +250,8 @@
                 ProductName = i.ProductName,
                 UnitTestPrice = i.PrecioVentaUnitario,
                 OriginalQuantity = i.Cantidad,
-                ReturnQuantity = 0, // Por defecto 0, el usuario elige qué devolver
+                ReturnedQuantity = i.CantidadDevuelta,
+                ReturnQuantity = 0,
                 Taxes = i.Taxes
             }).ToList();
             
@@ -274,7 +274,7 @@
         {
             // Corregir si el usuario puso algo inválido
             if (item.ReturnQuantity < 0) item.ReturnQuantity = 0;
-            if (item.ReturnQuantity > item.OriginalQuantity) item.ReturnQuantity = item.OriginalQuantity;
+            if (item.ReturnQuantity > item.AvailableQuantity) item.ReturnQuantity = item.AvailableQuantity;
 
             if (item.ReturnQuantity > 0)
             {
@@ -337,7 +337,7 @@
             await CreditNoteService.CreateCreditNoteAsync(formModel);
 
             // 4. Redirigir
-            Navigation.NavigateTo("/invoices");
+            Navigation.NavigateTo("/credit-notes");
         }
         catch (Exception ex)
         {
@@ -356,7 +356,9 @@
         public string ProductName { get; set; } = string.Empty;
         public decimal UnitTestPrice { get; set; }
         public int OriginalQuantity { get; set; }
+        public int ReturnedQuantity { get; set; }
         public int ReturnQuantity { get; set; }
         public List<TaxDto> Taxes { get; set; } = new();
+        public int AvailableQuantity => OriginalQuantity - ReturnedQuantity;
     }
 }

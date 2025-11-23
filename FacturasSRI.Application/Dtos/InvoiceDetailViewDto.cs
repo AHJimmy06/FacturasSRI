@@ -34,6 +34,7 @@ namespace FacturasSRI.Application.Dtos
         public Guid ProductoId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public int Cantidad { get; set; }
+        public int CantidadDevuelta { get; set; }
         public decimal PrecioVentaUnitario { get; set; }
         public decimal Subtotal { get; set; }
         public List<TaxDto> Taxes { get; set; } = new();
