@@ -690,10 +690,13 @@ namespace FacturasSRI.Infrastructure.Services
         public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid id)
         {
              var invoice = await _context.Facturas
+                .Include(i => i.Cliente) // Incluir cliente para el nombre
                 .Include(i => i.Detalles).ThenInclude(d => d.Producto)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             if (invoice == null) return null;
+
+            var cuentaPorCobrar = await _context.CuentasPorCobrar.FirstOrDefaultAsync(c => c.FacturaId == id);
 
             return new InvoiceDto
             {
@@ -701,11 +704,14 @@ namespace FacturasSRI.Infrastructure.Services
                 FechaEmision = invoice.FechaEmision,
                 NumeroFactura = invoice.NumeroFactura,
                 ClienteId = invoice.ClienteId,
+                ClienteNombre = invoice.Cliente?.RazonSocial ?? "N/A",
                 SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
                 TotalDescuento = invoice.TotalDescuento,
                 TotalIVA = invoice.TotalIVA,
                 Total = invoice.Total,
                 Estado = invoice.Estado,
+                FormaDePago = invoice.FormaDePago,
+                SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
                 Detalles = invoice.Detalles.Select(d => new InvoiceDetailDto
                 {
                     Id = d.Id,

@@ -17,6 +17,30 @@
     <p class="text-muted">Adjunte el comprobante y registre el monto pagado para la factura <strong>@(invoice?.NumeroFactura ?? FacturaId.ToString())</strong>.</p>
 </div>
 
+@if (invoice != null)
+{
+    <div class="row text-center mb-4">
+        <div class="col-md-4">
+            <div class="card card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Monto Total</h6>
+                <p class="card-text fs-4 fw-bold">@invoice.Total.ToString("C")</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Pagos Realizados</h6>
+                <p class="card-text fs-4 fw-bold text-success">@((invoice.Total - invoice.SaldoPendiente).ToString("C"))</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Saldo Pendiente</h6>
+                <p class="card-text fs-4 fw-bold text-danger">@invoice.SaldoPendiente.ToString("C")</p>
+            </div>
+        </div>
+    </div>
+}
+
 @if (!string.IsNullOrEmpty(errorMessage))
 {
     <div class="alert alert-danger mb-4" role="alert">
