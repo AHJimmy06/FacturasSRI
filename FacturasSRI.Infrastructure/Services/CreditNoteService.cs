@@ -427,40 +427,14 @@ namespace FacturasSRI.Infrastructure.Services
                                 // 3. ENVIAR CORREO
                                 try
                                 {
-                                    var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto { 
-                                        ProductName = d.Producto.Nombre, 
-                                        Cantidad = d.Cantidad, 
-                                        PrecioVentaUnitario = d.PrecioVentaUnitario, 
-                                        Subtotal = d.Subtotal 
-                                    }).ToList();
-                                    
-                                    var taxSummaries = nc.Detalles
-                                        .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new 
-                                        { d.Subtotal, TaxName = pi.Impuesto.Nombre, TaxRate = pi.Impuesto.Porcentaje }))
-                                        .GroupBy(x => new { x.TaxName, x.TaxRate })
-                                        .Select(g => new TaxSummary { TaxName = g.Key.TaxName, TaxRate = g.Key.TaxRate, Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) })
-                                        .Where(x => x.Amount > 0 || x.TaxRate == 0).ToList();
-
-                                    var ncDto = new CreditNoteDetailViewDto
+                                    // REUTILIZAR LA LÓGICA EXISTENTE PARA OBTENER EL DTO COMPLETO
+                                    var ncDto = await GetCreditNoteDetailByIdAsync(ncId);
+                                    if (ncDto == null)
                                     {
-                                        NumeroNotaCredito = nc.NumeroNotaCredito,
-                                        FechaEmision = nc.FechaEmision,
-                                        ClienteNombre = nc.Cliente.RazonSocial,
-                                        ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
-                                        ClienteDireccion = nc.Cliente.Direccion,
-                                        ClienteEmail = nc.Cliente.Email,
-                                        NumeroFacturaModificada = nc.Factura.NumeroFactura,
-                                        FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
-                                        RazonModificacion = nc.RazonModificacion,
-                                        SubtotalSinImpuestos = nc.SubtotalSinImpuestos,
-                                        TotalIVA = nc.TotalIVA,
-                                        Total = nc.Total,
-                                        ClaveAcceso = ncSri.ClaveAcceso,
-                                        NumeroAutorizacion = ncSri.NumeroAutorizacion,
-                                        Items = itemsDto,
-                                        TaxSummaries = taxSummaries
-                                    };
-                                    
+                                        scopedLogger.LogError("[BG-NC] No se pudo obtener el DTO de la Nota de Crédito para generar el PDF y enviar el correo.");
+                                        return;
+                                    }
+
                                     byte[] pdfBytes = scopedPdf.GenerarNotaCreditoPdf(ncDto);
                                     string xmlSigned = ncSri.XmlFirmado;
                                     await scopedEmail.SendCreditNoteEmailAsync(nc.Cliente.Email, nc.Cliente.RazonSocial, nc.NumeroNotaCredito, nc.Id, pdfBytes, xmlSigned);
