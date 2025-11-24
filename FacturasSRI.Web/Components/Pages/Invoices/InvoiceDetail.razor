@@ -403,20 +403,21 @@ else
     private bool userIsAdmin = false;
 
     protected override async Task OnInitializedAsync()
+{
+    var authState = await AuthenticationStateTask;
+    var user = authState.User;
+    
+    if (user.Identity != null && user.Identity.IsAuthenticated)
     {
-        var authState = await AuthenticationStateTask;
-        var user = authState.User;
-        if (user.Identity.IsAuthenticated)
+        var userId = user.FindFirst(c => c.Type == "sub")?.Value;
+        if(!string.IsNullOrEmpty(userId))
         {
-            var userId = user.FindFirst(c => c.Type == "sub")?.Value;
-            if(!string.IsNullOrEmpty(userId))
-            {
-                currentUserId = Guid.Parse(userId);
-            }
-            userIsAdmin = user.IsInRole("Administrador");
+            currentUserId = Guid.Parse(userId);
         }
-        await LoadInvoiceData();
+        userIsAdmin = user.IsInRole("Administrador");
     }
+    await LoadInvoiceData();
+}
 
     private async Task LoadInvoiceData()
     {

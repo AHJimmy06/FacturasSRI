@@ -704,3 +704,32 @@ input.invalid:focus {
     border: 1px solid #10164E !important;
     color: white !important;
 }
+
+/* ==========================================================================
+   Error Masking (Enmascaramiento de errores de servidor)
+   Uso: Añade la clase "server-error-mask" al contenedor del error en tu HTML
+   ========================================================================== */
+
+.server-error-mask {
+    position: relative;
+    /* Ocultamos el texto original (el error técnico) */
+    color: transparent !important; 
+    user-select: none; /* Evita que el usuario seleccione el texto invisible */
+}
+
+.server-error-mask::after {
+    /* Este es el mensaje amigable que el usuario verá */
+    content: "Error cargando datos del servidor, por favor recargue la página. Si el error persiste contáctese con administración";
+    
+    /* Hacemos visible el nuevo texto */
+    color: var(--error-color); 
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    font-weight: 500;
+    pointer-events: none; /* Permite clicks a través si fuera necesario */
+    white-space: normal; /* Asegura que el texto se ajuste */
+    line-height: 1.5;
+}

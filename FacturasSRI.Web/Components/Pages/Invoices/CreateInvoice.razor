@@ -248,7 +248,7 @@
                                     <div class="col-6">
                                         <label class="compact-form-label">Días</label>
                                         <InputNumber @bind-Value="formModel.DiasCredito" class="form-control form-control-sm shadow-none" min="1" />
-                                        @if (formModel.DiasCredito.HasValue && formModel.DiasCredito.Value < 1)
+                                        @if (formModel.DiasCredito.HasValue && formModel.DiasCredito.GetValueOrDefault() < 1)
                                         {
                                             <div class="text-danger mt-1 lh-1" style="font-size: 0.65rem;">
                                                 <i class="bi bi-x-circle-fill"></i> Mín. 1
@@ -378,12 +378,12 @@
 
     private async Task LoadInvoiceForEdit()
     {
-        var invoiceDto = await InvoiceService.GetInvoiceDetailByIdAsync(InvoiceId.Value);
+        var invoiceDto = await InvoiceService.GetInvoiceDetailByIdAsync(InvoiceId.GetValueOrDefault());
         if (invoiceDto != null && invoiceDto.Estado == EstadoFactura.Borrador)
         {
             formModel.FormaDePago = invoiceDto.FormaDePago;
             formModel.DiasCredito = invoiceDto.DiasCredito;
-            formModel.MontoAbonoInicial = invoiceDto.SaldoPendiente > 0 ? (invoiceDto.Total - invoiceDto.SaldoPendiente) : 0; // Aproximación del abono
+            formModel.MontoAbonoInicial = invoiceDto.SaldoPendiente > 0 ? (invoiceDto.Total - invoiceDto.SaldoPendiente) : 0; 
 
             if (invoiceDto.ClienteIdentificacion == "9999999999999")
             {
@@ -410,7 +410,6 @@
         else
         {
             errorMessage = "El borrador de la factura no se pudo encontrar o no es un borrador válido.";
-            // Bloquear la edición
         }
     }
 
@@ -521,7 +520,6 @@
 
         foreach (var item in invoiceItems)
         {
-            // Validacion extra: Si por alguna razon es 0 o menor, no suma
             if(item.SafeCantidad < 1) continue;
 
             var itemSubtotal = item.SafeCantidad * item.PrecioVentaUnitario;
@@ -542,9 +540,7 @@
 
         total = subtotalSinImpuestos + totalIva;
         
-        // Safety check para abono
         if(formModel.FormaDePago == FormaDePago.Credito && formModel.MontoAbonoInicial > total) {
-             // Podrías resetearlo, o dejar que la validación del form maneje el error
         }
         
         StateHasChanged();
@@ -554,7 +550,6 @@
     {
         if (!invoiceItems.Any()) return false;
         
-        // Validar que no haya items con cantidad 0 o negativa
         if (invoiceItems.Any(i => i.SafeCantidad < 1)) return false;
 
         if (customerSelectionType == "existing" && !formModel.SelectedClienteId.HasValue) return false;
@@ -596,7 +591,7 @@
             {
                 var updateDto = new UpdateInvoiceDto
                 {
-                    Id = InvoiceId.Value,
+                    Id = InvoiceId.GetValueOrDefault(),
                     UsuarioIdModificador = Guid.Parse(userId),
                     Items = invoiceItems.Select(i => new InvoiceItemDto { ProductoId = i.ProductoId, Cantidad = i.SafeCantidad }).ToList(),
                     FormaDePago = formModel.FormaDePago,
@@ -643,14 +638,12 @@
         public Guid ProductoId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         
-        // VALIDACION FUERTE: Propiedad privada + Getter/Setter con lógica
         private int _cantidad;
         public int SafeCantidad 
         { 
             get => _cantidad; 
             set 
             {
-                // Si intentan poner menos de 1, se queda en 1
                 if (value < 1) _cantidad = 1; 
                 else _cantidad = value;
             }

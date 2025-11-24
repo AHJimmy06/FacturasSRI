@@ -123,7 +123,7 @@ namespace FacturasSRI.Infrastructure.Services
                 if (respuestaRecepcion.Estado == "DEVUELTA" && !esClaveRepetida)
                 {
                     var invoice = await scopedContext.Facturas.Include(f => f.InformacionSRI).FirstOrDefaultAsync(f => f.Id == facturaId);
-                    if (invoice != null)
+                    if (invoice != null && invoice.InformacionSRI != null)
                     {
                         invoice.Estado = EstadoFactura.RechazadaSRI;
                         invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
@@ -183,7 +183,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                 if (!forzarRecepcion)
                 {
-                    string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso);
+                    string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso!);
                     var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
 
                     if (respAuth.Estado != "PROCESANDO")
@@ -193,13 +193,18 @@ namespace FacturasSRI.Infrastructure.Services
                     }
                     else
                     {
-                        // Si devuelve procesando pero no hay comprobantes, reintentamos recepción
                         forzarRecepcion = true; 
                     }
                 }
 
                 if (forzarRecepcion)
                 {
+                    if (string.IsNullOrEmpty(invoiceState.InformacionSRI.XmlFirmado)) 
+                    {
+                         _logger.LogWarning("XML Firmado es nulo para factura {Id}", invoiceId);
+                         return await GetInvoiceDetailByIdAsync(invoiceId);
+                    }
+
                     byte[] xmlBytes = Encoding.UTF8.GetBytes(invoiceState.InformacionSRI.XmlFirmado);
                     string recepXml = await _sriApiClientService.EnviarRecepcionAsync(xmlBytes);
                     var respRecep = _sriResponseParserService.ParsearRespuestaRecepcion(recepXml);
@@ -207,7 +212,10 @@ namespace FacturasSRI.Infrastructure.Services
                     if(respRecep.Estado == "DEVUELTA") {
                          var invoiceToUpdate = await _context.Facturas.Include(f => f.InformacionSRI).FirstAsync(f => f.Id == invoiceId);
                          invoiceToUpdate.Estado = EstadoFactura.RechazadaSRI;
-                         invoiceToUpdate.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respRecep.Errores);
+                         if (invoiceToUpdate.InformacionSRI != null) 
+                         {
+                            invoiceToUpdate.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respRecep.Errores);
+                         }
                          await _context.SaveChangesAsync();
                          return await GetInvoiceDetailByIdAsync(invoiceId);
                     }
@@ -221,12 +229,15 @@ namespace FacturasSRI.Infrastructure.Services
                     
                     await Task.Delay(2000);
                     
-                    string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso);
-                    var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
-                    
-                    if(respAuth.Estado != "PROCESANDO")
+                    if (!string.IsNullOrEmpty(invoiceState.InformacionSRI.ClaveAcceso))
                     {
-                        await FinalizeAuthorizationAsync(invoiceId, respAuth);
+                        string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso);
+                        var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
+                        
+                        if(respAuth.Estado != "PROCESANDO")
+                        {
+                            await FinalizeAuthorizationAsync(invoiceId, respAuth);
+                        }
                     }
                 }
             }
@@ -253,7 +264,7 @@ namespace FacturasSRI.Infrastructure.Services
                     .Include(i => i.Detalles).ThenInclude(d => d.Producto).ThenInclude(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
                     .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
-                if (invoice == null || invoice.Estado == EstadoFactura.Autorizada) return;
+                if (invoice == null || invoice.Estado == EstadoFactura.Autorizada || invoice.InformacionSRI == null || invoice.Cliente == null) return;
 
                 switch (respuesta.Estado)
                 {
@@ -263,7 +274,6 @@ namespace FacturasSRI.Infrastructure.Services
                         invoice.InformacionSRI.FechaAutorizacion = respuesta.FechaAutorizacion;
                         invoice.InformacionSRI.RespuestaSRI = "AUTORIZADO";
 
-                        // AQUÍ SE CALCULA LA FECHA DE VENCIMIENTO
                         await CrearCxCScoped(context, invoice);
                         await context.SaveChangesAsync();
                         
@@ -272,18 +282,17 @@ namespace FacturasSRI.Infrastructure.Services
                             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
                             {
                                 ProductoId = d.ProductoId, 
-                                ProductCode = d.Producto.CodigoPrincipal,
-                                ProductName = d.Producto.Nombre, 
+                                ProductCode = d.Producto?.CodigoPrincipal ?? "",
+                                ProductName = d.Producto?.Nombre ?? "Producto Desconocido", 
                                 Cantidad = d.Cantidad, 
                                 PrecioVentaUnitario = d.PrecioVentaUnitario, 
                                 Subtotal = d.Subtotal,
-                                Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
+                                Taxes = d.Producto?.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto?.Nombre ?? "", Porcentaje = pi.Impuesto?.Porcentaje ?? 0 }).ToList() ?? new List<TaxDto>()
                             }).ToList();
                             var taxSummaries = items.SelectMany(i => i.Taxes.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Nombre, t.Porcentaje }))
                                 .GroupBy(t => new { t.Nombre, t.Porcentaje })
                                 .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList();
 
-                            // Calcular fecha vencimiento para la vista del correo/pdf si es necesario
                             DateTime? fechaVencimiento = null;
                             if (invoice.FormaDePago == FormaDePago.Credito)
                             {
@@ -295,7 +304,7 @@ namespace FacturasSRI.Infrastructure.Services
                                 Id = invoice.Id, NumeroFactura = invoice.NumeroFactura, FechaEmision = invoice.FechaEmision, ClienteNombre = invoice.Cliente.RazonSocial, ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion, ClienteDireccion = invoice.Cliente.Direccion, ClienteEmail = invoice.Cliente.Email, SubtotalSinImpuestos = invoice.SubtotalSinImpuestos, TotalIVA = invoice.TotalIVA, Total = invoice.Total, FormaDePago = invoice.FormaDePago, SaldoPendiente = (invoice.FormaDePago == FormaDePago.Credito ? invoice.Total - invoice.MontoAbonoInicial : 0), ClaveAcceso = invoice.InformacionSRI.ClaveAcceso, NumeroAutorizacion = invoice.InformacionSRI.NumeroAutorizacion,
                                 Items = items, TaxSummaries = taxSummaries,
                                 DiasCredito = invoice.DiasCredito,
-                                FechaVencimiento = fechaVencimiento // Para que el PDF o correo tengan el dato
+                                FechaVencimiento = fechaVencimiento
                             };
 
                             var pdfGenerator = scope.ServiceProvider.GetRequiredService<PdfGeneratorService>();
@@ -304,7 +313,10 @@ namespace FacturasSRI.Infrastructure.Services
                             byte[] pdfBytes = pdfGenerator.GenerarFacturaPdf(detailDto);
                             string xmlFirmado = invoice.InformacionSRI.XmlFirmado ?? "";
 
-                            await emailService.SendInvoiceEmailAsync(invoice.Cliente.Email, invoice.Cliente.RazonSocial, invoice.NumeroFactura, invoice.Id, pdfBytes, xmlFirmado);
+                            if (!string.IsNullOrEmpty(invoice.Cliente.Email))
+                            {
+                                await emailService.SendInvoiceEmailAsync(invoice.Cliente.Email, invoice.Cliente.RazonSocial, invoice.NumeroFactura, invoice.Id, pdfBytes, xmlFirmado);
+                            }
                         }
                         catch (Exception emailEx)
                         {
@@ -340,7 +352,6 @@ namespace FacturasSRI.Infrastructure.Services
 
             if (invoice.FormaDePago == FormaDePago.Contado)
             {
-                // Para contado, Vencimiento = Emisión (o null si prefieres, pero usualmente es el mismo día)
                 var cuentaPorCobrar = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = invoice.FechaEmision, MontoTotal = invoice.Total, SaldoPendiente = 0, Pagada = true, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
                 context.CuentasPorCobrar.Add(cuentaPorCobrar);
                 var cobro = new Cobro { FacturaId = invoice.Id, FechaCobro = DateTime.UtcNow, Monto = invoice.Total, MetodoDePago = "Contado", UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
@@ -348,7 +359,6 @@ namespace FacturasSRI.Infrastructure.Services
             }
             else 
             {
-                // CRÉDITO: Aquí se define la fecha de vencimiento que verás en la lista
                 decimal saldo = invoice.Total;
                 if (invoice.MontoAbonoInicial > 0)
                 {
@@ -357,7 +367,6 @@ namespace FacturasSRI.Infrastructure.Services
                     saldo -= invoice.MontoAbonoInicial;
                 }
                 
-                // CÁLCULO DE FECHA DE VENCIMIENTO USANDO DIASCREDITO
                 var fechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 0);
 
                 var cxc = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = fechaVencimiento, MontoTotal = invoice.Total, SaldoPendiente = saldo, Pagada = saldo <= 0, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
@@ -366,141 +375,143 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
         private async Task<(Factura, Cliente)> CrearFacturaPendienteAsync(CreateInvoiceDto invoiceDto)
+{
+    using (var transaction = await _context.Database.BeginTransactionAsync())
+    {
+        try
         {
-            using (var transaction = await _context.Database.BeginTransactionAsync())
-            {
-                try
-                {
-                    var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EstablishmentCode'.");
-                    var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EmissionPointCode'.");
+            var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EstablishmentCode'.");
+            var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EmissionPointCode'.");
 
-                    Cliente cliente;
-                    if (invoiceDto.EsConsumidorFinal)
+            Cliente? cliente;
+            if (invoiceDto.EsConsumidorFinal)
+            {
+                cliente = await GetOrCreateConsumidorFinalClientAsync();
+            }
+            else if (invoiceDto.ClienteId.HasValue)
+            {
+                cliente = await _context.Clientes.FindAsync(invoiceDto.ClienteId.Value);
+                if (cliente == null) throw new ArgumentException("Cliente no encontrado.");
+            }
+            else
+            {
+                cliente = new Cliente
+                {
+                    Id = Guid.NewGuid(),
+                    TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
+                    NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
+                    RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
+                    Direccion = invoiceDto.DireccionComprador ?? "",
+                    Email = invoiceDto.EmailComprador ?? "",
+                    FechaCreacion = DateTime.UtcNow,
+                    EstaActivo = true
+                };
+                _context.Clientes.Add(cliente);
+            }
+
+            var secuencial = await _context.Secuenciales.FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
+            if (secuencial == null)
+            {
+                secuencial = new Secuencial { Id = Guid.NewGuid(), Establecimiento = establishmentCode, PuntoEmision = emissionPointCode, UltimoSecuencialFactura = 0 };
+                _context.Secuenciales.Add(secuencial);
+            }
+
+            secuencial.UltimoSecuencialFactura++;
+            var numeroSecuencial = secuencial.UltimoSecuencialFactura.ToString("D9");
+
+            var invoice = new Factura
+            {
+                Id = Guid.NewGuid(),
+                ClienteId = cliente.Id,
+                FechaEmision = DateTime.UtcNow,
+                NumeroFactura = numeroSecuencial,
+                Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.Pendiente, 
+                UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
+                FechaCreacion = DateTime.UtcNow
+            };
+            
+            decimal subtotalSinImpuestos = 0;
+            decimal totalIva = 0;
+
+            foreach (var item in invoiceDto.Items)
+            {
+                var producto = await _context.Productos
+                    .Include(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
+                    .SingleAsync(p => p.Id == item.ProductoId);
+
+                decimal valorIvaItem = 0;
+                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto != null && pi.Impuesto.Porcentaje > 0);
+                var subtotalItem = item.Cantidad * producto.PrecioVentaUnitario;
+
+                if (impuestoIva != null && impuestoIva.Impuesto != null)
+                {
+                    valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
+                }
+
+                var detalle = new FacturaDetalle
+                {
+                    Id = Guid.NewGuid(),
+                    FacturaId = invoice.Id,
+                    ProductoId = item.ProductoId,
+                    Producto = producto,
+                    Cantidad = item.Cantidad,
+                    PrecioVentaUnitario = producto.PrecioVentaUnitario,
+                    Subtotal = subtotalItem,
+                    ValorIVA = valorIvaItem,
+                };
+
+                if (producto.ManejaInventario && !invoiceDto.EsBorrador)
+                {
+                    if (producto.ManejaLotes)
                     {
-                        cliente = await GetOrCreateConsumidorFinalClientAsync();
-                    }
-                    else if (invoiceDto.ClienteId.HasValue)
-                    {
-                        cliente = await _context.Clientes.FindAsync(invoiceDto.ClienteId.Value) ?? throw new ArgumentException("Cliente no encontrado.");
+                        await DescontarStockDeLotes(detalle);
                     }
                     else
                     {
-                        cliente = new Cliente
-                        {
-                            Id = Guid.NewGuid(),
-                            TipoIdentificacion = invoiceDto.TipoIdentificacionComprador ?? throw new ArgumentException("Tipo de identificación del comprador es requerido."),
-                            NumeroIdentificacion = invoiceDto.IdentificacionComprador ?? throw new ArgumentException("Número de identificación del comprador es requerido."),
-                            RazonSocial = invoiceDto.RazonSocialComprador ?? throw new ArgumentException("Razón social del comprador es requerida."),
-                            Direccion = invoiceDto.DireccionComprador ?? "",
-                            Email = invoiceDto.EmailComprador ?? "",
-                            FechaCreacion = DateTime.UtcNow,
-                            EstaActivo = true
-                        };
-                        _context.Clientes.Add(cliente);
+                        // AÑADIDO AWAIT AQUÍ (Línea corregida)
+                        await DescontarStockGeneral(producto, detalle.Cantidad);
                     }
-
-                    var secuencial = await _context.Secuenciales.FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
-                    if (secuencial == null)
-                    {
-                        secuencial = new Secuencial { Id = Guid.NewGuid(), Establecimiento = establishmentCode, PuntoEmision = emissionPointCode, UltimoSecuencialFactura = 0 };
-                        _context.Secuenciales.Add(secuencial);
-                    }
-
-                    secuencial.UltimoSecuencialFactura++;
-                    var numeroSecuencial = secuencial.UltimoSecuencialFactura.ToString("D9");
-
-                    var invoice = new Factura
-                    {
-                        Id = Guid.NewGuid(),
-                        ClienteId = cliente.Id,
-                        FechaEmision = DateTime.UtcNow,
-                        NumeroFactura = numeroSecuencial,
-                        Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.Pendiente, 
-                        UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
-                        FechaCreacion = DateTime.UtcNow
-                    };
-                    
-                    decimal subtotalSinImpuestos = 0;
-                    decimal totalIva = 0;
-
-                    foreach (var item in invoiceDto.Items)
-                    {
-                        var producto = await _context.Productos
-                            .Include(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
-                            .SingleAsync(p => p.Id == item.ProductoId);
-
-                        decimal valorIvaItem = 0;
-                        var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.Porcentaje > 0);
-                        var subtotalItem = item.Cantidad * producto.PrecioVentaUnitario;
-
-                        if (impuestoIva != null)
-                        {
-                            valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
-                        }
-
-                        var detalle = new FacturaDetalle
-                        {
-                            Id = Guid.NewGuid(),
-                            FacturaId = invoice.Id,
-                            ProductoId = item.ProductoId,
-                            Producto = producto,
-                            Cantidad = item.Cantidad,
-                            PrecioVentaUnitario = producto.PrecioVentaUnitario,
-                            Subtotal = subtotalItem,
-                            ValorIVA = valorIvaItem,
-                        };
-
-                        if (producto.ManejaInventario && !invoiceDto.EsBorrador)
-                        {
-                            if (producto.ManejaLotes)
-                            {
-                                await DescontarStockDeLotes(detalle);
-                            }
-                            else
-                            {
-                                await DescontarStockGeneral(producto, detalle.Cantidad);
-                            }
-                        }
-
-                        invoice.Detalles.Add(detalle);
-                        subtotalSinImpuestos += detalle.Subtotal;
-                        totalIva += valorIvaItem;
-                    }
-
-                    invoice.SubtotalSinImpuestos = subtotalSinImpuestos;
-                    invoice.TotalIVA = totalIva;
-                    invoice.Total = subtotalSinImpuestos + totalIva;
-                    
-                    invoice.FormaDePago = invoiceDto.FormaDePago;
-                    invoice.DiasCredito = invoiceDto.DiasCredito;
-                    invoice.MontoAbonoInicial = invoiceDto.MontoAbonoInicial;
-
-                    _context.Facturas.Add(invoice);
-
-                    var rucEmisor = _configuration["CompanyInfo:Ruc"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:Ruc'.");
-                    var environmentType = _configuration["CompanyInfo:EnvironmentType"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EnvironmentType'.");
-                    var fechaEcuador = GetEcuadorTime(invoice.FechaEmision);
-                    var claveAcceso = GenerarClaveAcceso(fechaEcuador, "01", rucEmisor, establishmentCode, emissionPointCode, numeroSecuencial, environmentType);
-
-                    var facturaSri = new FacturaSRI
-                    {
-                        FacturaId = invoice.Id,
-                        ClaveAcceso = claveAcceso
-                    };
-                    _context.FacturasSRI.Add(facturaSri);
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return (invoice, cliente);
                 }
-                catch (Exception)
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+
+                invoice.Detalles.Add(detalle);
+                subtotalSinImpuestos += detalle.Subtotal;
+                totalIva += valorIvaItem;
             }
+
+            invoice.SubtotalSinImpuestos = subtotalSinImpuestos;
+            invoice.TotalIVA = totalIva;
+            invoice.Total = subtotalSinImpuestos + totalIva;
+            
+            invoice.FormaDePago = invoiceDto.FormaDePago;
+            invoice.DiasCredito = invoiceDto.DiasCredito;
+            invoice.MontoAbonoInicial = invoiceDto.MontoAbonoInicial;
+
+            _context.Facturas.Add(invoice);
+
+            var rucEmisor = _configuration["CompanyInfo:Ruc"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:Ruc'.");
+            var environmentType = _configuration["CompanyInfo:EnvironmentType"] ?? throw new InvalidOperationException("Falta configurar 'CompanyInfo:EnvironmentType'.");
+            var fechaEcuador = GetEcuadorTime(invoice.FechaEmision);
+            var claveAcceso = GenerarClaveAcceso(fechaEcuador, "01", rucEmisor, establishmentCode, emissionPointCode, numeroSecuencial, environmentType);
+
+            var facturaSri = new FacturaSRI
+            {
+                FacturaId = invoice.Id,
+                ClaveAcceso = claveAcceso
+            };
+            _context.FacturasSRI.Add(facturaSri);
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return (invoice, cliente);
         }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+}
 
         private async Task<(string XmlGenerado, byte[] XmlFirmadoBytes, string ClaveAcceso)> GenerarYFirmarXmlAsync(Factura factura, Cliente cliente)
         {
@@ -519,13 +530,14 @@ namespace FacturasSRI.Infrastructure.Services
             return (xmlGenerado, xmlFirmadoBytes, facturaSri.ClaveAcceso);
         }
 
-        private async Task DescontarStockGeneral(Producto producto, int cantidadADescontar)
+        private Task DescontarStockGeneral(Producto producto, int cantidadADescontar)
         {
             if (producto.StockTotal < cantidadADescontar)
             {
                 throw new InvalidOperationException($"No hay stock suficiente para '{producto.Nombre}'. Stock disponible: {producto.StockTotal}, se requieren: {cantidadADescontar}.");
             }
             producto.StockTotal -= cantidadADescontar;
+            return Task.CompletedTask;
         }
 
         private async Task DescontarStockDeLotes(FacturaDetalle detalle)
@@ -638,7 +650,6 @@ namespace FacturasSRI.Infrastructure.Services
                 Estado = invoice.Estado,
                 FormaDePago = invoice.FormaDePago,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
-                // AQUÍ ESTABA LA CLAVE: Mapeamos FechaVencimiento desde CxC
                 FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 Detalles = invoice.Detalles.Select(d => new InvoiceDetailDto
                 {
@@ -677,8 +688,6 @@ namespace FacturasSRI.Infrastructure.Services
                             CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                             FormaDePago = invoice.FormaDePago,
                             SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
-                            // AQUÍ TAMBIÉN: Mapeamos FechaVencimiento desde CxC
-                            // Si es Borrador o no hay CxC, será null, cumpliendo tu requisito.
                             FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
                         }).ToListAsync();
         }
@@ -700,20 +709,20 @@ namespace FacturasSRI.Infrastructure.Services
             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
             {
                 ProductoId = d.ProductoId,
-                ProductCode = d.Producto.CodigoPrincipal,
-                ProductName = d.Producto.Nombre,
+                ProductCode = d.Producto?.CodigoPrincipal ?? "",
+                ProductName = d.Producto?.Nombre ?? "N/A",
                 Cantidad = d.Cantidad,
                 CantidadDevuelta = d.CantidadDevuelta,
                 PrecioVentaUnitario = d.PrecioVentaUnitario,
                 Subtotal = d.Subtotal,
-                Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto
+                Taxes = d.Producto?.ProductoImpuestos.Select(pi => new TaxDto
                 {
-                    Id = pi.Impuesto.Id,
-                    Nombre = pi.Impuesto.Nombre,
-                    CodigoSRI = pi.Impuesto.CodigoSRI,
-                    Porcentaje = pi.Impuesto.Porcentaje,
-                    EstaActivo = pi.Impuesto.EstaActivo
-                }).ToList()
+                    Id = pi.Impuesto?.Id ?? Guid.Empty,
+                    Nombre = pi.Impuesto?.Nombre ?? "N/A",
+                    CodigoSRI = pi.Impuesto?.CodigoSRI ?? "",
+                    Porcentaje = pi.Impuesto?.Porcentaje ?? 0,
+                    EstaActivo = pi.Impuesto?.EstaActivo ?? false
+                }).ToList() ?? new List<TaxDto>()
             }).ToList();
 
             var taxSummaries = items
@@ -736,11 +745,11 @@ namespace FacturasSRI.Infrastructure.Services
                 Id = invoice.Id,
                 NumeroFactura = invoice.NumeroFactura,
                 FechaEmision = invoice.FechaEmision,
-                ClienteId = invoice.ClienteId.Value,
-                ClienteNombre = invoice.Cliente.RazonSocial,
-                ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion,
-                ClienteDireccion = invoice.Cliente.Direccion,
-                ClienteEmail = invoice.Cliente.Email,
+                ClienteId = invoice.ClienteId ?? Guid.Empty,
+                ClienteNombre = invoice.Cliente?.RazonSocial ?? "N/A",
+                ClienteIdentificacion = invoice.Cliente?.NumeroIdentificacion ?? "N/A",
+                ClienteDireccion = invoice.Cliente?.Direccion ?? "",
+                ClienteEmail = invoice.Cliente?.Email ?? "",
                 SubtotalSinImpuestos = invoice.SubtotalSinImpuestos,
                 TotalIVA = invoice.TotalIVA,
                 Total = invoice.Total,
@@ -750,7 +759,6 @@ namespace FacturasSRI.Infrastructure.Services
                 FormaDePago = invoice.FormaDePago,
                 DiasCredito = invoice.DiasCredito,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
-                // Y AQUÍ TAMBIÉN PARA EL DETALLE
                 FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 ClaveAcceso = invoice.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = invoice.InformacionSRI?.NumeroAutorizacion,
@@ -801,8 +809,8 @@ namespace FacturasSRI.Infrastructure.Services
                         pdfBytes,
                         xmlFirmado
                     );
-                } catch (Exception ex) {
-                    // Log
+                } catch (Exception) {
+                    
                 }
             });
             return Task.CompletedTask;
@@ -826,49 +834,50 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
         public async Task<InvoiceDetailViewDto?> IssueDraftInvoiceAsync(Guid invoiceId)
+{
+    var invoice = await _context.Facturas
+        .Include(i => i.Detalles).ThenInclude(d => d.Producto)
+        .Include(i => i.Cliente)
+        .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+    if (invoice == null)
+        throw new InvalidOperationException("La factura no existe.");
+
+    if (invoice.Estado != EstadoFactura.Borrador)
+        throw new InvalidOperationException("Solo se pueden emitir facturas que están en estado Borrador.");
+
+    _logger.LogInformation("Iniciando emisión de factura borrador ID: {Id}", invoiceId);
+
+    foreach (var detalle in invoice.Detalles)
+    {
+        if (detalle.Producto.ManejaInventario)
         {
-            var invoice = await _context.Facturas
-                .Include(i => i.Detalles).ThenInclude(d => d.Producto)
-                .Include(i => i.Cliente)
-                .FirstOrDefaultAsync(i => i.Id == invoiceId);
-
-            if (invoice == null)
-                throw new InvalidOperationException("La factura no existe.");
-
-            if (invoice.Estado != EstadoFactura.Borrador)
-                throw new InvalidOperationException("Solo se pueden emitir facturas que están en estado Borrador.");
-
-            _logger.LogInformation("Iniciando emisión de factura borrador ID: {Id}", invoiceId);
-
-            foreach (var detalle in invoice.Detalles)
+            if (detalle.Producto.ManejaLotes)
             {
-                if (detalle.Producto.ManejaInventario)
-                {
-                    if (detalle.Producto.ManejaLotes)
-                    {
-                        await DescontarStockDeLotes(detalle);
-                    }
-                    else
-                    {
-                        await DescontarStockGeneral(detalle.Producto, detalle.Cantidad);
-                    }
-                }
+                await DescontarStockDeLotes(detalle);
             }
-
-            var (xmlGenerado, xmlFirmadoBytes, claveAcceso) = await GenerarYFirmarXmlAsync(invoice, invoice.Cliente);
-
-            var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == invoice.Id);
-            facturaSri.XmlGenerado = xmlGenerado;
-            facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
-
-            invoice.Estado = EstadoFactura.Pendiente;
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation("Factura borrador actualizada a Pendiente. Iniciando envío background para {Numero}", invoice.NumeroFactura);
-            _ = Task.Run(() => EnviarAlSriEnFondoAsync(invoice.Id, xmlFirmadoBytes, claveAcceso));
-
-            return await GetInvoiceDetailByIdAsync(invoiceId);
+            else
+            {
+                // AÑADIDO AWAIT AQUÍ (Línea corregida)
+                await DescontarStockGeneral(detalle.Producto, detalle.Cantidad);
+            }
         }
+    }
+
+    var (xmlGenerado, xmlFirmadoBytes, claveAcceso) = await GenerarYFirmarXmlAsync(invoice, invoice.Cliente!);
+
+    var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == invoice.Id);
+    facturaSri.XmlGenerado = xmlGenerado;
+    facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+
+    invoice.Estado = EstadoFactura.Pendiente;
+    await _context.SaveChangesAsync();
+
+    _logger.LogInformation("Factura borrador actualizada a Pendiente. Iniciando envío background para {Numero}", invoice.NumeroFactura);
+    _ = Task.Run(() => EnviarAlSriEnFondoAsync(invoice.Id, xmlFirmadoBytes, claveAcceso));
+
+    return await GetInvoiceDetailByIdAsync(invoiceId);
+}
 
         public async Task ReactivateCancelledInvoiceAsync(Guid invoiceId)
         {
@@ -937,10 +946,10 @@ namespace FacturasSRI.Infrastructure.Services
                     .SingleAsync(p => p.Id == item.ProductoId);
 
                 decimal valorIvaItem = 0;
-                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.Porcentaje > 0);
+                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto != null && pi.Impuesto.Porcentaje > 0);
                 var subtotalItem = item.Cantidad * producto.PrecioVentaUnitario;
 
-                if (impuestoIva != null)
+                if (impuestoIva != null && impuestoIva.Impuesto != null)
                 {
                     valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
                 }
@@ -984,6 +993,7 @@ namespace FacturasSRI.Infrastructure.Services
                 var invoice = await GetInvoiceDetailByIdAsync(invoiceId);
                 if (invoice == null) return;
                 if (string.IsNullOrEmpty(invoice.ClienteEmail)) return;
+                if (invoice.FechaVencimiento == null) return;
 
                 try
                 {

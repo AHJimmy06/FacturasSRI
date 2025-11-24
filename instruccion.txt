@@ -1,6 +1,0 @@
-C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Infrastructure\Services\InvoiceService.cs(23,35): error CS0535: 'InvoiceService' no imp 
-lementa el miembro de interfaz 'IInvoiceService.SendPaymentReminderEmailAsync(Guid)' [C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.I 
-nfrastructure\FacturasSRI.Infrastructure.csproj]
-C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Infrastructure\Services\CreditNoteService.cs(23,38): error CS0535: 'CreditNoteService'  
-no implementa el miembro de interfaz 'ICreditNoteService.ResendCreditNoteEmailAsync(Guid)' [C:\Users\THINKPAD\Desktop\FacturasSRI\Factura 
-sSRI.Infrastructure\FacturasSRI.Infrastructure.csproj]

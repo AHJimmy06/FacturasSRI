@@ -56,22 +56,31 @@ namespace FacturasSRI.Infrastructure.Services
             _pdfGenerator = pdfGenerator;
         }
         
-        public async Task ResendCreditNoteEmailAsync(Guid creditNoteId)
+        public Task ResendCreditNoteEmailAsync(Guid creditNoteId)
         {
-            await Task.Run(async () =>
+            Task.Run(async () =>
             {
-                var creditNote = await GetCreditNoteDetailByIdAsync(creditNoteId);
-                var creditNoteEntity = await _context.NotasDeCredito.Include(i => i.InformacionSRI).FirstOrDefaultAsync(i => i.Id == creditNoteId);
+                using var scope = _serviceScopeFactory.CreateScope();
+                var scopedContext = scope.ServiceProvider.GetRequiredService<FacturasSRIDbContext>();
+                var scopedEmail = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                var scopedPdf = scope.ServiceProvider.GetRequiredService<PdfGeneratorService>();
+                var scopedService = scope.ServiceProvider.GetRequiredService<ICreditNoteService>();
+
+                var creditNote = await scopedService.GetCreditNoteDetailByIdAsync(creditNoteId);
+                var creditNoteEntity = await scopedContext.NotasDeCredito
+                    .Include(i => i.InformacionSRI)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(i => i.Id == creditNoteId);
 
                 if (creditNote == null || creditNoteEntity == null) return;
                 if (string.IsNullOrEmpty(creditNote.ClienteEmail)) return;
 
                 try
                 {
-                    var pdfBytes = _pdfGenerator.GenerarNotaCreditoPdf(creditNote);
+                    var pdfBytes = scopedPdf.GenerarNotaCreditoPdf(creditNote);
                     var xmlFirmado = creditNoteEntity.InformacionSRI?.XmlFirmado ?? "";
 
-                    await _emailService.SendCreditNoteEmailAsync(
+                    await scopedEmail.SendCreditNoteEmailAsync(
                         creditNote.ClienteEmail,
                         creditNote.ClienteNombre,
                         creditNote.NumeroNotaCredito,
@@ -85,6 +94,7 @@ namespace FacturasSRI.Infrastructure.Services
                     _logger.LogError(ex, "Error enviando email de nota de crédito en background");
                 }
             });
+            return Task.CompletedTask;
         }
 
         public async Task<List<CreditNoteDto>> GetCreditNotesAsync()
@@ -99,8 +109,8 @@ namespace FacturasSRI.Infrastructure.Services
                     Id = nc.Id,
                     NumeroNotaCredito = nc.NumeroNotaCredito,
                     FechaEmision = nc.FechaEmision,
-                    ClienteNombre = nc.Cliente.RazonSocial,
-                    NumeroFacturaModificada = nc.Factura.NumeroFactura,
+                    ClienteNombre = nc.Cliente != null ? nc.Cliente.RazonSocial : "N/A",
+                    NumeroFacturaModificada = nc.Factura != null ? nc.Factura.NumeroFactura : "N/A",
                     Total = nc.Total,
                     Estado = nc.Estado,
                     RazonModificacion = nc.RazonModificacion
@@ -127,20 +137,20 @@ namespace FacturasSRI.Infrastructure.Services
             var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto
             {
                 ProductoId = d.ProductoId,
-                ProductCode = d.Producto.CodigoPrincipal,
-                ProductName = d.Producto.Nombre,
+                ProductCode = d.Producto?.CodigoPrincipal ?? "N/A",
+                ProductName = d.Producto?.Nombre ?? "N/A",
                 Cantidad = d.Cantidad,
                 PrecioVentaUnitario = d.PrecioVentaUnitario,
                 Subtotal = d.Subtotal
             }).ToList();
 
             var taxSummaries = nc.Detalles
-                .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new
+                .SelectMany(d => d.Producto?.ProductoImpuestos.Select(pi => new
                 {
                     d.Subtotal,
-                    TaxName = pi.Impuesto.Nombre,
-                    TaxRate = pi.Impuesto.Porcentaje
-                }))
+                    TaxName = pi.Impuesto?.Nombre ?? "N/A",
+                    TaxRate = pi.Impuesto?.Porcentaje ?? 0
+                }) ?? Enumerable.Empty<object>().Select(x => new { Subtotal = 0m, TaxName = "", TaxRate = 0m }))
                 .GroupBy(x => new { x.TaxName, x.TaxRate })
                 .Select(g => new TaxSummary
                 {
@@ -156,13 +166,13 @@ namespace FacturasSRI.Infrastructure.Services
                 Id = nc.Id,
                 NumeroNotaCredito = nc.NumeroNotaCredito,
                 FechaEmision = nc.FechaEmision,
-                ClienteNombre = nc.Cliente.RazonSocial,
-                ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
-                ClienteDireccion = nc.Cliente.Direccion,
-                ClienteEmail = nc.Cliente.Email,
+                ClienteNombre = nc.Cliente?.RazonSocial ?? "N/A",
+                ClienteIdentificacion = nc.Cliente?.NumeroIdentificacion ?? "N/A",
+                ClienteDireccion = nc.Cliente?.Direccion ?? "",
+                ClienteEmail = nc.Cliente?.Email ?? "",
                 FacturaId = nc.FacturaId,
-                NumeroFacturaModificada = nc.Factura.NumeroFactura,
-                FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
+                NumeroFacturaModificada = nc.Factura?.NumeroFactura ?? "N/A",
+                FechaEmisionFacturaModificada = nc.Factura?.FechaEmision ?? DateTime.MinValue,
                 RazonModificacion = nc.RazonModificacion,
                 SubtotalSinImpuestos = nc.SubtotalSinImpuestos,
                 TotalIVA = nc.TotalIVA,
@@ -181,24 +191,22 @@ namespace FacturasSRI.Infrastructure.Services
     await _ncSemaphore.WaitAsync();
     try
     {
-        // CORRECCIÓN AQUI: Agregado .AsNoTracking() para leer el estado REAL de la base de datos
         var factura = await _context.Facturas
-            .AsNoTracking() 
+            .AsNoTracking()
             .Include(f => f.Cliente)
             .Include(f => f.Detalles).ThenInclude(d => d.Producto).ThenInclude(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
             .FirstOrDefaultAsync(f => f.Id == dto.FacturaId);
 
         if (factura == null) throw new InvalidOperationException("La factura original no existe.");
-        
-        // Ahora esta validación pasará correctamente porque leemos el dato fresco
+
         if (factura.Estado != EstadoFactura.Autorizada) throw new InvalidOperationException("Solo se pueden emitir Notas de Crédito a facturas AUTORIZADAS.");
 
-        var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"];
-        var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"];
-        var rucEmisor = _configuration["CompanyInfo:Ruc"];
-        var environmentType = _configuration["CompanyInfo:EnvironmentType"];
-        var certPath = _configuration["CompanyInfo:CertificatePath"];
-        var certPass = _configuration["CompanyInfo:CertificatePassword"];
+        var establishmentCode = _configuration["CompanyInfo:EstablishmentCode"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:EstablishmentCode'");
+        var emissionPointCode = _configuration["CompanyInfo:EmissionPointCode"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:EmissionPointCode'");
+        var rucEmisor = _configuration["CompanyInfo:Ruc"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:Ruc'");
+        var environmentType = _configuration["CompanyInfo:EnvironmentType"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:EnvironmentType'");
+        var certPath = _configuration["CompanyInfo:CertificatePath"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:CertificatePath'");
+        var certPass = _configuration["CompanyInfo:CertificatePassword"] ?? throw new InvalidOperationException("Falta 'CompanyInfo:CertificatePassword'");
 
         var secuencialEntity = await _context.Secuenciales.FirstOrDefaultAsync(s => s.Establecimiento == establishmentCode && s.PuntoEmision == emissionPointCode);
         if (secuencialEntity == null)
@@ -209,6 +217,8 @@ namespace FacturasSRI.Infrastructure.Services
         secuencialEntity.UltimoSecuencialNotaCredito++;
         string numeroSecuencialStr = secuencialEntity.UltimoSecuencialNotaCredito.ToString("D9");
 
+        if (factura.ClienteId == null) throw new InvalidOperationException("La factura no tiene un cliente asignado.");
+
         var nc = new NotaDeCredito
         {
             Id = Guid.NewGuid(),
@@ -216,7 +226,6 @@ namespace FacturasSRI.Infrastructure.Services
             ClienteId = factura.ClienteId.Value,
             FechaEmision = DateTime.UtcNow,
             NumeroNotaCredito = numeroSecuencialStr,
-            // Iniciamos como Pendiente si no es borrador, igual que en Facturas
             Estado = dto.EsBorrador ? EstadoNotaDeCredito.Borrador : EstadoNotaDeCredito.Pendiente,
             RazonModificacion = dto.RazonModificacion,
             UsuarioIdCreador = dto.UsuarioIdCreador,
@@ -231,34 +240,27 @@ namespace FacturasSRI.Infrastructure.Services
             if (itemDto.CantidadDevolucion <= 0) continue;
 
             var detalleFactura = factura.Detalles.FirstOrDefault(d => d.ProductoId == itemDto.ProductoId);
-            if (detalleFactura == null) throw new Exception($"Producto ID {itemDto.ProductoId} inválido.");
+            if (detalleFactura == null || detalleFactura.Producto == null) throw new Exception($"Producto ID {itemDto.ProductoId} inválido.");
             if (itemDto.CantidadDevolucion > (detalleFactura.Cantidad - detalleFactura.CantidadDevuelta)) throw new Exception($"La cantidad a devolver para '{detalleFactura.Producto.Nombre}' excede la cantidad disponible ({detalleFactura.Cantidad - detalleFactura.CantidadDevuelta}).");
 
             decimal precioUnit = detalleFactura.PrecioVentaUnitario;
             decimal subtotalItem = itemDto.CantidadDevolucion * precioUnit;
             decimal valorIvaItem = 0;
-            var impuestoIva = detalleFactura.Producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.Porcentaje > 0);
-            if (impuestoIva != null) valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
+            var impuestoIva = detalleFactura.Producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto != null && pi.Impuesto.Porcentaje > 0);
+            if (impuestoIva != null && impuestoIva.Impuesto != null) valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
 
             var detalleNc = new NotaDeCreditoDetalle
             {
                 Id = Guid.NewGuid(),
                 NotaDeCreditoId = nc.Id,
                 ProductoId = itemDto.ProductoId,
-                Producto = detalleFactura.Producto, // EF Core lo vinculará aunque sea AsNoTracking si el ID es correcto
+                Producto = null!,
                 Cantidad = itemDto.CantidadDevolucion,
                 PrecioVentaUnitario = precioUnit,
                 DescuentoAplicado = 0,
                 Subtotal = subtotalItem,
                 ValorIVA = valorIvaItem
             };
-            
-            // IMPORTANTE: Como factura es AsNoTracking, debemos decirle al contexto que el Producto YA existe y no intente crearlo de nuevo
-            // Sin embargo, al asignar solo el ID suele bastar, pero aquí asignamos la entidad completa 'Producto'.
-            // Para evitar duplicados, mejor asignamos null a la propiedad de navegación y dejamos solo el ID si fuera posible, 
-            // o confiamos en que _context.NotasDeCredito.Add(nc) maneje el grafo.
-            // Lo más seguro aquí con AsNoTracking es poner Producto = null y dejar ProductoId.
-            detalleNc.Producto = null; 
             
             nc.Detalles.Add(detalleNc);
 
@@ -284,12 +286,13 @@ namespace FacturasSRI.Infrastructure.Services
 
         if (!dto.EsBorrador)
         {
+            if (factura.Cliente == null) throw new InvalidOperationException("Cliente es nulo en la factura original.");
+
             var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarNotaCredito(claveAcceso, nc, factura.Cliente, factura, certPath, certPass);
 
             ncSri.XmlGenerado = xmlGenerado;
             ncSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
             
-            // Actualizamos a EnviadaSRI justo antes de guardar y lanzar el hilo
             nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
 
             await _context.SaveChangesAsync();
@@ -326,7 +329,7 @@ namespace FacturasSRI.Infrastructure.Services
                     .Include(n => n.InformacionSRI)
                     .FirstOrDefaultAsync(n => n.Id == ncId);
                     
-                if (nc == null) return;
+                if (nc == null || nc.InformacionSRI == null) return;
 
                 string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
                 var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
@@ -345,6 +348,8 @@ namespace FacturasSRI.Infrastructure.Services
                 for (int i = 0; i < 4; i++)
                 {
                     await Task.Delay(new[] { 2500, 5000, 10000, 15000 }[i]);
+                    if (string.IsNullOrEmpty(nc.InformacionSRI.ClaveAcceso)) break;
+
                     string respuestaAutorizacionXml = await scopedSriClient.ConsultarAutorizacionAsync(nc.InformacionSRI.ClaveAcceso);
                     respuestaAutorizacion = scopedParser.ParsearRespuestaAutorizacion(respuestaAutorizacionXml);
                     if (respuestaAutorizacion.Estado != "PROCESANDO") break;
@@ -369,6 +374,8 @@ namespace FacturasSRI.Infrastructure.Services
             
             try
             {
+                if (string.IsNullOrEmpty(nc.InformacionSRI.ClaveAcceso)) return;
+
                 string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(nc.InformacionSRI.ClaveAcceso);
                 var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
 
@@ -385,8 +392,11 @@ namespace FacturasSRI.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error en CheckSriStatusAsync para NC {NcId}", ncId);
-                nc.InformacionSRI.RespuestaSRI = $"Error consultando al SRI: {ex.Message}";
-                await _context.SaveChangesAsync();
+                if (nc.InformacionSRI != null)
+                {
+                    nc.InformacionSRI.RespuestaSRI = $"Error consultando al SRI: {ex.Message}";
+                    await _context.SaveChangesAsync();
+                }
             }
         }
 
@@ -394,7 +404,6 @@ namespace FacturasSRI.Infrastructure.Services
         {
             if (!_processingCreditNotes.TryAdd(ncId, 0))
             {
-                _logger.LogInformation("La NC {NcId} ya está siendo procesada. Se omite este intento.", ncId);
                 return;
             }
 
@@ -410,12 +419,11 @@ namespace FacturasSRI.Infrastructure.Services
                     .Include(n => n.Factura).ThenInclude(f => f.Detalles)
                     .FirstOrDefaultAsync(n => n.Id == ncId);
                 
-                if (nc == null || nc.Estado == EstadoNotaDeCredito.Autorizada) return;
+                if (nc == null || nc.Estado == EstadoNotaDeCredito.Autorizada || nc.InformacionSRI == null || nc.Cliente == null) return;
 
                 switch (respuesta.Estado)
                 {
                     case "AUTORIZADO":
-                        _logger.LogInformation("Finalizando autorización para NC {NcId}", ncId);
                         nc.Estado = EstadoNotaDeCredito.Autorizada;
                         nc.InformacionSRI.NumeroAutorizacion = respuesta.NumeroAutorizacion;
                         nc.InformacionSRI.FechaAutorizacion = respuesta.FechaAutorizacion;
@@ -429,16 +437,16 @@ namespace FacturasSRI.Infrastructure.Services
                         try
                         {
                             var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto { 
-                                ProductCode = d.Producto.CodigoPrincipal, 
-                                ProductName = d.Producto.Nombre, 
+                                ProductCode = d.Producto?.CodigoPrincipal ?? "N/A", 
+                                ProductName = d.Producto?.Nombre ?? "N/A", 
                                 Cantidad = d.Cantidad, 
                                 PrecioVentaUnitario = d.PrecioVentaUnitario, 
                                 Subtotal = d.Subtotal 
                             }).ToList();
                             
                             var taxSummaries = nc.Detalles
-                                .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new 
-                                { d.Subtotal, TaxName = pi.Impuesto.Nombre, TaxRate = pi.Impuesto.Porcentaje }))
+                                .SelectMany(d => d.Producto?.ProductoImpuestos.Select(pi => new 
+                                { d.Subtotal, TaxName = pi.Impuesto?.Nombre ?? "", TaxRate = pi.Impuesto?.Porcentaje ?? 0 }) ?? Enumerable.Empty<object>().Select(x => new { Subtotal = 0m, TaxName = "", TaxRate = 0m }))
                                 .GroupBy(x => new { x.TaxName, x.TaxRate })
                                 .Select(g => new TaxSummary { TaxName = g.Key.TaxName, TaxRate = g.Key.TaxRate, Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) })
                                 .Where(x => x.Amount > 0 || x.TaxRate == 0).ToList();
@@ -452,8 +460,8 @@ namespace FacturasSRI.Infrastructure.Services
                                 ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
                                 ClienteDireccion = nc.Cliente.Direccion,
                                 ClienteEmail = nc.Cliente.Email,
-                                NumeroFacturaModificada = nc.Factura.NumeroFactura,
-                                FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
+                                NumeroFacturaModificada = nc.Factura != null ? nc.Factura.NumeroFactura : "N/A",
+                                FechaEmisionFacturaModificada = nc.Factura?.FechaEmision ?? DateTime.MinValue,
                                 RazonModificacion = nc.RazonModificacion,
                                 SubtotalSinImpuestos = nc.SubtotalSinImpuestos,
                                 TotalIVA = nc.TotalIVA,
@@ -468,8 +476,10 @@ namespace FacturasSRI.Infrastructure.Services
                             var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
                             byte[] pdfBytes = pdfGenerator.GenerarNotaCreditoPdf(ncDto);
 
-                            await emailService.SendCreditNoteEmailAsync(nc.Cliente.Email, nc.Cliente.RazonSocial, nc.NumeroNotaCredito, nc.Id, pdfBytes, nc.InformacionSRI.XmlFirmado);
-                            _logger.LogInformation("Correo de NC autorizada {NcId} enviado.", ncId);
+                            if (!string.IsNullOrEmpty(nc.Cliente.Email))
+                            {
+                                await emailService.SendCreditNoteEmailAsync(nc.Cliente.Email, nc.Cliente.RazonSocial, nc.NumeroNotaCredito, nc.Id, pdfBytes, nc.InformacionSRI.XmlFirmado ?? "");
+                            }
                         }
                         catch (Exception emailEx)
                         {
@@ -481,6 +491,14 @@ namespace FacturasSRI.Infrastructure.Services
                         nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
                         nc.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuesta.Errores);
                         await context.SaveChangesAsync();
+                        break;
+
+                    default:
+                        if (respuesta.Errores != null && respuesta.Errores.Any())
+                        {
+                            nc.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuesta.Errores);
+                            await context.SaveChangesAsync();
+                        }
                         break;
                 }
             }
@@ -510,8 +528,11 @@ namespace FacturasSRI.Infrastructure.Services
                         foreach (var consumo in consumos)
                         {
                             if (remanente <= 0) break;
-                            consumo.Lote.CantidadDisponible += remanente; 
-                            remanente = 0;
+                            if (consumo.Lote != null)
+                            {
+                                consumo.Lote.CantidadDisponible += remanente; 
+                                remanente = 0;
+                            }
                         }
                     }
                     else
@@ -520,7 +541,6 @@ namespace FacturasSRI.Infrastructure.Services
                     }
                 }
             }
-            _logger.LogInformation("Stock restaurado para Nota de Crédito {Numero}", nc.NumeroNotaCredito);
         }
 
         private async Task ActualizarCantidadesDevueltasAsync(FacturasSRIDbContext context, NotaDeCredito nc)
@@ -603,10 +623,12 @@ namespace FacturasSRI.Infrastructure.Services
             if (nc == null) throw new InvalidOperationException("La nota de crédito no existe.");
             if (nc.Estado != EstadoNotaDeCredito.Borrador) throw new InvalidOperationException("Solo se pueden emitir notas de crédito en estado Borrador.");
             
-            _logger.LogInformation("Iniciando emisión de Nota de Crédito borrador ID: {Id}", creditNoteId);
+            var certPath = _configuration["CompanyInfo:CertificatePath"] ?? throw new InvalidOperationException("Falta configuración de certificado.");
+            var certPass = _configuration["CompanyInfo:CertificatePassword"] ?? throw new InvalidOperationException("Falta password de certificado.");
 
-            var certPath = _configuration["CompanyInfo:CertificatePath"];
-            var certPass = _configuration["CompanyInfo:CertificatePassword"];
+            if (nc.InformacionSRI == null || string.IsNullOrEmpty(nc.InformacionSRI.ClaveAcceso)) throw new InvalidOperationException("La NC no tiene clave de acceso generada.");
+            if (nc.Cliente == null) throw new InvalidOperationException("Cliente no encontrado en NC.");
+            if (nc.Factura == null) throw new InvalidOperationException("Factura no encontrada en NC.");
 
             var (xmlGenerado, xmlFirmadoBytes) = _xmlGeneratorService.GenerarYFirmarNotaCredito(nc.InformacionSRI.ClaveAcceso, nc, nc.Cliente, nc.Factura, certPath, certPass);
 
@@ -653,8 +675,8 @@ namespace FacturasSRI.Infrastructure.Services
                 decimal valorIvaItem = 0;
                 
                 var producto = await _context.Productos.Include(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto).FirstAsync(p => p.Id == itemDto.ProductoId);
-                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto.Porcentaje > 0);
-                if (impuestoIva != null) valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
+                var impuestoIva = producto.ProductoImpuestos.FirstOrDefault(pi => pi.Impuesto != null && pi.Impuesto.Porcentaje > 0);
+                if (impuestoIva != null && impuestoIva.Impuesto != null) valorIvaItem = subtotalItem * (impuestoIva.Impuesto.Porcentaje / 100);
 
                 var detalleNc = new NotaDeCreditoDetalle
                 {
@@ -679,16 +701,14 @@ namespace FacturasSRI.Infrastructure.Services
             nc.Total = subtotalAccum + ivaAccum;
 
             await _context.SaveChangesAsync();
-            _logger.LogInformation("Borrador de Nota de Crédito {Id} actualizado.", nc.Id);
 
             if (dto.EmitirTrasGuardar)
             {
-                _logger.LogInformation("Flag 'EmitirTrasGuardar' detectado para NC. Emisión inmediata...");
                 await IssueDraftCreditNoteAsync(nc.Id);
             }
 
             var resultDto = await GetCreditNoteDetailByIdAsync(nc.Id);
-            return new CreditNoteDto { Id = resultDto.Id, NumeroNotaCredito = resultDto.NumeroNotaCredito };
+            return resultDto != null ? new CreditNoteDto { Id = resultDto.Id, NumeroNotaCredito = resultDto.NumeroNotaCredito } : null;
         }
     }
 }
