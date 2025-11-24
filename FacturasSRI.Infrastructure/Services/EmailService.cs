@@ -161,6 +161,33 @@ namespace FacturasSRI.Infrastructure.Services
             await client.SendEmailAsync(msg);
         }
 
+        public async Task SendPaymentReminderEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal total, decimal saldoPendiente, DateTime fechaVencimiento)
+        {
+            if (string.IsNullOrWhiteSpace(toEmail))
+            {
+                return;
+            }
+
+            var subject = $"Recordatorio de Pago - Factura {numeroFactura}";
+            var plainTextContent = $"Estimado(a) {clienteNombre},\n\nLe recordamos que su factura No. {numeroFactura} por un total de {total:C} está próxima a vencer.\n\nFecha de Vencimiento: {fechaVencimiento:dd/MM/yyyy}\nSaldo Pendiente: {saldoPendiente:C}\n\nPor favor, realice su pago a la brevedad posible para evitar inconvenientes.\n\nGracias.";
+
+            var htmlContent = BuildEmailTemplate("Recordatorio de Pago",
+                $"<p>Estimado(a) <strong>{clienteNombre}</strong>,</p>" +
+                $"<p>Este es un recordatorio amistoso sobre su factura pendiente de pago <strong>No. {numeroFactura}</strong>.</p>" +
+                "<p>Detalles de la factura:</p>" +
+                $"<ul>" +
+                $"<li><strong>Monto Total:</strong> {total:C}</li>" +
+                $"<li><strong>Saldo Pendiente:</strong> <span style='color: #dc3545; font-weight: bold;'>{saldoPendiente:C}</span></li>" +
+                $"<li><strong>Fecha de Vencimiento:</strong> {fechaVencimiento:dd/MM/yyyy}</li>" +
+                "</ul>" +
+                "<p>Agradeceríamos si pudiera procesar el pago a la brevedad posible. Si ya ha realizado el pago, por favor ignore este mensaje.</p>" +
+                "<p>Para realizar su pago o si tiene alguna consulta, no dude en contactarnos.</p>",
+                "", // No se necesita un botón de acción principal aquí
+                "");
+
+            await SendEmailAsync(toEmail, subject, htmlContent, plainTextContent);
+        }
+
         private string BuildEmailTemplate(string title, string bodyContent, string buttonUrl, string buttonText)
         {
             string companyName = _configuration["CompanyInfo:NombreComercial"] ?? _fromName;

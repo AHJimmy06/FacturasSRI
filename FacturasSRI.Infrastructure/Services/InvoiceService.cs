@@ -766,11 +766,11 @@ namespace FacturasSRI.Infrastructure.Services
                             TotalIVA = invoice.TotalIVA,
                             Total = invoice.Total,
                             CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
-                            FormaDePago = invoice.FormaDePago,
-                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0
-                        }).ToListAsync();
-        }
-
+                                                FormaDePago = invoice.FormaDePago,
+                                                SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
+                                                FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
+                                            }).ToListAsync();
+                                    }
         public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
         {
             var invoice = await _context.Facturas
@@ -837,6 +837,7 @@ namespace FacturasSRI.Infrastructure.Services
                 FormaDePago = invoice.FormaDePago,
                 DiasCredito = invoice.DiasCredito,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
+                FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 ClaveAcceso = invoice.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = invoice.InformacionSRI?.NumeroAutorizacion,
                 RespuestaSRI = invoice.InformacionSRI?.RespuestaSRI
@@ -882,6 +883,33 @@ namespace FacturasSRI.Infrastructure.Services
                     );
                 } catch (Exception ex) {
                     _logger.LogError(ex, "Error enviando email background");
+                }
+            });
+            return Task.CompletedTask;
+        }
+
+        public Task SendPaymentReminderEmailAsync(Guid invoiceId)
+        {
+            Task.Run(async () =>
+            {
+                var invoice = await GetInvoiceDetailByIdAsync(invoiceId);
+                if (invoice == null) return;
+                if (string.IsNullOrEmpty(invoice.ClienteEmail)) return;
+
+                try
+                {
+                    await _emailService.SendPaymentReminderEmailAsync(
+                        invoice.ClienteEmail,
+                        invoice.ClienteNombre,
+                        invoice.NumeroFactura,
+                        invoice.Total,
+                        invoice.SaldoPendiente,
+                        invoice.FechaVencimiento.Value
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error enviando email de recordatorio de pago en background");
                 }
             });
             return Task.CompletedTask;

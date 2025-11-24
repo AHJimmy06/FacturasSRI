@@ -20,5 +20,6 @@ namespace FacturasSRI.Application.Dtos
         public List<InvoiceDetailDto> Detalles { get; set; } = new();
         public FormaDePago FormaDePago { get; set; }
         public decimal SaldoPendiente { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
     }
 }

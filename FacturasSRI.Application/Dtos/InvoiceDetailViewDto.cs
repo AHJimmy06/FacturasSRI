@@ -24,6 +24,7 @@ namespace FacturasSRI.Application.Dtos
         public FormaDePago FormaDePago { get; set; }
         public int? DiasCredito { get; set; }
         public decimal SaldoPendiente { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
         public string? ClaveAcceso { get; set; }
         public string? NumeroAutorizacion { get; set; }
         public string? RespuestaSRI { get; set; }

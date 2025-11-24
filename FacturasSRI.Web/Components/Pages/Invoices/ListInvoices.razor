@@ -74,6 +74,7 @@ else
                     <th>Fecha</th>
                     <th>Forma Pago</th>
                     <th>Estado SRI</th>
+                    <th>Vencimiento</th>
                     <th class="text-end">Saldo / Estado</th>
                     <th class="text-end">Total</th>
                     <th class="text-end">Acciones</th>
@@ -93,6 +94,19 @@ else
                         </td>
                         <td>
                             @GetStatusBadge(invoice.Estado)
+                        </td>
+                        <td>
+                            @if (invoice.FormaDePago == FormaDePago.Contado)
+                            {
+                                <span class="text-muted small">N/A</span>
+                            }
+                            else
+                            {
+                                var diasParaVencer = (invoice.FechaVencimiento.Value - DateTime.Today).Days;
+                                <span class="@(diasParaVencer <= 5 && invoice.SaldoPendiente > 0 ? "text-danger fw-bold" : "")">
+                                    @invoice.FechaVencimiento?.ToShortDateString()
+                                </span>
+                            }
                         </td>
                         <td class="text-end">
                             @if (invoice.Estado != EstadoFactura.Autorizada)

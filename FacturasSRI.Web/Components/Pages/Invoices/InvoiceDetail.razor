@@ -63,6 +63,23 @@ else
                         }
                     </button>
                 }
+
+                @if (invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0 && invoice.FechaVencimiento.HasValue && (invoice.FechaVencimiento.Value - DateTime.Today).Days <= 5)
+                {
+                    <button class="btn btn-warning" @onclick="SendPaymentReminder" disabled="@sendingEmail">
+                        @if (sendingEmail)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-bell-fill me-2"></i>
+                            <span>Enviar Aviso</span>
+                        }
+                    </button>
+                }
+                
                 @if (invoice.Estado == EstadoFactura.Cancelada && userIsAdmin)
                 {
                     <button class="btn btn-warning" @onclick="HandleReactivateInvoice" disabled="@isCheckingStatus">
@@ -473,6 +490,28 @@ else
         {
             emailSuccess = false;
             emailMessage = $"Error al enviar correo: {ex.Message}";
+        }
+        finally
+        {
+            sendingEmail = false;
+        }
+    }
+
+    private async Task SendPaymentReminder()
+    {
+        sendingEmail = true;
+        emailMessage = null;
+
+        try
+        {
+            await InvoiceService.SendPaymentReminderEmailAsync(InvoiceId);
+            emailSuccess = true;
+            emailMessage = "Recordatorio de pago enviado exitosamente al cliente.";
+        }
+        catch (Exception ex)
+        {
+            emailSuccess = false;
+            emailMessage = $"Error al enviar el recordatorio: {ex.Message}";
         }
         finally
         {
