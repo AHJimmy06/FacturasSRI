@@ -29,7 +29,7 @@ else if (errorMessage != null)
 }
 else if (stats != null)
 {
-    <div class="row g-4 mb-5">
+    <div class="row g-4 mb-4">
         <div class="col-md-6 col-lg-4">
             <div class="card summary-card summary-card-invoices h-100">
                 <div class="card-body">
@@ -63,19 +63,20 @@ else if (stats != null)
                         <i class="bi bi-cash-stack"></i>
                     </div>
                     <div class="card-content">
-                        <h4>Ingresos Cobrados (Mes)</h4>
+                        <h4>Ingresos Netos (Mes)</h4>
                         <p>@stats.IngresosEsteMes.ToString("C")</p>
+                        <small class="text-muted" style="font-size: 0.75rem;">(Descontando Notas de Crédito)</small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-lg-7">
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Últimas Facturas</h5>
+                    <h5 class="card-title mb-0 text-primary"><i class="bi bi-receipt me-2"></i>Últimas Facturas</h5>
                     <a href="/invoices" class="btn btn-sm btn-outline-primary">Ver todas</a>
                 </div>
                 <div class="card-body p-0">
@@ -83,10 +84,10 @@ else if (stats != null)
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-4">Nro. Factura</th>
+                                    <th class="ps-3">Nro.</th>
                                     <th>Cliente</th>
                                     <th>Fecha</th>
-                                    <th class="text-end pe-4">Total</th>
+                                    <th class="text-end pe-3">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -95,10 +96,10 @@ else if (stats != null)
                                     @foreach (var invoice in stats.RecentInvoices)
                                     {
                                         <tr>
-                                            <td class="ps-4 fw-bold text-primary">@invoice.NumeroFactura</td>
-                                            <td>@invoice.ClienteNombre</td>
+                                            <td class="ps-3 fw-bold">@invoice.NumeroFactura</td>
+                                            <td class="text-truncate" style="max-width: 150px;" title="@invoice.ClienteNombre">@invoice.ClienteNombre</td>
                                             <td>@invoice.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</td>
-                                            <td class="text-end pe-4">@invoice.Total.ToString("C")</td>
+                                            <td class="text-end pe-3">@invoice.Total.ToString("C")</td>
                                         </tr>
                                     }
                                 }
@@ -114,32 +115,78 @@ else if (stats != null)
                 </div>
             </div>
         </div>
-        <div class="col-lg-5">
+
+        <div class="col-lg-6">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Productos Más Vendidos</h5>
-                    <a href="/products" class="btn btn-sm btn-outline-primary">Inventario</a>
+                    <h5 class="card-title mb-0 text-warning"><i class="bi bi-arrow-return-left me-2"></i>Últimas Notas Crédito</h5>
+                    <a href="/credit-notes" class="btn btn-sm btn-outline-warning">Ver todas</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Nro.</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th class="text-end pe-3">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (stats.RecentCreditNotes.Any())
+                                {
+                                    @foreach (var nc in stats.RecentCreditNotes)
+                                    {
+                                        <tr>
+                                            <td class="ps-3 fw-bold">@nc.NumeroNotaCredito</td>
+                                            <td class="text-truncate" style="max-width: 150px;" title="@nc.ClienteNombre">@nc.ClienteNombre</td>
+                                            <td>@nc.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                            <td class="text-end pe-3 text-danger">-@nc.Total.ToString("C")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No hay notas de crédito recientes.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Productos Más Vendidos</h5>
+                    <a href="/products" class="btn btn-sm btn-outline-secondary">Inventario</a>
                 </div>
                 <div class="card-body">
                     @if (stats.TopProducts.Any())
                     {
-                        <ul class="list-group list-group-flush">
+                        <div class="row g-3">
                             @foreach (var product in stats.TopProducts)
                             {
-                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-light p-2 rounded me-3 text-secondary">
-                                            <i class="bi bi-box-seam"></i>
+                                <div class="col-md-6 col-lg-4 col-xl-2">
+                                    <div class="border rounded p-3 text-center h-100 bg-light">
+                                        <div class="mb-2 text-primary">
+                                            <i class="bi bi-box-seam fs-3"></i>
                                         </div>
-                                        <div>
-                                            <h6 class="mb-0">@product.ProductName</h6>
-                                            <small class="text-muted">Ingresos: @product.TotalRevenue.ToString("C")</small>
+                                        <h6 class="text-truncate" title="@product.ProductName">@product.ProductName</h6>
+                                        <div class="d-flex justify-content-center align-items-center gap-2 mt-2">
+                                            <span class="badge bg-primary">@product.QuantitySold unds.</span>
                                         </div>
+                                        <small class="text-muted d-block mt-1">@product.TotalRevenue.ToString("C")</small>
                                     </div>
-                                    <span class="badge bg-primary rounded-pill">@product.QuantitySold unds.</span>
-                                </li>
+                                </div>
                             }
-                        </ul>
+                        </div>
                     }
                     else
                     {

@@ -9,6 +9,7 @@ namespace FacturasSRI.Application.Dtos
         public int TotalClientesRegistrados { get; set; }
         public decimal IngresosEsteMes { get; set; }
         public List<RecentInvoiceDto> RecentInvoices { get; set; } = new();
+        public List<RecentCreditNoteDto> RecentCreditNotes { get; set; } = new();
         public List<TopProductDto> TopProducts { get; set; } = new();
     }
 
@@ -16,6 +17,16 @@ namespace FacturasSRI.Application.Dtos
     {
         public Guid Id { get; set; }
         public string NumeroFactura { get; set; } = string.Empty;
+        public string ClienteNombre { get; set; } = string.Empty;
+        public DateTime FechaEmision { get; set; }
+        public decimal Total { get; set; }
+        public string Estado { get; set; } = string.Empty;
+    }
+
+    public class RecentCreditNoteDto
+    {
+        public Guid Id { get; set; }
+        public string NumeroNotaCredito { get; set; } = string.Empty;
         public string ClienteNombre { get; set; } = string.Empty;
         public DateTime FechaEmision { get; set; }
         public decimal Total { get; set; }

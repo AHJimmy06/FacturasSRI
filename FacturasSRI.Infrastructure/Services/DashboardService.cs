@@ -30,7 +30,7 @@ namespace FacturasSRI.Infrastructure.Services
             var primerDiaDelMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
             var primerDiaDelSiguienteMes = primerDiaDelMes.AddMonths(1);
 
-            var ingresosMes = await _context.Facturas
+            var ingresosFacturas = await _context.Facturas
                 .Where(f => f.Estado == EstadoFactura.Autorizada && 
                             f.FechaEmision >= primerDiaDelMes && 
                             f.FechaEmision < primerDiaDelSiguienteMes)
@@ -40,6 +40,14 @@ namespace FacturasSRI.Infrastructure.Services
                       (f, c) => new { f.Total, c.Pagada })
                 .Where(x => x.Pagada)
                 .SumAsync(x => x.Total);
+
+            var devolucionesNotasCredito = await _context.NotasDeCredito
+                .Where(nc => nc.Estado == EstadoNotaDeCredito.Autorizada &&
+                             nc.FechaEmision >= primerDiaDelMes &&
+                             nc.FechaEmision < primerDiaDelSiguienteMes)
+                .SumAsync(nc => nc.Total);
+
+            var ingresosNetos = ingresosFacturas - devolucionesNotasCredito;
 
             var recentInvoices = await _context.Facturas
                 .Include(f => f.Cliente)
@@ -57,6 +65,22 @@ namespace FacturasSRI.Infrastructure.Services
                 })
                 .ToListAsync();
 
+            var recentCreditNotes = await _context.NotasDeCredito
+                .Include(nc => nc.Cliente)
+                .Where(nc => nc.Estado == EstadoNotaDeCredito.Autorizada)
+                .OrderByDescending(nc => nc.FechaEmision)
+                .Take(5)
+                .Select(nc => new RecentCreditNoteDto
+                {
+                    Id = nc.Id,
+                    NumeroNotaCredito = nc.NumeroNotaCredito,
+                    ClienteNombre = nc.Cliente.RazonSocial,
+                    FechaEmision = nc.FechaEmision,
+                    Total = nc.Total,
+                    Estado = nc.Estado.ToString()
+                })
+                .ToListAsync();
+
             var topProducts = await _context.FacturaDetalles
                 .Include(d => d.Factura)
                 .Include(d => d.Producto)
@@ -69,15 +93,16 @@ namespace FacturasSRI.Infrastructure.Services
                     TotalRevenue = g.Sum(d => d.Subtotal)
                 })
                 .OrderByDescending(p => p.QuantitySold)
-                .Take(5)
+                .Take(7)
                 .ToListAsync();
 
             return new DashboardStatsDto
             {
                 TotalFacturasEmitidas = totalFacturas,
                 TotalClientesRegistrados = totalClientes,
-                IngresosEsteMes = ingresosMes,
+                IngresosEsteMes = ingresosNetos,
                 RecentInvoices = recentInvoices,
+                RecentCreditNotes = recentCreditNotes,
                 TopProducts = topProducts
             };
         }
