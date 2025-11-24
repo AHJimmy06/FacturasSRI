@@ -70,13 +70,22 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<FacturasSRI.Core.Services.SriApiClientService>(client => 
 {
     client.Timeout = TimeSpan.FromSeconds(60);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("FacturasSRI-Client/1.0");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; FacturasSRI/1.0)");
+    
+    // ESTO ES VITAL: El SRI odia el header "Expect: 100-continue" y te cuelga si lo mandas.
+    client.DefaultRequestHeaders.ExpectContinue = false; 
 })
-.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+.ConfigurePrimaryHttpMessageHandler(() => 
 {
-    // Esto mueve la lógica insegura de certificados al registro del servicio
-    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-    SslProtocols = System.Security.Authentication.SslProtocols.Tls12
+    var handler = new HttpClientHandler();
+    
+    // VITAL: El SRI solo habla TLS 1.2. Si usas 1.3 o SSL3, te cuelga.
+    handler.SslProtocols = System.Security.Authentication.SslProtocols.Tls12;
+    
+    // VITAL: El servidor de pruebas "celcer" a veces tiene certificados caducados. Esto los ignora.
+    handler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+
+    return handler;
 });
 
 builder.Services.AddAuthentication("Cookies")
