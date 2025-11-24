@@ -130,7 +130,7 @@ namespace FacturasSRI.Infrastructure.Services
                     table.Header(header => { header.Cell().Element(HeaderCellStyle).Text("Cod."); header.Cell().Element(HeaderCellStyle).Text("Cant."); header.Cell().Element(HeaderCellStyle).Text("Descripción"); header.Cell().Element(HeaderCellStyle).Text("P.Unit"); header.Cell().Element(HeaderCellStyle).Text("Desc."); header.Cell().Element(HeaderCellStyle).Text("Total"); });
                     foreach (var item in factura.Items)
                     {
-                        table.Cell().Element(CellStyle).Text("PROD");
+                        table.Cell().Element(CellStyle).Text(item.ProductCode);
                         table.Cell().Element(CellStyle).AlignCenter().Text(item.Cantidad.ToString("N2"));
                         table.Cell().Element(CellStyle).Text(item.ProductName);
                         table.Cell().Element(CellStyle).AlignRight().Text(item.PrecioVentaUnitario.ToString("N2"));
@@ -295,7 +295,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                     foreach (var item in nc.Items)
                     {
-                        table.Cell().Element(CellStyle).Text("PROD");
+                        table.Cell().Element(CellStyle).Text(item.ProductCode);
                         table.Cell().Element(CellStyle).AlignCenter().Text(item.Cantidad.ToString("N2"));
                         table.Cell().Element(CellStyle).Text(item.ProductName);
                         table.Cell().Element(CellStyle).AlignRight().Text(item.PrecioVentaUnitario.ToString("N2"));

@@ -131,6 +131,7 @@ namespace FacturasSRI.Infrastructure.Services
             var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto
             {
                 ProductoId = d.ProductoId,
+                ProductCode = d.Producto.CodigoPrincipal,
                 ProductName = d.Producto.Nombre,
                 Cantidad = d.Cantidad,
                 PrecioVentaUnitario = d.PrecioVentaUnitario,

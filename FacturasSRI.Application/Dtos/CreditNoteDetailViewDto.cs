@@ -40,6 +40,7 @@ namespace FacturasSRI.Application.Dtos
     public class CreditNoteItemDetailDto
     {
         public Guid ProductoId { get; set; }
+        public string ProductCode { get; set; } = string.Empty;
         public string ProductName { get; set; } = string.Empty;
         public int Cantidad { get; set; }
         public decimal PrecioVentaUnitario { get; set; }

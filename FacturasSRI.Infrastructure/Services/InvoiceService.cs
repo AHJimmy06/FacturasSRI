@@ -787,6 +787,7 @@ namespace FacturasSRI.Infrastructure.Services
             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
             {
                 ProductoId = d.ProductoId,
+                ProductCode = d.Producto.CodigoPrincipal,
                 ProductName = d.Producto.Nombre,
                 Cantidad = d.Cantidad,
                 CantidadDevuelta = d.CantidadDevuelta,
