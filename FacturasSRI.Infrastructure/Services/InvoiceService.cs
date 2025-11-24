@@ -96,7 +96,6 @@ namespace FacturasSRI.Infrastructure.Services
                     facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
                     await _context.SaveChangesAsync();
 
-                    // Lanzar proceso en fondo
                     _ = Task.Run(() => EnviarAlSriEnFondoAsync(factura.Id, xmlFirmadoBytes, claveAcceso));
                 }
                 
@@ -116,7 +115,6 @@ namespace FacturasSRI.Infrastructure.Services
 
             try
             {
-                // 1. INTENTO DE RECEPCIÓN
                 string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
                 var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
 
@@ -135,7 +133,6 @@ namespace FacturasSRI.Infrastructure.Services
                 } 
                 else 
                 {
-                     // SI FUE RECIBIDA, ACTUALIZAMOS ESTADO
                      var invoice = await scopedContext.Facturas.FindAsync(facturaId);
                      if(invoice != null && invoice.Estado == EstadoFactura.Pendiente) {
                          invoice.Estado = EstadoFactura.EnviadaSRI;
@@ -143,7 +140,6 @@ namespace FacturasSRI.Infrastructure.Services
                      }
                 }
                 
-                // 2. INTENTO DE AUTORIZACIÓN (Bucle de espera)
                 RespuestaAutorizacion? respuestaAutorizacion = null;
                 for (int i = 0; i < 4; i++)
                 {
@@ -167,7 +163,6 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<InvoiceDetailViewDto?> CheckSriStatusAsync(Guid invoiceId)
         {
-            // Usamos AsNoTracking para ver cambios realizados por el Background
             var invoiceState = await _context.Facturas
                 .AsNoTracking()
                 .Include(f => f.InformacionSRI)
@@ -184,17 +179,10 @@ namespace FacturasSRI.Infrastructure.Services
 
             try
             {
-                // LÓGICA MEJORADA:
-                // Si está pendiente -> Enviar Recepción
-                // Si está EnviadaSRI -> Consultar Autorización
-                // PERO si consultamos autorización y devuelve "0 comprobantes" (PROCESANDO indefinido), 
-                // asumimos que la recepción falló silenciosamente y reintentamos recepción.
-
                 bool forzarRecepcion = invoiceState.Estado == EstadoFactura.Pendiente;
 
                 if (!forzarRecepcion)
                 {
-                    // Consultamos primero autorización
                     string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso);
                     var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
 
@@ -205,10 +193,7 @@ namespace FacturasSRI.Infrastructure.Services
                     }
                     else
                     {
-                        // Sigue procesando... ¿Pero será que nunca se envió?
-                        // Si la respuesta fue "PROCESANDO" porque no encontró comprobantes, y ya pasó tiempo, reintentamos recepción.
-                        // (Aquí simplificamos: si el usuario le da clic manual, intentamos todo el flujo para asegurar).
-                        _logger.LogWarning("CheckStatus devolvió PROCESANDO. Intentando reenviar recepción por si acaso.");
+                        // Si devuelve procesando pero no hay comprobantes, reintentamos recepción
                         forzarRecepcion = true; 
                     }
                 }
@@ -227,7 +212,6 @@ namespace FacturasSRI.Infrastructure.Services
                          return await GetInvoiceDetailByIdAsync(invoiceId);
                     }
                     
-                    // Si fue RECIBIDA, actualizamos a EnviadaSRI y consultamos Auth de nuevo
                     if(invoiceState.Estado != EstadoFactura.EnviadaSRI)
                     {
                         var invoiceToUpdate = await _context.Facturas.FirstAsync(f => f.Id == invoiceId);
@@ -235,7 +219,7 @@ namespace FacturasSRI.Infrastructure.Services
                         await _context.SaveChangesAsync();
                     }
                     
-                    await Task.Delay(2000); // Espera técnica del SRI
+                    await Task.Delay(2000);
                     
                     string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoiceState.InformacionSRI.ClaveAcceso);
                     var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
@@ -279,6 +263,7 @@ namespace FacturasSRI.Infrastructure.Services
                         invoice.InformacionSRI.FechaAutorizacion = respuesta.FechaAutorizacion;
                         invoice.InformacionSRI.RespuestaSRI = "AUTORIZADO";
 
+                        // AQUÍ SE CALCULA LA FECHA DE VENCIMIENTO
                         await CrearCxCScoped(context, invoice);
                         await context.SaveChangesAsync();
                         
@@ -286,17 +271,31 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
                             {
-                                ProductoId = d.ProductoId, ProductName = d.Producto.Nombre, Cantidad = d.Cantidad, PrecioVentaUnitario = d.PrecioVentaUnitario, Subtotal = d.Subtotal,
+                                ProductoId = d.ProductoId, 
+                                ProductCode = d.Producto.CodigoPrincipal,
+                                ProductName = d.Producto.Nombre, 
+                                Cantidad = d.Cantidad, 
+                                PrecioVentaUnitario = d.PrecioVentaUnitario, 
+                                Subtotal = d.Subtotal,
                                 Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
                             }).ToList();
                             var taxSummaries = items.SelectMany(i => i.Taxes.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Nombre, t.Porcentaje }))
                                 .GroupBy(t => new { t.Nombre, t.Porcentaje })
                                 .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList();
 
+                            // Calcular fecha vencimiento para la vista del correo/pdf si es necesario
+                            DateTime? fechaVencimiento = null;
+                            if (invoice.FormaDePago == FormaDePago.Credito)
+                            {
+                                fechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 0);
+                            }
+
                             var detailDto = new InvoiceDetailViewDto
                             {
                                 Id = invoice.Id, NumeroFactura = invoice.NumeroFactura, FechaEmision = invoice.FechaEmision, ClienteNombre = invoice.Cliente.RazonSocial, ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion, ClienteDireccion = invoice.Cliente.Direccion, ClienteEmail = invoice.Cliente.Email, SubtotalSinImpuestos = invoice.SubtotalSinImpuestos, TotalIVA = invoice.TotalIVA, Total = invoice.Total, FormaDePago = invoice.FormaDePago, SaldoPendiente = (invoice.FormaDePago == FormaDePago.Credito ? invoice.Total - invoice.MontoAbonoInicial : 0), ClaveAcceso = invoice.InformacionSRI.ClaveAcceso, NumeroAutorizacion = invoice.InformacionSRI.NumeroAutorizacion,
-                                Items = items, TaxSummaries = taxSummaries
+                                Items = items, TaxSummaries = taxSummaries,
+                                DiasCredito = invoice.DiasCredito,
+                                FechaVencimiento = fechaVencimiento // Para que el PDF o correo tengan el dato
                             };
 
                             var pdfGenerator = scope.ServiceProvider.GetRequiredService<PdfGeneratorService>();
@@ -341,6 +340,7 @@ namespace FacturasSRI.Infrastructure.Services
 
             if (invoice.FormaDePago == FormaDePago.Contado)
             {
+                // Para contado, Vencimiento = Emisión (o null si prefieres, pero usualmente es el mismo día)
                 var cuentaPorCobrar = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = invoice.FechaEmision, MontoTotal = invoice.Total, SaldoPendiente = 0, Pagada = true, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
                 context.CuentasPorCobrar.Add(cuentaPorCobrar);
                 var cobro = new Cobro { FacturaId = invoice.Id, FechaCobro = DateTime.UtcNow, Monto = invoice.Total, MetodoDePago = "Contado", UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
@@ -348,6 +348,7 @@ namespace FacturasSRI.Infrastructure.Services
             }
             else 
             {
+                // CRÉDITO: Aquí se define la fecha de vencimiento que verás en la lista
                 decimal saldo = invoice.Total;
                 if (invoice.MontoAbonoInicial > 0)
                 {
@@ -355,7 +356,11 @@ namespace FacturasSRI.Infrastructure.Services
                     context.Cobros.Add(abono);
                     saldo -= invoice.MontoAbonoInicial;
                 }
-                var cxc = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 30), MontoTotal = invoice.Total, SaldoPendiente = saldo, Pagada = saldo <= 0, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
+                
+                // CÁLCULO DE FECHA DE VENCIMIENTO USANDO DIASCREDITO
+                var fechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 0);
+
+                var cxc = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = fechaVencimiento, MontoTotal = invoice.Total, SaldoPendiente = saldo, Pagada = saldo <= 0, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
                 context.CuentasPorCobrar.Add(cxc);
             }
         }
@@ -404,7 +409,6 @@ namespace FacturasSRI.Infrastructure.Services
                     secuencial.UltimoSecuencialFactura++;
                     var numeroSecuencial = secuencial.UltimoSecuencialFactura.ToString("D9");
 
-                    // CORRECCIÓN: Estado inicial es PENDIENTE para asegurar el flujo correcto
                     var invoice = new Factura
                     {
                         Id = Guid.NewGuid(),
@@ -634,6 +638,8 @@ namespace FacturasSRI.Infrastructure.Services
                 Estado = invoice.Estado,
                 FormaDePago = invoice.FormaDePago,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
+                // AQUÍ ESTABA LA CLAVE: Mapeamos FechaVencimiento desde CxC
+                FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 Detalles = invoice.Detalles.Select(d => new InvoiceDetailDto
                 {
                     Id = d.Id,
@@ -670,7 +676,10 @@ namespace FacturasSRI.Infrastructure.Services
                             Total = invoice.Total,
                             CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                             FormaDePago = invoice.FormaDePago,
-                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0
+                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
+                            // AQUÍ TAMBIÉN: Mapeamos FechaVencimiento desde CxC
+                            // Si es Borrador o no hay CxC, será null, cumpliendo tu requisito.
+                            FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
                         }).ToListAsync();
         }
 
@@ -691,6 +700,7 @@ namespace FacturasSRI.Infrastructure.Services
             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
             {
                 ProductoId = d.ProductoId,
+                ProductCode = d.Producto.CodigoPrincipal,
                 ProductName = d.Producto.Nombre,
                 Cantidad = d.Cantidad,
                 CantidadDevuelta = d.CantidadDevuelta,
@@ -740,6 +750,8 @@ namespace FacturasSRI.Infrastructure.Services
                 FormaDePago = invoice.FormaDePago,
                 DiasCredito = invoice.DiasCredito,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
+                // Y AQUÍ TAMBIÉN PARA EL DETALLE
+                FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 ClaveAcceso = invoice.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = invoice.InformacionSRI?.NumeroAutorizacion,
                 RespuestaSRI = invoice.InformacionSRI?.RespuestaSRI
@@ -790,7 +802,7 @@ namespace FacturasSRI.Infrastructure.Services
                         xmlFirmado
                     );
                 } catch (Exception ex) {
-                    // Log or ignore
+                    // Log
                 }
             });
             return Task.CompletedTask;
@@ -849,7 +861,6 @@ namespace FacturasSRI.Infrastructure.Services
             facturaSri.XmlGenerado = xmlGenerado;
             facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
 
-            // CORRECCIÓN: Regresamos a Pendiente para forzar recepción
             invoice.Estado = EstadoFactura.Pendiente;
             await _context.SaveChangesAsync();
 

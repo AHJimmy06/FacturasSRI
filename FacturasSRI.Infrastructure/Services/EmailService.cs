@@ -190,7 +190,7 @@ namespace FacturasSRI.Infrastructure.Services
 
         private string BuildEmailTemplate(string title, string bodyContent, string buttonUrl, string buttonText)
         {
-            string companyName = _configuration["CompanyInfo:NombreComercial"] ?? _fromName;
+            string companyName = _configuration["CompanyInfo:DisplayName"] ?? _fromName;
             string currentYear = DateTime.Now.Year.ToString();
 
             var html = new StringBuilder();
