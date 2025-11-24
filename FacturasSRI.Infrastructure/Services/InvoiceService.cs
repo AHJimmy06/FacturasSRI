@@ -1,22 +1,22 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using FacturasSRI.Application.Dtos;
 using FacturasSRI.Application.Interfaces;
+using FacturasSRI.Core.Models;
+using FacturasSRI.Core.Services;
 using FacturasSRI.Domain.Entities;
 using FacturasSRI.Domain.Enums;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using FacturasSRI.Core.Services;
-using FacturasSRI.Core.Models;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using FacturasSRI.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FacturasSRI.Infrastructure.Services
 {
@@ -33,6 +33,7 @@ namespace FacturasSRI.Infrastructure.Services
         private readonly IEmailService _emailService;
         private readonly PdfGeneratorService _pdfGenerator;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private static readonly ConcurrentDictionary<Guid, byte> _processingInvoices = new ConcurrentDictionary<Guid, byte>();
 
         public InvoiceService(
             FacturasSRIDbContext context,
@@ -80,7 +81,6 @@ namespace FacturasSRI.Infrastructure.Services
             await _invoiceCreationSemaphore.WaitAsync();
             try
             {
-                _logger.LogInformation("Iniciando creación de factura...");
                 var (factura, cliente) = await CrearFacturaPendienteAsync(invoiceDto);
 
                 if (invoiceDto.EsBorrador)
@@ -95,7 +95,6 @@ namespace FacturasSRI.Infrastructure.Services
                     facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
                     await _context.SaveChangesAsync();
 
-                    _logger.LogInformation("Factura guardada. Iniciando envío background para {Numero}", factura.NumeroFactura);
                     _ = Task.Run(() => EnviarAlSriEnFondoAsync(factura.Id, xmlFirmadoBytes, claveAcceso));
                 }
                 return (await GetInvoiceByIdAsync(factura.Id))!;
@@ -106,153 +105,184 @@ namespace FacturasSRI.Infrastructure.Services
 
         private async Task EnviarAlSriEnFondoAsync(Guid facturaId, byte[] xmlFirmadoBytes, string claveAcceso)
         {
-            using (var scope = _serviceScopeFactory.CreateScope())
+            using var scope = _serviceScopeFactory.CreateScope();
+            var scopedContext = scope.ServiceProvider.GetRequiredService<FacturasSRIDbContext>();
+            var scopedSriClient = scope.ServiceProvider.GetRequiredService<SriApiClientService>();
+            var scopedParser = scope.ServiceProvider.GetRequiredService<SriResponseParserService>();
+            var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<InvoiceService>>();
+
+            try
             {
-                var scopedContext = scope.ServiceProvider.GetRequiredService<FacturasSRIDbContext>();
-                var scopedSriClient = scope.ServiceProvider.GetRequiredService<SriApiClientService>();
-                var scopedParser = scope.ServiceProvider.GetRequiredService<SriResponseParserService>();
-                var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<InvoiceService>>();
-                var scopedEmail = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                var scopedPdf = scope.ServiceProvider.GetRequiredService<PdfGeneratorService>();
-                
-                try
+                string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
+                var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
+
+                bool esClaveRepetida = respuestaRecepcion.Estado == "DEVUELTA" && respuestaRecepcion.Errores.Any(e => e.Identificador == "43");
+
+                if (respuestaRecepcion.Estado == "DEVUELTA" && !esClaveRepetida)
                 {
-                    scopedLogger.LogInformation($"[BG] Enviando Recepción SRI para {facturaId}...");
-                    string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
-                    
-                    var invoice = await scopedContext.Facturas
-                        .Include(f => f.Cliente)
-                        .Include(f => f.InformacionSRI)
-                        .Include(f => f.Detalles).ThenInclude(d => d.Producto).ThenInclude(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
-                        .FirstOrDefaultAsync(f => f.Id == facturaId);
-
-                    if (invoice == null) return;
-                    var facturaSri = invoice.InformacionSRI; 
-
-                    var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
-
-                    // --- INICIO DE LA CORRECCIÓN ---
-                    // Verifica si el estado es DEVUELTA y si la razón es "CLAVE ACCESO REGISTRADA"
-                    bool esClaveRepetida = respuestaRecepcion.Estado == "DEVUELTA" &&
-                                           respuestaRecepcion.Errores.Any(e => e.Identificador == "43");
-
-                    if (respuestaRecepcion.Estado == "DEVUELTA" && !esClaveRepetida)
+                    var invoice = await scopedContext.Facturas.Include(f => f.InformacionSRI).FirstOrDefaultAsync(f => f.Id == facturaId);
+                    if (invoice != null)
                     {
-                        // Si es DEVUELTA por cualquier otra razón, se considera rechazada.
                         invoice.Estado = EstadoFactura.RechazadaSRI;
-                        facturaSri.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
-                        scopedLogger.LogWarning("[BG] Factura DEVUELTA por SRI (Razón: {Razon})", facturaSri.RespuestaSRI);
+                        invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
+                        await scopedContext.SaveChangesAsync();
                     }
-                    else
-                    {
-                        // Si fue RECIBIDA o si fue DEVUELTA por clave repetida, procedemos a autorizar.
-                        if (esClaveRepetida)
-                        {
-                            scopedLogger.LogInformation("[BG] Clave de acceso ya registrada para {FacturaId}. Procediendo a consultar autorización.", facturaId);
-                        }
-
-                        // Inicia el proceso de consulta de autorización con reintentos
-                        RespuestaAutorizacion? respuestaAutorizacion = null;
-                        int intentosMaximos = 4;
-                        var delays = new[] { 2500, 5000, 10000, 15000 }; // 2.5s, 5s, 10s, 15s
-
-                        for (int i = 0; i < intentosMaximos; i++)
-                        {
-                            scopedLogger.LogInformation("[BG] Consultando autorización... Intento {Intento} de {Maximos}", i + 1, intentosMaximos);
-                            await Task.Delay(delays[i]);
-
-                            try
-                            {
-                                string respuestaAutorizacionXml = await scopedSriClient.ConsultarAutorizacionAsync(claveAcceso);
-                                respuestaAutorizacion = scopedParser.ParsearRespuestaAutorizacion(respuestaAutorizacionXml);
-
-                                if (respuestaAutorizacion.Estado != "PROCESANDO")
-                                {
-                                    break; // Salimos del bucle si el estado ya no es "PROCESANDO"
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                scopedLogger.LogWarning(ex, "[BG] Error en el intento {Intento} de consultar autorización.", i + 1);
-                                if (i == intentosMaximos - 1) // Si es el último intento y falla, lo dejamos en EnviadaSRI
-                                {
-                                    invoice.Estado = EstadoFactura.EnviadaSRI;
-                                    facturaSri.RespuestaSRI = "Error final al consultar autorización: " + ex.Message;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (respuestaAutorizacion != null)
-                        {
-                            if (respuestaAutorizacion.Estado == "AUTORIZADO")
-                            {
-                                invoice.Estado = EstadoFactura.Autorizada;
-                                facturaSri.NumeroAutorizacion = respuestaAutorizacion.NumeroAutorizacion;
-                                facturaSri.FechaAutorizacion = respuestaAutorizacion.FechaAutorizacion;
-                                facturaSri.RespuestaSRI = "AUTORIZADO";
-                                await CrearCxCScoped(scopedContext, invoice);
-
-                                // Se guarda antes de enviar el correo para asegurar la atomicidad de la transacción principal
-                                await scopedContext.SaveChangesAsync(); 
-
-                                // Envío de correo electrónico
-                                try
-                                {
-                                    var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto { /* Mapeo de campos */ }).ToList();
-                                    var taxSummaries = new List<TaxSummary>(); // Mapeo de impuestos
-                                    var detailDto = new InvoiceDetailViewDto { /* Mapeo de campos */ };
-                                    
-                                    // Regeneramos el DTO para el PDF y el correo
-                                    // Esta es una simplificación; el mapeo real es más complejo y ya está implementado arriba
-                                    detailDto = new InvoiceDetailViewDto
-                                    {
-                                        Id = invoice.Id, NumeroFactura = invoice.NumeroFactura, FechaEmision = invoice.FechaEmision, ClienteNombre = invoice.Cliente.RazonSocial, ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion, ClienteDireccion = invoice.Cliente.Direccion, ClienteEmail = invoice.Cliente.Email, SubtotalSinImpuestos = invoice.SubtotalSinImpuestos, TotalIVA = invoice.TotalIVA, Total = invoice.Total, FormaDePago = invoice.FormaDePago, SaldoPendiente = (invoice.FormaDePago == FormaDePago.Credito ? invoice.Total - invoice.MontoAbonoInicial : 0), ClaveAcceso = facturaSri.ClaveAcceso, NumeroAutorizacion = facturaSri.NumeroAutorizacion,
-                                        Items = invoice.Detalles.Select(d => new InvoiceItemDetailDto {
-                                            ProductoId = d.ProductoId, ProductName = d.Producto.Nombre, Cantidad = d.Cantidad, PrecioVentaUnitario = d.PrecioVentaUnitario, Subtotal = d.Subtotal,
-                                            Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
-                                        }).ToList(),
-                                        TaxSummaries = invoice.Detalles.SelectMany(i => i.Producto.ProductoImpuestos.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Impuesto.Nombre, t.Impuesto.Porcentaje }))
-                                            .GroupBy(t => new { t.Nombre, t.Porcentaje })
-                                            .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList()
-                                    };
-
-                                    byte[] pdfBytes = scopedPdf.GenerarFacturaPdf(detailDto);
-                                    string xmlSigned = facturaSri.XmlFirmado;
-
-                                    await scopedEmail.SendInvoiceEmailAsync(invoice.Cliente.Email, invoice.Cliente.RazonSocial, invoice.NumeroFactura, invoice.Id, pdfBytes, xmlSigned);
-                                    scopedLogger.LogInformation("[BG] Correo de factura {Numero} enviado a {Email}.", invoice.NumeroFactura, invoice.Cliente.Email);
-                                }
-                                catch (Exception exEmail) { scopedLogger.LogError(exEmail, "[BG] Error enviando correo de factura autorizada."); }
-                            }
-                            else if (respuestaAutorizacion.Estado == "NO AUTORIZADO")
-                            {
-                                invoice.Estado = EstadoFactura.RechazadaSRI;
-                                facturaSri.RespuestaSRI = JsonSerializer.Serialize(respuestaAutorizacion.Errores);
-                                scopedLogger.LogWarning("[BG] Factura NO AUTORIZADA por SRI: {Errores}", facturaSri.RespuestaSRI);
-                            }
-                            else // Sigue en PROCESANDO o estado desconocido
-                            {
-                                invoice.Estado = EstadoFactura.EnviadaSRI;
-                                facturaSri.RespuestaSRI = $"El SRI sigue procesando la factura tras {intentosMaximos} intentos. Consulta manual requerida.";
-                                scopedLogger.LogInformation("[BG] La factura {FacturaId} sigue en procesamiento.", facturaId);
-                            }
-                        }
-                        else // Si respuestaAutorizacion es null por un error persistente
-                        {
-                            invoice.Estado = EstadoFactura.EnviadaSRI; // Se queda como enviada para revisión manual
-                            facturaSri.RespuestaSRI = "No se pudo obtener una respuesta definitiva del SRI sobre la autorización.";
-                            scopedLogger.LogError("[BG] No se pudo obtener respuesta de autorización para {FacturaId} tras varios intentos.", facturaId);
-                        }
-                    }
-                    // --- FIN DE LA CORRECCIÓN ---
-
-                    await scopedContext.SaveChangesAsync();
+                    return;
+                } else {
+                     var invoice = await scopedContext.Facturas.FindAsync(facturaId);
+                     if(invoice != null && invoice.Estado == EstadoFactura.Pendiente) {
+                         invoice.Estado = EstadoFactura.EnviadaSRI;
+                         await scopedContext.SaveChangesAsync();
+                     }
                 }
-                catch (Exception ex)
+                
+                RespuestaAutorizacion? respuestaAutorizacion = null;
+                for (int i = 0; i < 4; i++)
                 {
-                    scopedLogger.LogWarning("[BG] Error/Timeout enviando al SRI: {Msg}.", ex.Message);
+                    await Task.Delay(new[] { 2500, 5000, 10000, 15000 }[i]);
+                    string respuestaAutorizacionXml = await scopedSriClient.ConsultarAutorizacionAsync(claveAcceso);
+                    respuestaAutorizacion = scopedParser.ParsearRespuestaAutorizacion(respuestaAutorizacionXml);
+                    if (respuestaAutorizacion.Estado != "PROCESANDO") break;
                 }
+                
+                if (respuestaAutorizacion != null)
+                {
+                    await FinalizeAuthorizationAsync(facturaId, respuestaAutorizacion);
+                }
+            }
+            catch (Exception ex)
+            {
+                scopedLogger.LogError(ex, "[BG] Error crítico en EnviarAlSriEnFondoAsync para factura {FacturaId}", facturaId);
+            }
+        }
+
+        public async Task<InvoiceDetailViewDto?> CheckSriStatusAsync(Guid invoiceId)
+        {
+            var invoice = await _context.Facturas.Include(i => i.InformacionSRI).FirstOrDefaultAsync(i => i.Id == invoiceId);
+            if (invoice == null || invoice.InformacionSRI == null || invoice.Estado == EstadoFactura.Autorizada || invoice.Estado == EstadoFactura.RechazadaSRI)
+                return await GetInvoiceDetailByIdAsync(invoiceId);
+
+            try
+            {
+                if (invoice.Estado == EstadoFactura.Pendiente)
+                {
+                    byte[] xmlBytes = Encoding.UTF8.GetBytes(invoice.InformacionSRI.XmlFirmado);
+                    string recepXml = await _sriApiClientService.EnviarRecepcionAsync(xmlBytes);
+                    var respRecep = _sriResponseParserService.ParsearRespuestaRecepcion(recepXml);
+                    if(respRecep.Estado == "DEVUELTA") {
+                         invoice.Estado = EstadoFactura.RechazadaSRI;
+                         invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respRecep.Errores);
+                         await _context.SaveChangesAsync();
+                         return await GetInvoiceDetailByIdAsync(invoiceId);
+                    }
+                    invoice.Estado = EstadoFactura.EnviadaSRI;
+                    await _context.SaveChangesAsync();
+                }
+
+                string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoice.InformacionSRI.ClaveAcceso);
+                var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
+                
+                if(respAuth.Estado != "PROCESANDO")
+                {
+                    await FinalizeAuthorizationAsync(invoiceId, respAuth);
+                }
+                else
+                {
+                    invoice.InformacionSRI.RespuestaSRI = "El SRI todavía está procesando la autorización.";
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en CheckSriStatusAsync para factura {InvoiceId}", invoiceId);
+                invoice.InformacionSRI.RespuestaSRI = $"Error consultando al SRI: {ex.Message}";
+                await _context.SaveChangesAsync();
+            }
+
+            return await GetInvoiceDetailByIdAsync(invoiceId);
+        }
+
+        private async Task FinalizeAuthorizationAsync(Guid invoiceId, RespuestaAutorizacion respuesta)
+        {
+            if (!_processingInvoices.TryAdd(invoiceId, 0))
+            {
+                _logger.LogInformation("La factura {InvoiceId} ya está siendo procesada. Se omite este intento.", invoiceId);
+                return;
+            }
+
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<FacturasSRIDbContext>();
+                
+                var invoice = await context.Facturas
+                    .Include(i => i.InformacionSRI)
+                    .Include(i => i.Cliente)
+                    .Include(i => i.Detalles).ThenInclude(d => d.Producto).ThenInclude(p => p.ProductoImpuestos).ThenInclude(pi => pi.Impuesto)
+                    .FirstOrDefaultAsync(i => i.Id == invoiceId);
+
+                if (invoice == null || invoice.Estado == EstadoFactura.Autorizada) return;
+
+                switch (respuesta.Estado)
+                {
+                    case "AUTORIZADO":
+                        invoice.Estado = EstadoFactura.Autorizada;
+                        invoice.InformacionSRI.NumeroAutorizacion = respuesta.NumeroAutorizacion;
+                        invoice.InformacionSRI.FechaAutorizacion = respuesta.FechaAutorizacion;
+                        invoice.InformacionSRI.RespuestaSRI = "AUTORIZADO";
+
+                        await CrearCxCScoped(context, invoice);
+                        await context.SaveChangesAsync();
+                        
+                        try
+                        {
+                            var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
+                            {
+                                ProductoId = d.ProductoId, ProductName = d.Producto.Nombre, Cantidad = d.Cantidad, PrecioVentaUnitario = d.PrecioVentaUnitario, Subtotal = d.Subtotal,
+                                Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
+                            }).ToList();
+                            var taxSummaries = items.SelectMany(i => i.Taxes.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Nombre, t.Porcentaje }))
+                                .GroupBy(t => new { t.Nombre, t.Porcentaje })
+                                .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList();
+
+                            var detailDto = new InvoiceDetailViewDto
+                            {
+                                Id = invoice.Id, NumeroFactura = invoice.NumeroFactura, FechaEmision = invoice.FechaEmision, ClienteNombre = invoice.Cliente.RazonSocial, ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion, ClienteDireccion = invoice.Cliente.Direccion, ClienteEmail = invoice.Cliente.Email, SubtotalSinImpuestos = invoice.SubtotalSinImpuestos, TotalIVA = invoice.TotalIVA, Total = invoice.Total, FormaDePago = invoice.FormaDePago, SaldoPendiente = (invoice.FormaDePago == FormaDePago.Credito ? invoice.Total - invoice.MontoAbonoInicial : 0), ClaveAcceso = invoice.InformacionSRI.ClaveAcceso, NumeroAutorizacion = invoice.InformacionSRI.NumeroAutorizacion,
+                                Items = items, TaxSummaries = taxSummaries
+                            };
+
+                            var pdfGenerator = scope.ServiceProvider.GetRequiredService<PdfGeneratorService>();
+                            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                            
+                            byte[] pdfBytes = pdfGenerator.GenerarFacturaPdf(detailDto);
+                            string xmlFirmado = invoice.InformacionSRI.XmlFirmado ?? "";
+
+                            await emailService.SendInvoiceEmailAsync(invoice.Cliente.Email, invoice.Cliente.RazonSocial, invoice.NumeroFactura, invoice.Id, pdfBytes, xmlFirmado);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogError(emailEx, "Error enviando correo post-autorización para {InvoiceId}", invoiceId);
+                        }
+                        break;
+
+                    case "NO AUTORIZADO":
+                        invoice.Estado = EstadoFactura.RechazadaSRI;
+                        invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuesta.Errores);
+                        await context.SaveChangesAsync();
+                        break;
+                    
+                    default:
+                         if(respuesta.Errores != null && respuesta.Errores.Any())
+                        {
+                            invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuesta.Errores);
+                            await context.SaveChangesAsync();
+                        }
+                        break;
+                }
+            }
+            finally
+            {
+                _processingInvoices.TryRemove(invoiceId, out _);
             }
         }
 
@@ -279,110 +309,6 @@ namespace FacturasSRI.Infrastructure.Services
                 }
                 var cxc = new CuentaPorCobrar { FacturaId = invoice.Id, ClienteId = invoice.ClienteId, FechaEmision = invoice.FechaEmision, FechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 30), MontoTotal = invoice.Total, SaldoPendiente = saldo, Pagada = saldo <= 0, UsuarioIdCreador = invoice.UsuarioIdCreador, FechaCreacion = DateTime.UtcNow };
                 context.CuentasPorCobrar.Add(cxc);
-            }
-        }
-
-        public async Task<InvoiceDetailViewDto?> CheckSriStatusAsync(Guid invoiceId)
-        {
-            _logger.LogInformation("--- CheckSriStatusAsync ---");
-            var invoice = await _context.Facturas.Include(i => i.InformacionSRI).Include(i => i.Cliente).FirstOrDefaultAsync(i => i.Id == invoiceId);
-            if (invoice == null || invoice.InformacionSRI == null) return null;
-
-            if (invoice.Estado == EstadoFactura.Autorizada || invoice.Estado == EstadoFactura.RechazadaSRI) 
-                return await GetInvoiceDetailByIdAsync(invoiceId);
-
-            try
-            {
-                if (invoice.Estado == EstadoFactura.Pendiente)
-                {
-                    byte[] xmlBytes = Encoding.UTF8.GetBytes(invoice.InformacionSRI.XmlFirmado);
-                    string recepXml = await _sriApiClientService.EnviarRecepcionAsync(xmlBytes);
-                    var respRecep = _sriResponseParserService.ParsearRespuestaRecepcion(recepXml);
-                    
-                    bool esClaveRepetida = respRecep.Estado == "DEVUELTA" && 
-                                           respRecep.Errores.Any(e => e.Identificador == "43");
-
-                    if(respRecep.Estado == "DEVUELTA" && !esClaveRepetida) {
-                        invoice.Estado = EstadoFactura.RechazadaSRI;
-                        invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respRecep.Errores);
-                        await _context.SaveChangesAsync();
-                        return await GetInvoiceDetailByIdAsync(invoiceId);
-                    }
-                    
-                    // Si fue RECIBIDA o DEVUELTA con clave repetida, marcamos como Enviada y continuamos a autorizar.
-                    invoice.Estado = EstadoFactura.EnviadaSRI;
-                    await _context.SaveChangesAsync();
-                    await Task.Delay(2000);
-                }
-
-                string authXml = await _sriApiClientService.ConsultarAutorizacionAsync(invoice.InformacionSRI.ClaveAcceso);
-                var respAuth = _sriResponseParserService.ParsearRespuestaAutorizacion(authXml);
-                await ProcesarEstadoAutorizacionAsync(invoice, respAuth, invoiceId);
-            }
-            catch (Exception ex)
-            {
-                invoice.InformacionSRI.RespuestaSRI = $"Error SRI: {ex.Message}";
-                await _context.SaveChangesAsync();
-            }
-
-            return await GetInvoiceDetailByIdAsync(invoiceId);
-        }
-        
-        private async Task ProcesarEstadoAutorizacionAsync(Factura invoice, RespuestaAutorizacion respuestaAutorizacion, Guid invoiceId)
-        {
-             switch (respuestaAutorizacion.Estado)
-            {
-                case "AUTORIZADO":
-                    invoice.Estado = EstadoFactura.Autorizada;
-                    invoice.InformacionSRI.NumeroAutorizacion = respuestaAutorizacion.NumeroAutorizacion;
-                    invoice.InformacionSRI.FechaAutorizacion = respuestaAutorizacion.FechaAutorizacion;
-                    invoice.InformacionSRI.RespuestaSRI = "AUTORIZADO";
-
-                    await CrearCuentaPorCobrarPostAutorizacionAsync(invoice);
-                    await _context.SaveChangesAsync();
-
-                    try 
-                    {
-                        var invoiceDetailDto = await GetInvoiceDetailByIdAsync(invoiceId);
-                        if (invoiceDetailDto != null && !string.IsNullOrEmpty(invoice.Cliente.Email))
-                        {
-                            byte[] pdfBytes = _pdfGenerator.GenerarFacturaPdf(invoiceDetailDto);
-                            string xmlFirmado = invoice.InformacionSRI.XmlFirmado ?? "";
-
-                            await _emailService.SendInvoiceEmailAsync(
-                                invoice.Cliente.Email, 
-                                invoice.Cliente.RazonSocial, 
-                                invoice.NumeroFactura,
-                                invoice.Id,
-                                pdfBytes, 
-                                xmlFirmado
-                            );
-                        }
-                    }
-                    catch (Exception emailEx)
-                    {
-                        _logger.LogError(emailEx, "Error envío correo post-autorización");
-                    }
-                    break;
-
-                case "NO AUTORIZADO":
-                    invoice.Estado = EstadoFactura.RechazadaSRI;
-                    invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuestaAutorizacion.Errores);
-                    await _context.SaveChangesAsync();
-                    break;
-
-                case "PROCESANDO":
-                    invoice.InformacionSRI.RespuestaSRI = "El SRI todavía está procesando la autorización.";
-                    await _context.SaveChangesAsync();
-                    break;
-                
-                default:
-                    if(respuestaAutorizacion.Errores != null && respuestaAutorizacion.Errores.Any())
-                    {
-                        invoice.InformacionSRI.RespuestaSRI = JsonSerializer.Serialize(respuestaAutorizacion.Errores);
-                        await _context.SaveChangesAsync();
-                    }
-                    break;
             }
         }
 
@@ -436,7 +362,7 @@ namespace FacturasSRI.Infrastructure.Services
                         ClienteId = cliente.Id,
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroSecuencial,
-                        Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.EnviadaSRI,
+                        Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.Pendiente, 
                         UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
                         FechaCreacion = DateTime.UtcNow
                     };
@@ -539,117 +465,6 @@ namespace FacturasSRI.Infrastructure.Services
 
             return (xmlGenerado, xmlFirmadoBytes, facturaSri.ClaveAcceso);
         }
-        
-        private async Task ProcesarRespuestaSriAsync(Guid facturaId, string claveAcceso, string respuestaRecepcionXml)
-        {
-            using (var transaction = await _context.Database.BeginTransactionAsync())
-            {
-                try
-                {
-                    var invoice = await _context.Facturas.FindAsync(facturaId);
-                    if (invoice == null) return;
-                    
-                    var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == facturaId);
-
-                    RespuestaRecepcion respuestaRecepcion = _sriResponseParserService.ParsearRespuestaRecepcion(respuestaRecepcionXml);
-
-                    if (respuestaRecepcion.Estado == "DEVUELTA")
-                    {
-                        invoice.Estado = EstadoFactura.RechazadaSRI;
-                        facturaSri.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
-                    }
-                    else
-                    {
-                        invoice.Estado = EstadoFactura.EnviadaSRI; 
-                    }
-
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    try 
-                    {
-                        var invoice = await _context.Facturas.FindAsync(facturaId);
-                        if (invoice != null)
-                        {
-                            var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == facturaId);
-                            facturaSri.RespuestaSRI = $"Error procesando respuesta SRI: {ex.Message}";
-                            await _context.SaveChangesAsync();
-                        }
-                    }
-                    catch {}
-                }
-            }
-        }
-
-        private async Task CrearCuentaPorCobrarPostAutorizacionAsync(Factura invoice)
-        {
-            var cuentaExistente = await _context.CuentasPorCobrar.FirstOrDefaultAsync(c => c.FacturaId == invoice.Id);
-            if (cuentaExistente != null) return;
-
-            if (invoice.FormaDePago == FormaDePago.Contado)
-            {
-                var cuentaPorCobrar = new CuentaPorCobrar
-                {
-                    FacturaId = invoice.Id,
-                    ClienteId = invoice.ClienteId,
-                    FechaEmision = invoice.FechaEmision,
-                    FechaVencimiento = invoice.FechaEmision,
-                    MontoTotal = invoice.Total,
-                    SaldoPendiente = 0,
-                    Pagada = true,
-                    UsuarioIdCreador = invoice.UsuarioIdCreador,
-                    FechaCreacion = DateTime.UtcNow
-                };
-                _context.CuentasPorCobrar.Add(cuentaPorCobrar);
-
-                var cobro = new Cobro
-                {
-                    FacturaId = invoice.Id,
-                    FechaCobro = DateTime.UtcNow,
-                    Monto = invoice.Total,
-                    MetodoDePago = "Contado",
-                    UsuarioIdCreador = invoice.UsuarioIdCreador,
-                    FechaCreacion = DateTime.UtcNow
-                };
-                _context.Cobros.Add(cobro);
-            }
-            else 
-            {
-                decimal saldoPendiente = invoice.Total;
-                if (invoice.MontoAbonoInicial > 0)
-                {
-                    var abonoInicial = new Cobro
-                    {
-                        FacturaId = invoice.Id,
-                        FechaCobro = DateTime.UtcNow,
-                        Monto = invoice.MontoAbonoInicial,
-                        MetodoDePago = "Abono Inicial",
-                        UsuarioIdCreador = invoice.UsuarioIdCreador,
-                        FechaCreacion = DateTime.UtcNow
-                    };
-                    _context.Cobros.Add(abonoInicial);
-                    saldoPendiente -= invoice.MontoAbonoInicial;
-                }
-
-                var cuentaPorCobrar = new CuentaPorCobrar
-                {
-                    FacturaId = invoice.Id,
-                    ClienteId = invoice.ClienteId,
-                    FechaEmision = invoice.FechaEmision,
-                    FechaVencimiento = invoice.FechaEmision.AddDays(invoice.DiasCredito ?? 30),
-                    MontoTotal = invoice.Total,
-                    SaldoPendiente = saldoPendiente,
-                    Pagada = saldoPendiente <= 0,
-                    UsuarioIdCreador = invoice.UsuarioIdCreador,
-                    FechaCreacion = DateTime.UtcNow
-                };
-                _context.CuentasPorCobrar.Add(cuentaPorCobrar);
-            }
-        }
-
 
         private async Task DescontarStockGeneral(Producto producto, int cantidadADescontar)
         {
@@ -747,7 +562,7 @@ namespace FacturasSRI.Infrastructure.Services
         public async Task<InvoiceDto?> GetInvoiceByIdAsync(Guid id)
         {
              var invoice = await _context.Facturas
-                .Include(i => i.Cliente) // Incluir cliente para el nombre
+                .Include(i => i.Cliente) 
                 .Include(i => i.Detalles).ThenInclude(d => d.Producto)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
@@ -781,22 +596,9 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public async Task<List<InvoiceDto>> GetInvoicesAsync()
+        public Task<List<InvoiceDto>> GetInvoicesAsync()
         {
-            // First, get the IDs of invoices that are not in a final state
-            var nonFinalizedIds = await _context.Facturas
-                .Where(f => f.Estado == EstadoFactura.EnviadaSRI || f.Estado == EstadoFactura.Pendiente)
-                .Select(f => f.Id)
-                .ToListAsync();
-
-            // Now, iterate over those IDs and update their status
-            foreach (var id in nonFinalizedIds)
-            {
-                await CheckSriStatusAsync(id);
-            }
-
-            // Finally, get the updated list to display
-            return await (from invoice in _context.Facturas
+            return (from invoice in _context.Facturas
                         join cpc in _context.CuentasPorCobrar on invoice.Id equals cpc.FacturaId into cpcJoin
                         from cpc in cpcJoin.DefaultIfEmpty()
                         join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
@@ -818,10 +620,10 @@ namespace FacturasSRI.Infrastructure.Services
                             Total = invoice.Total,
                             CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                             FormaDePago = invoice.FormaDePago,
-                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
-                            FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
+                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0
                         }).ToListAsync();
         }
+
         public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
         {
             var invoice = await _context.Facturas
@@ -838,7 +640,6 @@ namespace FacturasSRI.Infrastructure.Services
             var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
             {
                 ProductoId = d.ProductoId,
-                ProductCode = d.Producto.CodigoPrincipal,
                 ProductName = d.Producto.Nombre,
                 Cantidad = d.Cantidad,
                 CantidadDevuelta = d.CantidadDevuelta,
@@ -888,7 +689,6 @@ namespace FacturasSRI.Infrastructure.Services
                 FormaDePago = invoice.FormaDePago,
                 DiasCredito = invoice.DiasCredito,
                 SaldoPendiente = cuentaPorCobrar?.SaldoPendiente ?? 0,
-                FechaVencimiento = cuentaPorCobrar?.FechaVencimiento,
                 ClaveAcceso = invoice.InformacionSRI?.ClaveAcceso,
                 NumeroAutorizacion = invoice.InformacionSRI?.NumeroAutorizacion,
                 RespuestaSRI = invoice.InformacionSRI?.RespuestaSRI
@@ -939,33 +739,6 @@ namespace FacturasSRI.Infrastructure.Services
             return Task.CompletedTask;
         }
 
-        public Task SendPaymentReminderEmailAsync(Guid invoiceId)
-        {
-            Task.Run(async () =>
-            {
-                var invoice = await GetInvoiceDetailByIdAsync(invoiceId);
-                if (invoice == null) return;
-                if (string.IsNullOrEmpty(invoice.ClienteEmail)) return;
-
-                try
-                {
-                    await _emailService.SendPaymentReminderEmailAsync(
-                        invoice.ClienteEmail,
-                        invoice.ClienteNombre,
-                        invoice.NumeroFactura,
-                        invoice.Total,
-                        invoice.SaldoPendiente,
-                        invoice.FechaVencimiento.Value
-                    );
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error enviando email de recordatorio de pago en background");
-                }
-            });
-            return Task.CompletedTask;
-        }
-
         public async Task CancelInvoiceAsync(Guid invoiceId)
         {
             var invoice = await _context.Facturas.FindAsync(invoiceId);
@@ -983,105 +756,50 @@ namespace FacturasSRI.Infrastructure.Services
             await _context.SaveChangesAsync();
         }
 
-                public async Task<InvoiceDetailViewDto?> IssueDraftInvoiceAsync(Guid invoiceId)
+        public async Task<InvoiceDetailViewDto?> IssueDraftInvoiceAsync(Guid invoiceId)
+        {
+            var invoice = await _context.Facturas
+                .Include(i => i.Detalles).ThenInclude(d => d.Producto)
+                .Include(i => i.Cliente)
+                .FirstOrDefaultAsync(i => i.Id == invoiceId);
 
+            if (invoice == null)
+                throw new InvalidOperationException("La factura no existe.");
+
+            if (invoice.Estado != EstadoFactura.Borrador)
+                throw new InvalidOperationException("Solo se pueden emitir facturas que están en estado Borrador.");
+
+            _logger.LogInformation("Iniciando emisión de factura borrador ID: {Id}", invoiceId);
+
+            foreach (var detalle in invoice.Detalles)
+            {
+                if (detalle.Producto.ManejaInventario)
                 {
-
-                    var invoice = await _context.Facturas
-
-                        .Include(i => i.Detalles)
-
-                        .ThenInclude(d => d.Producto)
-
-                        .Include(i => i.Cliente)
-
-                        .FirstOrDefaultAsync(i => i.Id == invoiceId);
-
-        
-
-                    if (invoice == null)
-
+                    if (detalle.Producto.ManejaLotes)
                     {
-
-                        throw new InvalidOperationException("La factura no existe.");
-
+                        await DescontarStockDeLotes(detalle);
                     }
-
-        
-
-                    if (invoice.Estado != EstadoFactura.Borrador)
-
+                    else
                     {
-
-                        throw new InvalidOperationException("Solo se pueden emitir facturas que están en estado Borrador.");
-
+                        await DescontarStockGeneral(detalle.Producto, detalle.Cantidad);
                     }
-
-                    
-
-                    _logger.LogInformation("Iniciando emisión de factura borrador ID: {Id}", invoiceId);
-
-        
-
-                    foreach (var detalle in invoice.Detalles)
-
-                    {
-
-                        if (detalle.Producto.ManejaInventario)
-
-                        {
-
-                            if (detalle.Producto.ManejaLotes)
-
-                            {
-
-                                await DescontarStockDeLotes(detalle);
-
-                            }
-
-                            else
-
-                            {
-
-                                await DescontarStockGeneral(detalle.Producto, detalle.Cantidad);
-
-                            }
-
-                        }
-
-                    }
-
-        
-
-                    var (xmlGenerado, xmlFirmadoBytes, claveAcceso) = await GenerarYFirmarXmlAsync(invoice, invoice.Cliente);
-
-        
-
-                    var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == invoice.Id);
-
-                    facturaSri.XmlGenerado = xmlGenerado;
-
-                    facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
-
-                    
-
-                    invoice.Estado = EstadoFactura.Pendiente;
-
-        
-
-                    await _context.SaveChangesAsync();
-
-        
-
-                    _logger.LogInformation("Factura borrador actualizada a Pendiente. Iniciando envío background para {Numero}", invoice.NumeroFactura);
-
-                    _ = Task.Run(() => EnviarAlSriEnFondoAsync(invoice.Id, xmlFirmadoBytes, claveAcceso));
-
-        
-
-                    return await GetInvoiceDetailByIdAsync(invoiceId);
-
                 }
+            }
+
+            var (xmlGenerado, xmlFirmadoBytes, claveAcceso) = await GenerarYFirmarXmlAsync(invoice, invoice.Cliente);
+
+            var facturaSri = await _context.FacturasSRI.FirstAsync(f => f.FacturaId == invoice.Id);
+            facturaSri.XmlGenerado = xmlGenerado;
+            facturaSri.XmlFirmado = Encoding.UTF8.GetString(xmlFirmadoBytes);
+
+            invoice.Estado = EstadoFactura.Pendiente;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Factura borrador actualizada a Pendiente. Iniciando envío background para {Numero}", invoice.NumeroFactura);
+            _ = Task.Run(() => EnviarAlSriEnFondoAsync(invoice.Id, xmlFirmadoBytes, claveAcceso));
+
+            return await GetInvoiceDetailByIdAsync(invoiceId);
+        }
 
         public async Task ReactivateCancelledInvoiceAsync(Guid invoiceId)
         {
