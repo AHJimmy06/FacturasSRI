@@ -151,60 +151,98 @@ namespace FacturasSRI.Infrastructure.Services
                             scopedLogger.LogInformation("[BG] Clave de acceso ya registrada para {FacturaId}. Procediendo a consultar autorización.", facturaId);
                         }
 
-                        try 
-                        {
-                            await Task.Delay(2500); 
-                            string respuestaAutorizacionXml = await scopedSriClient.ConsultarAutorizacionAsync(claveAcceso);
-                            var respuestaAutorizacion = scopedParser.ParsearRespuestaAutorizacion(respuestaAutorizacionXml);
+                        // Inicia el proceso de consulta de autorización con reintentos
+                        RespuestaAutorizacion? respuestaAutorizacion = null;
+                        int intentosMaximos = 4;
+                        var delays = new[] { 2500, 5000, 10000, 15000 }; // 2.5s, 5s, 10s, 15s
 
+                        for (int i = 0; i < intentosMaximos; i++)
+                        {
+                            scopedLogger.LogInformation("[BG] Consultando autorización... Intento {Intento} de {Maximos}", i + 1, intentosMaximos);
+                            await Task.Delay(delays[i]);
+
+                            try
+                            {
+                                string respuestaAutorizacionXml = await scopedSriClient.ConsultarAutorizacionAsync(claveAcceso);
+                                respuestaAutorizacion = scopedParser.ParsearRespuestaAutorizacion(respuestaAutorizacionXml);
+
+                                if (respuestaAutorizacion.Estado != "PROCESANDO")
+                                {
+                                    break; // Salimos del bucle si el estado ya no es "PROCESANDO"
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                scopedLogger.LogWarning(ex, "[BG] Error en el intento {Intento} de consultar autorización.", i + 1);
+                                if (i == intentosMaximos - 1) // Si es el último intento y falla, lo dejamos en EnviadaSRI
+                                {
+                                    invoice.Estado = EstadoFactura.EnviadaSRI;
+                                    facturaSri.RespuestaSRI = "Error final al consultar autorización: " + ex.Message;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (respuestaAutorizacion != null)
+                        {
                             if (respuestaAutorizacion.Estado == "AUTORIZADO")
                             {
                                 invoice.Estado = EstadoFactura.Autorizada;
                                 facturaSri.NumeroAutorizacion = respuestaAutorizacion.NumeroAutorizacion;
                                 facturaSri.FechaAutorizacion = respuestaAutorizacion.FechaAutorizacion;
                                 facturaSri.RespuestaSRI = "AUTORIZADO";
-
                                 await CrearCxCScoped(scopedContext, invoice);
-                                await scopedContext.SaveChangesAsync();
 
+                                // Se guarda antes de enviar el correo para asegurar la atomicidad de la transacción principal
+                                await scopedContext.SaveChangesAsync(); 
+
+                                // Envío de correo electrónico
                                 try
                                 {
-                                    var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto
-                                    {
-                                        ProductoId = d.ProductoId, ProductName = d.Producto.Nombre, Cantidad = d.Cantidad, PrecioVentaUnitario = d.PrecioVentaUnitario, Subtotal = d.Subtotal,
-                                        Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
-                                    }).ToList();
-                                    var taxSummaries = items.SelectMany(i => i.Taxes.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Nombre, t.Porcentaje }))
-                                        .GroupBy(t => new { t.Nombre, t.Porcentaje })
-                                        .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList();
-
-                                    var detailDto = new InvoiceDetailViewDto
+                                    var items = invoice.Detalles.Select(d => new InvoiceItemDetailDto { /* Mapeo de campos */ }).ToList();
+                                    var taxSummaries = new List<TaxSummary>(); // Mapeo de impuestos
+                                    var detailDto = new InvoiceDetailViewDto { /* Mapeo de campos */ };
+                                    
+                                    // Regeneramos el DTO para el PDF y el correo
+                                    // Esta es una simplificación; el mapeo real es más complejo y ya está implementado arriba
+                                    detailDto = new InvoiceDetailViewDto
                                     {
                                         Id = invoice.Id, NumeroFactura = invoice.NumeroFactura, FechaEmision = invoice.FechaEmision, ClienteNombre = invoice.Cliente.RazonSocial, ClienteIdentificacion = invoice.Cliente.NumeroIdentificacion, ClienteDireccion = invoice.Cliente.Direccion, ClienteEmail = invoice.Cliente.Email, SubtotalSinImpuestos = invoice.SubtotalSinImpuestos, TotalIVA = invoice.TotalIVA, Total = invoice.Total, FormaDePago = invoice.FormaDePago, SaldoPendiente = (invoice.FormaDePago == FormaDePago.Credito ? invoice.Total - invoice.MontoAbonoInicial : 0), ClaveAcceso = facturaSri.ClaveAcceso, NumeroAutorizacion = facturaSri.NumeroAutorizacion,
-                                        Items = items, TaxSummaries = taxSummaries
+                                        Items = invoice.Detalles.Select(d => new InvoiceItemDetailDto {
+                                            ProductoId = d.ProductoId, ProductName = d.Producto.Nombre, Cantidad = d.Cantidad, PrecioVentaUnitario = d.PrecioVentaUnitario, Subtotal = d.Subtotal,
+                                            Taxes = d.Producto.ProductoImpuestos.Select(pi => new TaxDto { Nombre = pi.Impuesto.Nombre, Porcentaje = pi.Impuesto.Porcentaje }).ToList()
+                                        }).ToList(),
+                                        TaxSummaries = invoice.Detalles.SelectMany(i => i.Producto.ProductoImpuestos.Select(t => new { i.Cantidad, i.PrecioVentaUnitario, t.Impuesto.Nombre, t.Impuesto.Porcentaje }))
+                                            .GroupBy(t => new { t.Nombre, t.Porcentaje })
+                                            .Select(g => new TaxSummary { TaxName = g.Key.Nombre, TaxRate = g.Key.Porcentaje, Amount = g.Sum(x => x.Cantidad * x.PrecioVentaUnitario * (x.Porcentaje / 100)) }).ToList()
                                     };
 
                                     byte[] pdfBytes = scopedPdf.GenerarFacturaPdf(detailDto);
                                     string xmlSigned = facturaSri.XmlFirmado;
 
                                     await scopedEmail.SendInvoiceEmailAsync(invoice.Cliente.Email, invoice.Cliente.RazonSocial, invoice.NumeroFactura, invoice.Id, pdfBytes, xmlSigned);
-                                    scopedLogger.LogInformation("[BG] Correo enviado.");
+                                    scopedLogger.LogInformation("[BG] Correo de factura {Numero} enviado a {Email}.", invoice.NumeroFactura, invoice.Cliente.Email);
                                 }
-                                catch (Exception exEmail) { scopedLogger.LogError(exEmail, "[BG] Error correo."); }
+                                catch (Exception exEmail) { scopedLogger.LogError(exEmail, "[BG] Error enviando correo de factura autorizada."); }
                             }
                             else if (respuestaAutorizacion.Estado == "NO AUTORIZADO")
                             {
                                 invoice.Estado = EstadoFactura.RechazadaSRI;
                                 facturaSri.RespuestaSRI = JsonSerializer.Serialize(respuestaAutorizacion.Errores);
+                                scopedLogger.LogWarning("[BG] Factura NO AUTORIZADA por SRI: {Errores}", facturaSri.RespuestaSRI);
                             }
-                            else 
+                            else // Sigue en PROCESANDO o estado desconocido
                             {
-                                invoice.Estado = EstadoFactura.EnviadaSRI; 
+                                invoice.Estado = EstadoFactura.EnviadaSRI;
+                                facturaSri.RespuestaSRI = $"El SRI sigue procesando la factura tras {intentosMaximos} intentos. Consulta manual requerida.";
+                                scopedLogger.LogInformation("[BG] La factura {FacturaId} sigue en procesamiento.", facturaId);
                             }
                         }
-                        catch 
+                        else // Si respuestaAutorizacion es null por un error persistente
                         {
-                            invoice.Estado = EstadoFactura.EnviadaSRI;
+                            invoice.Estado = EstadoFactura.EnviadaSRI; // Se queda como enviada para revisión manual
+                            facturaSri.RespuestaSRI = "No se pudo obtener una respuesta definitiva del SRI sobre la autorización.";
+                            scopedLogger.LogError("[BG] No se pudo obtener respuesta de autorización para {FacturaId} tras varios intentos.", facturaId);
                         }
                     }
                     // --- FIN DE LA CORRECCIÓN ---
@@ -398,7 +436,7 @@ namespace FacturasSRI.Infrastructure.Services
                         ClienteId = cliente.Id,
                         FechaEmision = DateTime.UtcNow,
                         NumeroFactura = numeroSecuencial,
-                        Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.Pendiente, 
+                        Estado = invoiceDto.EsBorrador ? EstadoFactura.Borrador : EstadoFactura.EnviadaSRI,
                         UsuarioIdCreador = invoiceDto.UsuarioIdCreador,
                         FechaCreacion = DateTime.UtcNow
                     };
@@ -743,9 +781,22 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public Task<List<InvoiceDto>> GetInvoicesAsync()
+        public async Task<List<InvoiceDto>> GetInvoicesAsync()
         {
-            return (from invoice in _context.Facturas
+            // First, get the IDs of invoices that are not in a final state
+            var nonFinalizedIds = await _context.Facturas
+                .Where(f => f.Estado == EstadoFactura.EnviadaSRI || f.Estado == EstadoFactura.Pendiente)
+                .Select(f => f.Id)
+                .ToListAsync();
+
+            // Now, iterate over those IDs and update their status
+            foreach (var id in nonFinalizedIds)
+            {
+                await CheckSriStatusAsync(id);
+            }
+
+            // Finally, get the updated list to display
+            return await (from invoice in _context.Facturas
                         join cpc in _context.CuentasPorCobrar on invoice.Id equals cpc.FacturaId into cpcJoin
                         from cpc in cpcJoin.DefaultIfEmpty()
                         join usuario in _context.Usuarios on invoice.UsuarioIdCreador equals usuario.Id into usuarioJoin
@@ -766,11 +817,11 @@ namespace FacturasSRI.Infrastructure.Services
                             TotalIVA = invoice.TotalIVA,
                             Total = invoice.Total,
                             CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
-                                                FormaDePago = invoice.FormaDePago,
-                                                SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
-                                                FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
-                                            }).ToListAsync();
-                                    }
+                            FormaDePago = invoice.FormaDePago,
+                            SaldoPendiente = cpc != null ? cpc.SaldoPendiente : 0,
+                            FechaVencimiento = cpc != null ? cpc.FechaVencimiento : (DateTime?)null
+                        }).ToListAsync();
+        }
         public async Task<InvoiceDetailViewDto?> GetInvoiceDetailByIdAsync(Guid id)
         {
             var invoice = await _context.Facturas

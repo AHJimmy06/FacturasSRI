@@ -91,11 +91,25 @@ namespace FacturasSRI.Infrastructure.Services
         // 1. PARA EL LISTADO
         public async Task<List<CreditNoteDto>> GetCreditNotesAsync()
         {
+            // Primero, obtenemos los IDs de las NC que no están en un estado definitivo
+            var nonFinalizedIds = await _context.NotasDeCredito
+                .Where(nc => nc.Estado == EstadoNotaDeCredito.EnviadaSRI || nc.Estado == EstadoNotaDeCredito.Pendiente)
+                .Select(nc => nc.Id)
+                .ToListAsync();
+
+            // Ahora, iteramos sobre esos IDs y actualizamos su estado
+            // Esto no es ideal para un rendimiento a gran escala, pero asegura la consistencia para el usuario.
+            foreach (var id in nonFinalizedIds)
+            {
+                await CheckSriStatusAsync(id);
+            }
+
+            // Finalmente, obtenemos la lista actualizada para mostrarla
             return await _context.NotasDeCredito
                 .AsNoTracking()
                 .Include(nc => nc.Cliente)
                 .Include(nc => nc.Factura)
-                .OrderByDescending(nc => nc.FechaEmision)
+                .OrderByDescending(nc => nc.FechaCreacion) // Ordenar por fecha de creación para ver las más recientes primero
                 .Select(nc => new CreditNoteDto
                 {
                     Id = nc.Id,
@@ -339,19 +353,56 @@ namespace FacturasSRI.Infrastructure.Services
 
                 if (autObj.Estado == "AUTORIZADO")
                 {
-                    // === MOMENTO CRÍTICO: DEVOLVER STOCK ===
-                    // Solo si antes NO estaba autorizada (para evitar duplicados)
-                    if (nc.Estado != EstadoNotaDeCredito.Autorizada)
-                    {
-                        await RestaurarStockAsync(_context, nc);
-                        await ActualizarCantidadesDevueltasAsync(_context, nc);
-                    }
+                    bool wasAlreadyAuthorized = nc.Estado == EstadoNotaDeCredito.Autorizada;
 
+                    // Actualizar estado y datos del SRI
                     nc.Estado = EstadoNotaDeCredito.Autorizada;
                     nc.InformacionSRI.NumeroAutorizacion = autObj.NumeroAutorizacion;
                     nc.InformacionSRI.FechaAutorizacion = autObj.FechaAutorizacion;
                     nc.InformacionSRI.RespuestaSRI = "AUTORIZADO";
-                    await _context.SaveChangesAsync();
+
+                    // Solo si antes NO estaba autorizada, realizamos acciones críticas
+                    if (!wasAlreadyAuthorized)
+                    {
+                        _logger.LogInformation("NC {Id} cambiando a AUTORIZADO por primera vez. Restaurando stock y enviando correo.", ncId);
+                        
+                        await RestaurarStockAsync(_context, nc);
+                        await ActualizarCantidadesDevueltasAsync(_context, nc);
+                        
+                        // Guardamos los cambios de estado y stock antes de encolar el correo
+                        await _context.SaveChangesAsync();
+
+                        // Encolar el envío de correo en un fire-and-forget para no bloquear la respuesta
+                        _ = Task.Run(async () => {
+                            try
+                            {
+                                // Necesitamos cargar de nuevo las navegaciones para el DTO en este nuevo hilo
+                                var ncWithDetailsForEmail = await GetCreditNoteDetailByIdAsync(ncId);
+                                if (ncWithDetailsForEmail != null && !string.IsNullOrEmpty(ncWithDetailsForEmail.ClienteEmail))
+                                {
+                                    byte[] pdfBytes = _pdfGenerator.GenerarNotaCreditoPdf(ncWithDetailsForEmail);
+                                    string xmlSigned = nc.InformacionSRI.XmlFirmado;
+                                    await _emailService.SendCreditNoteEmailAsync(
+                                        ncWithDetailsForEmail.ClienteEmail, 
+                                        ncWithDetailsForEmail.ClienteNombre, 
+                                        ncWithDetailsForEmail.NumeroNotaCredito, 
+                                        ncId, 
+                                        pdfBytes, 
+                                        xmlSigned);
+                                    _logger.LogInformation("Correo para NC {Id} encolado desde CheckSriStatusAsync.", ncId);
+                                }
+                            }
+                            catch (Exception emailEx)
+                            {
+                                _logger.LogError(emailEx, "Error al enviar correo para NC {Id} desde CheckSriStatusAsync.", ncId);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        // Si ya estaba autorizada, solo guardamos por si hay algún cambio menor en la info del SRI
+                        await _context.SaveChangesAsync();
+                    }
                 }
                 else if (autObj.Estado == "NO AUTORIZADO")
                 {
@@ -440,117 +491,174 @@ namespace FacturasSRI.Infrastructure.Services
                     string respuestaRecepcionXml = await scopedSriClient.EnviarRecepcionAsync(xmlFirmadoBytes);
                     var respuestaRecepcion = scopedParser.ParsearRespuestaRecepcion(respuestaRecepcionXml);
 
-                    // Recuperar con relaciones necesarias para stock y PDF usando el contexto SCOPED
                     var nc = await scopedContext.NotasDeCredito
                         .Include(n => n.Cliente)
                         .Include(n => n.Factura)
-                        .Include(n => n.InformacionSRI) // Importante incluir esto
+                        .Include(n => n.InformacionSRI)
                         .Include(n => n.Detalles)
                             .ThenInclude(d => d.Producto)
                             .ThenInclude(p => p.ProductoImpuestos)
                             .ThenInclude(pi => pi.Impuesto)
                         .FirstOrDefaultAsync(n => n.Id == ncId);
                     
-                    // Obtenemos la entidad SRI ligada a este contexto
+                    if (nc == null)
+                    {
+                        scopedLogger.LogError("[BG-NC] No se encontró la nota de crédito con ID {Id} en el proceso de fondo.", ncId);
+                        return;
+                    }
+                    
                     var ncSri = nc.InformacionSRI; 
-                    // O si no vino en el include (aunque debería), la buscamos:
-                    if (ncSri == null) ncSri = await scopedContext.NotasDeCreditoSRI.FirstOrDefaultAsync(x => x.NotaDeCreditoId == ncId);
+                    if (ncSri == null)
+                    {
+                        scopedLogger.LogError("[BG-NC] No se encontró la información SRI para la nota de crédito {Id}.", ncId);
+                        return;
+                    }
 
-                    if (respuestaRecepcion.Estado == "DEVUELTA")
+                    bool esClaveRepetida = respuestaRecepcion.Estado == "DEVUELTA" &&
+                                           respuestaRecepcion.Errores.Any(e => e.Identificador == "43");
+
+                    if (respuestaRecepcion.Estado == "DEVUELTA" && !esClaveRepetida)
                     {
                         nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
                         ncSri.RespuestaSRI = JsonSerializer.Serialize(respuestaRecepcion.Errores);
-                        // NO SE DEVUELVE STOCK AQUÍ
                     }
                     else
                     {
-                        // 2. AUTORIZACIÓN
-                        try
+                        if (esClaveRepetida)
                         {
-                            await Task.Delay(2500); // Espera prudencial
-                            string respAut = await scopedSriClient.ConsultarAutorizacionAsync(ncSri.ClaveAcceso);
-                            var autObj = scopedParser.ParsearRespuestaAutorizacion(respAut);
+                            scopedLogger.LogInformation("[BG-NC] Clave de acceso ya registrada para NC {Id}. Procediendo a consultar autorización.", ncId);
+                        }
+                        
+                        // 2. AUTORIZACIÓN CON REINTENTOS
+                        RespuestaAutorizacion? autObj = null;
+                        int intentosMaximos = 4;
+                        var delays = new[] { 2500, 5000, 10000, 15000 };
 
+                        for (int i = 0; i < intentosMaximos; i++)
+                        {
+                            scopedLogger.LogInformation("[BG-NC] Consultando autorización... Intento {Intento} de {Maximos}", i + 1, intentosMaximos);
+                            await Task.Delay(delays[i]);
+
+                            try
+                            {
+                                string respAut = await scopedSriClient.ConsultarAutorizacionAsync(ncSri.ClaveAcceso);
+                                autObj = scopedParser.ParsearRespuestaAutorizacion(respAut);
+
+                                if (autObj.Estado != "PROCESANDO")
+                                {
+                                    break;
+                                }
+                            }
+                            catch (Exception exAuth)
+                            {
+                                scopedLogger.LogWarning(exAuth, "[BG-NC] Error en el intento {Intento} de consultar autorización.", i + 1);
+                                if (i == intentosMaximos - 1)
+                                {
+                                    nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
+                                    ncSri.RespuestaSRI = "Error final al consultar autorización: " + exAuth.Message;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (autObj != null)
+                        {
                             if (autObj.Estado == "AUTORIZADO")
                             {
-                                // === DEVOLVER STOCK (BACKGROUND) ===
-                                await RestaurarStockAsync(scopedContext, nc);
-                                await ActualizarCantidadesDevueltasAsync(scopedContext, nc);
+                                if (nc.Estado != EstadoNotaDeCredito.Autorizada)
+                                {
+                                    await RestaurarStockAsync(scopedContext, nc);
+                                    await ActualizarCantidadesDevueltasAsync(scopedContext, nc);
+                                }
 
                                 nc.Estado = EstadoNotaDeCredito.Autorizada;
                                 ncSri.NumeroAutorizacion = autObj.NumeroAutorizacion;
                                 ncSri.FechaAutorizacion = autObj.FechaAutorizacion;
                                 ncSri.RespuestaSRI = "AUTORIZADO";
+                                
+                                await scopedContext.SaveChangesAsync();
 
-                                // 3. ENVIAR CORREO
                                 try
                                 {
-                                    // CORRECCIÓN: Construimos el DTO manualmente usando 'nc' y 'scopedContext'
-                                    // No podemos llamar a GetCreditNoteDetailByIdAsync porque usa '_context' (disposed)
-                                    
-                                    var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto { 
-                                        ProductName = d.Producto.Nombre, 
-                                        Cantidad = d.Cantidad, 
-                                        PrecioVentaUnitario = d.PrecioVentaUnitario, 
-                                        Subtotal = d.Subtotal 
-                                    }).ToList();
-                                    
-                                    var taxSummaries = nc.Detalles
-                                        .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new 
-                                        { d.Subtotal, TaxName = pi.Impuesto.Nombre, TaxRate = pi.Impuesto.Porcentaje }))
-                                        .GroupBy(x => new { x.TaxName, x.TaxRate })
-                                        .Select(g => new TaxSummary { TaxName = g.Key.TaxName, TaxRate = g.Key.TaxRate, Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) })
-                                        .Where(x => x.Amount > 0 || x.TaxRate == 0).ToList();
-
-                                    var ncDto = new CreditNoteDetailViewDto
-                                    {
-                                        Id = nc.Id,
-                                        NumeroNotaCredito = nc.NumeroNotaCredito,
-                                        FechaEmision = nc.FechaEmision,
-                                        ClienteNombre = nc.Cliente.RazonSocial,
-                                        ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
-                                        ClienteDireccion = nc.Cliente.Direccion,
-                                        ClienteEmail = nc.Cliente.Email,
-                                        NumeroFacturaModificada = nc.Factura.NumeroFactura,
-                                        FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
-                                        RazonModificacion = nc.RazonModificacion,
-                                        SubtotalSinImpuestos = nc.SubtotalSinImpuestos,
-                                        TotalIVA = nc.TotalIVA,
-                                        Total = nc.Total,
-                                        ClaveAcceso = ncSri.ClaveAcceso,
-                                        NumeroAutorizacion = ncSri.NumeroAutorizacion,
-                                        Items = itemsDto,
-                                        TaxSummaries = taxSummaries
-                                    };
-                                    
+                                    var ncDto = await BuildCreditNoteDetailViewDto(nc, ncSri);
                                     byte[] pdfBytes = scopedPdf.GenerarNotaCreditoPdf(ncDto);
                                     string xmlSigned = ncSri.XmlFirmado;
                                     
                                     await scopedEmail.SendCreditNoteEmailAsync(nc.Cliente.Email, nc.Cliente.RazonSocial, nc.NumeroNotaCredito, nc.Id, pdfBytes, xmlSigned);
-                                    scopedLogger.LogInformation("[BG-NC] Correo enviado correctamente.");
+                                    scopedLogger.LogInformation("[BG-NC] Correo de nota de crédito {Numero} enviado a {Email}.", nc.NumeroNotaCredito, nc.Cliente.Email);
                                 }
-                                catch(Exception exEmail) { 
-                                    scopedLogger.LogError(exEmail, "[BG-NC] Error enviando correo."); 
+                                catch(Exception exEmail) 
+                                { 
+                                    scopedLogger.LogError(exEmail, "[BG-NC] Error enviando correo de nota de crédito autorizada."); 
                                 }
                             }
                             else if (autObj.Estado == "NO AUTORIZADO")
                             {
                                 nc.Estado = EstadoNotaDeCredito.RechazadaSRI;
                                 ncSri.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
+                                scopedLogger.LogWarning("[BG-NC] Nota de Crédito NO AUTORIZADA por SRI: {Errores}", ncSri.RespuestaSRI);
                             }
-                            else 
+                            else // Sigue en PROCESANDO o estado desconocido
                             {
-                                ncSri.RespuestaSRI = JsonSerializer.Serialize(autObj.Errores);
+                                nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
+                                ncSri.RespuestaSRI = $"El SRI sigue procesando la NC tras {intentosMaximos} intentos. Consulta manual requerida.";
+                                scopedLogger.LogInformation("[BG-NC] La NC {Id} sigue en procesamiento.", ncId);
                             }
                         }
-                        catch (Exception exAuth) { 
-                            scopedLogger.LogError(exAuth, "[BG-NC] Error Auth"); 
+                        else
+                        {
+                            nc.Estado = EstadoNotaDeCredito.EnviadaSRI;
+                            ncSri.RespuestaSRI = "No se pudo obtener una respuesta definitiva del SRI sobre la autorización de la NC.";
+                            scopedLogger.LogError("[BG-NC] No se pudo obtener respuesta de autorización para NC {Id} tras varios intentos.", ncId);
                         }
                     }
                     await scopedContext.SaveChangesAsync();
                 }
-                catch (Exception ex) { scopedLogger.LogError(ex, "[BG-NC] Error crítico."); }
+                catch (Exception ex) { scopedLogger.LogError(ex, "[BG-NC] Error crítico en el proceso de fondo."); }
             }
+        }
+        
+        private Task<CreditNoteDetailViewDto> BuildCreditNoteDetailViewDto(NotaDeCredito nc, NotaDeCreditoSRI ncSri)
+        {
+            var itemsDto = nc.Detalles.Select(d => new CreditNoteItemDetailDto
+            {
+                ProductName = d.Producto.Nombre,
+                Cantidad = d.Cantidad,
+                PrecioVentaUnitario = d.PrecioVentaUnitario,
+                Subtotal = d.Subtotal
+            }).ToList();
+
+            var taxSummaries = nc.Detalles
+                .SelectMany(d => d.Producto.ProductoImpuestos.Select(pi => new
+                {
+                    d.Subtotal,
+                    TaxName = pi.Impuesto.Nombre,
+                    TaxRate = pi.Impuesto.Porcentaje
+                }))
+                .GroupBy(x => new { x.TaxName, x.TaxRate })
+                .Select(g => new TaxSummary { TaxName = g.Key.TaxName, TaxRate = g.Key.TaxRate, Amount = g.Sum(x => x.Subtotal * (x.TaxRate / 100m)) })
+                .Where(x => x.Amount > 0 || x.TaxRate == 0).ToList();
+
+            return Task.FromResult(new CreditNoteDetailViewDto
+            {
+                Id = nc.Id,
+                NumeroNotaCredito = nc.NumeroNotaCredito,
+                FechaEmision = nc.FechaEmision,
+                ClienteNombre = nc.Cliente.RazonSocial,
+                ClienteIdentificacion = nc.Cliente.NumeroIdentificacion,
+                ClienteDireccion = nc.Cliente.Direccion,
+                ClienteEmail = nc.Cliente.Email,
+                NumeroFacturaModificada = nc.Factura.NumeroFactura,
+                FechaEmisionFacturaModificada = nc.Factura.FechaEmision,
+                RazonModificacion = nc.RazonModificacion,
+                SubtotalSinImpuestos = nc.SubtotalSinImpuestos,
+                TotalIVA = nc.TotalIVA,
+                Total = nc.Total,
+                ClaveAcceso = ncSri.ClaveAcceso,
+                NumeroAutorizacion = ncSri.NumeroAutorizacion,
+                Items = itemsDto,
+                TaxSummaries = taxSummaries
+            });
         }
 
         private string GenerarClaveAcceso(DateTime fechaEmision, string tipoComprobante, string ruc, string establecimiento, string puntoEmision, string secuencial, string tipoAmbiente)

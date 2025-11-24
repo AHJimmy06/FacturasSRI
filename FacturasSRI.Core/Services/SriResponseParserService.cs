@@ -59,9 +59,8 @@ namespace FacturasSRI.Core.Services
             var respuesta = new RespuestaAutorizacion();
             var xmlDoc = XDocument.Parse(soapResponse);
 
-            var autorizacionNode = xmlDoc.Descendants(ns2_auth + "autorizacionComprobanteResponse")
-                                         .Descendants("autorizacion")
-                                         .FirstOrDefault();
+            // El nodo puede estar en un namespace, o no. Buscamos de forma más flexible.
+            var autorizacionNode = xmlDoc.Descendants().FirstOrDefault(d => d.Name.LocalName == "autorizacion");
             
             if (autorizacionNode == null)
             {
@@ -70,35 +69,41 @@ namespace FacturasSRI.Core.Services
                 {
                     respuesta.Estado = "ERROR";
                     respuesta.Errores.Add(new SriError { Identificador = "SOAP", Mensaje = faultString });
+                    _logger.LogWarning("Respuesta SRI (Autorización) es un SOAP Fault: {Fault}", faultString);
                     return respuesta;
                 }
                 
+                // Si no hay nodo de autorización ni fault, es porque sigue en procesamiento.
                 respuesta.Estado = "PROCESANDO";
+                _logger.LogInformation("Respuesta SRI (Autorización) no contiene nodo 'autorizacion', se asume PROCESANDO.");
                 return respuesta;
             }
 
-            respuesta.Estado = autorizacionNode.Descendants("estado").FirstOrDefault()?.Value ?? "ERROR";
+            respuesta.Estado = autorizacionNode.Descendants().FirstOrDefault(d => d.Name.LocalName == "estado")?.Value ?? "ERROR";
 
             if (respuesta.Estado == "AUTORIZADO")
             {
-                respuesta.NumeroAutorizacion = autorizacionNode.Descendants("numeroAutorizacion").FirstOrDefault()?.Value ?? "";
+                respuesta.NumeroAutorizacion = autorizacionNode.Descendants().FirstOrDefault(d => d.Name.LocalName == "numeroAutorizacion")?.Value ?? "";
                 
-                if (DateTime.TryParse(autorizacionNode.Descendants("fechaAutorizacion").FirstOrDefault()?.Value, out DateTime fecha))
+                var fechaStr = autorizacionNode.Descendants().FirstOrDefault(d => d.Name.LocalName == "fechaAutorizacion")?.Value;
+                if (DateTime.TryParse(fechaStr, out DateTime fecha))
                 {
                     respuesta.FechaAutorizacion = fecha.ToUniversalTime(); 
                 }
+                _logger.LogInformation("Factura AUTORIZADA. Número: {Numero}", respuesta.NumeroAutorizacion);
             }
             else if (respuesta.Estado == "NO AUTORIZADO")
             {
-                respuesta.Errores = autorizacionNode.Descendants("mensaje")
+                respuesta.Errores = autorizacionNode.Descendants().Where(d => d.Name.LocalName == "mensaje")
                     .Select(m => new SriError
                     {
-                        Identificador = m.Descendants("identificador").FirstOrDefault()?.Value ?? "",
-                        Mensaje = m.Descendants("mensaje").FirstOrDefault()?.Value ?? "",
-                        InformacionAdicional = m.Descendants("informacionAdicional").FirstOrDefault()?.Value ?? "",
-                        Tipo = m.Descendants("tipo").FirstOrDefault()?.Value ?? ""
+                        Identificador = m.Descendants().FirstOrDefault(d => d.Name.LocalName == "identificador")?.Value ?? "",
+                        Mensaje = m.Descendants().FirstOrDefault(d => d.Name.LocalName == "mensaje")?.Value ?? "",
+                        InformacionAdicional = m.Descendants().FirstOrDefault(d => d.Name.LocalName == "informacionAdicional")?.Value ?? "",
+                        Tipo = m.Descendants().FirstOrDefault(d => d.Name.LocalName == "tipo")?.Value ?? ""
                     })
                     .ToList();
+                _logger.LogWarning("Factura NO AUTORIZADA. Errores: {ErrorCount}", respuesta.Errores.Count);
             }
 
             return respuesta;

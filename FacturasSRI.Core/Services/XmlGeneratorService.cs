@@ -125,8 +125,10 @@ namespace FacturasSRI.Core.Services
             };
             
             facturaXml.InfoFactura.Pagos.Add(new PagosPago {
-                FormaPago = "01",
-                Total = facturaDominio.Total.ToString("F2", _cultureInfo)
+                FormaPago = MapearFormaDePago(facturaDominio.FormaDePago),
+                Total = facturaDominio.Total.ToString("F2", _cultureInfo),
+                Plazo = facturaDominio.DiasCredito?.ToString() ?? "0",
+                UnidadTiempo = facturaDominio.DiasCredito.HasValue ? "dias" : null
             });
             
             var gruposImpuestos = facturaDominio.Detalles
@@ -343,6 +345,19 @@ namespace FacturasSRI.Core.Services
                 }
             }
             finally { System.Threading.Thread.CurrentThread.CurrentCulture = currentCulture; }
+        }
+        
+        private string MapearFormaDePago(FormaDePago formaDePago)
+        {
+            switch (formaDePago)
+            {
+                case FormaDePago.Contado:
+                    return "01"; // SIN UTILIZACION DEL SISTEMA FINANCIERO
+                case FormaDePago.Credito:
+                    return "19"; // OTROS CON UTILIZACION DEL SISTEMA FINANCIERO
+                default:
+                    return "01";
+            }
         }
 
         private string MapearTipoIdentificacion(TipoIdentificacion tipo, string numeroIdentificacion)
