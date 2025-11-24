@@ -87,12 +87,11 @@ else
                         <td class="fw-bold">@invoice.NumeroFactura</td>
                         <td>@invoice.ClienteNombre</td>
                         <td>@invoice.FechaEmision.ToShortDateString()</td>
-                        <td>
-                            <span class="badge bg-light text-dark border">
-                                @invoice.FormaDePago
-                            </span>
-                        </td>
-                        <td>
+                                                    <td>
+                                                        <span class="badge @(invoice.FormaDePago == FormaDePago.Credito ? "bg-info text-dark" : "bg-light text-dark border")">
+                                                            @invoice.FormaDePago
+                                                        </span>
+                                                    </td>                        <td>
                             @GetStatusBadge(invoice.Estado)
                         </td>
                         <td>

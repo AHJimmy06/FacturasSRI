@@ -11,13 +11,11 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Notas de Crédito Emitidas</h1>
-    <!-- Botón informativo que redirige a facturas para crear una nueva -->
-    <button class="btn btn-outline-primary" @onclick='() => Navigation.NavigateTo("invoices")'>
-        <i class="bi bi-plus-circle me-2"></i>Nueva (Desde Factura)
+    <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("invoices")'>
+        <i class="bi bi-plus-circle-fill me-2"></i>Nueva (Desde Factura)
     </button>
 </div>
 
-<!-- FILTROS -->
 <div class="row g-2 mb-3">
     <div class="col-md-5">
         <input type="text" class="form-control" placeholder="Buscar por número, factura o cliente..." 
@@ -76,7 +74,7 @@ else
                 @foreach (var nc in FilteredCreditNotes)
                 {
                     <tr>
-                        <td class="fw-bold text-primary">@nc.NumeroNotaCredito</td>
+                        <td class="fw-bold">@nc.NumeroNotaCredito</td>
                         <td>
                             <span class="badge bg-light text-dark border">
                                 <i class="bi bi-receipt me-1"></i>@nc.NumeroFacturaModificada
