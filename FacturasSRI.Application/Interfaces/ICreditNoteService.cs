@@ -16,5 +16,6 @@ namespace FacturasSRI.Application.Interfaces
         Task ReactivateCancelledCreditNoteAsync(Guid creditNoteId);
         Task<CreditNoteDetailViewDto?> IssueDraftCreditNoteAsync(Guid creditNoteId);
         Task<CreditNoteDto?> UpdateCreditNoteAsync(UpdateCreditNoteDto dto);
+        Task ResendCreditNoteEmailAsync(Guid creditNoteId);
     }
 }

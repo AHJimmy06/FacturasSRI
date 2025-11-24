@@ -28,6 +28,8 @@ namespace FacturasSRI.Infrastructure.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly SriApiClientService _sriApiClientService;
         private readonly SriResponseParserService _sriResponseParserService;
+        private readonly IEmailService _emailService;
+        private readonly PdfGeneratorService _pdfGenerator;
 
         // Semáforo para evitar concurrencia en la generación de números secuenciales
         private static readonly SemaphoreSlim _ncSemaphore = new SemaphoreSlim(1, 1);
@@ -39,7 +41,9 @@ namespace FacturasSRI.Infrastructure.Services
             XmlGeneratorService xmlGeneratorService,
             IServiceScopeFactory serviceScopeFactory,
             SriApiClientService sriApiClientService,
-            SriResponseParserService sriResponseParserService)
+            SriResponseParserService sriResponseParserService,
+            IEmailService emailService,
+            PdfGeneratorService pdfGenerator)
         {
             _context = context;
             _logger = logger;
@@ -48,7 +52,41 @@ namespace FacturasSRI.Infrastructure.Services
             _serviceScopeFactory = serviceScopeFactory;
             _sriApiClientService = sriApiClientService;
             _sriResponseParserService = sriResponseParserService;
+            _emailService = emailService;
+            _pdfGenerator = pdfGenerator;
         }
+
+        public async Task ResendCreditNoteEmailAsync(Guid creditNoteId)
+        {
+            await Task.Run(async () =>
+            {
+                var creditNote = await GetCreditNoteDetailByIdAsync(creditNoteId);
+                var creditNoteEntity = await _context.NotasDeCredito.Include(i => i.InformacionSRI).FirstOrDefaultAsync(i => i.Id == creditNoteId);
+
+                if (creditNote == null || creditNoteEntity == null) return;
+                if (string.IsNullOrEmpty(creditNote.ClienteEmail)) return;
+
+                try
+                {
+                    var pdfBytes = _pdfGenerator.GenerarNotaCreditoPdf(creditNote);
+                    var xmlFirmado = creditNoteEntity.InformacionSRI?.XmlFirmado ?? "";
+
+                    await _emailService.SendCreditNoteEmailAsync(
+                        creditNote.ClienteEmail,
+                        creditNote.ClienteNombre,
+                        creditNote.NumeroNotaCredito,
+                        creditNote.Id,
+                        pdfBytes,
+                        xmlFirmado
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error enviando email de nota de crédito en background");
+                }
+            });
+        }
+
 
         // 1. PARA EL LISTADO
         public async Task<List<CreditNoteDto>> GetCreditNotesAsync()

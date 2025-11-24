@@ -39,6 +39,18 @@ else
                 <a href="/api/downloads/nc-ride/@creditNote.Id" target="_blank" class="btn btn-danger me-2">
                     <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
                 </a>
+                <button class="btn btn-success" @onclick="ResendEmail" disabled="@sendingEmail">
+                    @if (sendingEmail)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                        <span>Enviando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-envelope me-2"></i>
+                        <span>Reenviar Correo</span>
+                    }
+                </button>
             }
             @if (userIsAdmin && creditNote.Estado == EstadoNotaDeCredito.Cancelada)
             {
@@ -48,6 +60,14 @@ else
             }
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(emailMessage))
+    {
+        <div class="alert @(emailSuccess ? "alert-success" : "alert-warning") alert-dismissible fade show" role="alert">
+            @emailMessage
+            <button type="button" class="btn-close" @onclick="() => emailMessage = null"></button>
+        </div>
+    }
 
     <div class="row">
         <!-- COLUMNA IZQUIERDA: DATOS DEL DOCUMENTO -->
@@ -262,12 +282,37 @@ else
     private bool isCheckingStatus = false;
     private bool userIsAdmin = false;
     private bool showIssueModal = false;
+    private bool sendingEmail = false;
+    private bool emailSuccess = false;
+    private string? emailMessage;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         userIsAdmin = authState.User.IsInRole("Administrador");
         await LoadData();
+    }
+
+    private async Task ResendEmail()
+    {
+        sendingEmail = true;
+        emailMessage = null;
+
+        try
+        {
+            await CreditNoteService.ResendCreditNoteEmailAsync(Id);
+            emailSuccess = true;
+            emailMessage = "Correo enviado exitosamente al cliente.";
+        }
+        catch (Exception ex)
+        {
+            emailSuccess = false;
+            emailMessage = $"Error al enviar correo: {ex.Message}";
+        }
+        finally
+        {
+            sendingEmail = false;
+        }
     }
 
     private void OpenIssueModal() => showIssueModal = true;
