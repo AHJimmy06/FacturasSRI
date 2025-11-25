@@ -54,12 +54,11 @@
                                 </div>
                                 @if (productSearchResults.Any())
                                 {
-                                    <div class="search-floating-results bg-white">
+                                                                         <div class="search-results-popup bg-white">
                                         <div class="list-group list-group-flush">
                                             @foreach (var product in productSearchResults)
                                             {
-                                                <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-bottom" @onclick="() => AddItem(product)">
-                                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                                <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-bottom" @onclick="() => AddItem(product)">                                                    <div class="d-flex w-100 justify-content-between align-items-center">
                                                         <div class="text-truncate me-2">
                                                             <span class="fw-bold text-dark small">@product.Nombre</span>
                                                             <span class="text-muted ms-1" style="font-size: 0.75rem;">| @product.CodigoPrincipal</span>
@@ -190,19 +189,18 @@
                                                @bind="customerSearchTerm" @bind:event="oninput" @onkeyup="SearchCustomers" />
                                     </div>
 
-                                    @if (customerSearchResults.Any())
-                                    {
-                                        <div class="list-group position-absolute w-100 shadow mt-1 bg-white rounded-3 overflow-hidden border" style="z-index: 1050; max-height: 180px; overflow-y: auto;">
-                                            @foreach (var customer in customerSearchResults)
-                                            {
-                                                <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-0 border-bottom small" @onclick="() => SelectCustomer(customer)">
-                                                    <div class="fw-bold text-dark text-truncate">@customer.RazonSocial</div>
-                                                    <div class="text-muted" style="font-size: 0.7rem;">@customer.NumeroIdentificacion</div>
-                                                </button>
-                                            }
-                                        </div>
-                                    }
-                                </div>
+                                                                         @if (customerSearchResults.Any())
+                                                                        {
+                                                                            <div class="search-results-popup list-group bg-white rounded-3">
+                                                                                @foreach (var customer in customerSearchResults)
+                                                                                {
+                                                                                    <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-0 border-bottom small" @onclick="() => SelectCustomer(customer)">
+                                                                                        <div class="fw-bold text-dark text-truncate">@customer.RazonSocial</div>
+                                                                                        <div class="text-muted" style="font-size: 0.7rem;">@customer.NumeroIdentificacion</div>
+                                                                                    </button>
+                                                                                }
+                                                                            </div>
+                                                                        }                                </div>
 
                                 @if (formModel.SelectedClienteId.HasValue)
                                 {
