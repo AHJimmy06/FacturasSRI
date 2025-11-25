@@ -23,8 +23,8 @@
 else if (errorMessage != null)
 {
     <div class="alert alert-danger">
-        <h4>Error al cargar el panel</h4>
-        <p>@errorMessage</p>
+        <h4>Ha ocurrido un error inesperado.</h4>
+        <p>Un problema ha impedido que la página se cargue correctamente. Por favor, inténtelo de nuevo, o revise su conexión a internet. Si el problema persiste, contacte a soporte técnico.</p>
     </div>
 }
 else if (stats != null)
@@ -211,9 +211,9 @@ else if (stats != null)
         {
             stats = await DashboardService.GetDashboardStatsAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"No se pudieron cargar las estadísticas. {ex.Message}";
+            errorMessage = "No se pudieron cargar las estadísticas.";
         }
     }
 }

@@ -41,16 +41,17 @@
 
 @if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-danger mb-4 shadow-sm border-0" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
+    <div class="alert alert-danger">
+        <h4>Ha ocurrido un error inesperado.</h4>
+        <p>Un problema ha impedido que la página se cargue correctamente. Por favor, inténtelo de nuevo, o revise su conexión a internet. Si el problema persiste, contacte a soporte técnico.</p>
     </div>
 }
 
-@if (allProducts == null)
+@if (allProducts == null && string.IsNullOrEmpty(errorMessage))
 {
     <p><em>Cargando productos...</em></p>
 }
-else
+else if(allProducts != null)
 {
     <div class="table-responsive">
         <table class="table table-hover align-middle">
@@ -187,9 +188,9 @@ else
         {
             allTaxes = await TaxService.GetActiveTaxesAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"Error cargando impuestos: {ex.Message}";
+            errorMessage = "Error al cargar los impuestos.";
         }
     }
 
@@ -199,9 +200,9 @@ else
         {
             currentGlobalTax = await ProductService.GetCurrentGlobalTaxAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"Error cargando impuesto global: {ex.Message}";
+            errorMessage = "Error al cargar el impuesto global.";
         }
     }
 
@@ -230,9 +231,9 @@ else
             CloseGlobalTaxModal();
             await LoadCurrentGlobalTax();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"Error al aplicar impuesto global: {ex.Message}";
+            errorMessage = "Error al aplicar el impuesto global.";
         }
     }
 
@@ -243,9 +244,9 @@ else
         {
             allProducts = await ProductService.GetProductsAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"Error cargando productos: {ex.Message}";
+            errorMessage = "Error al cargar los productos.";
         }
     }
 
@@ -275,9 +276,9 @@ else
             await ProductService.DeleteProductAsync(productToToggleId);
             await LoadProducts();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            errorMessage = $"Error al {action} el producto: {ex.Message}";
+            errorMessage = $"Error al {action} el producto.";
         }
     }
 

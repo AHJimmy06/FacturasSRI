@@ -21,6 +21,14 @@
     </button>
 </div>
 
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">
+        <h4>Ha ocurrido un error inesperado.</h4>
+        <p>Un problema ha impedido que la página se cargue correctamente. Por favor, inténtelo de nuevo, o revise su conexión a internet. Si el problema persiste, contacte a soporte técnico.</p>
+    </div>
+}
+
 <div class="mb-3">
     <input type="text" class="form-control" placeholder="Buscar clientes por razón social o identificación..." @bind-value="searchTerm" @bind-value:event="oninput" />
 </div>
@@ -110,6 +118,7 @@
     private string confirmationModalMessage = string.Empty;
     private Guid customerToToggleId;
     private string? statusMessage;
+    private string? errorMessage;
     private bool isSuccess;
     private string searchTerm = string.Empty;
 
@@ -126,7 +135,14 @@
     
     private async Task LoadCustomers()
     {
-        allCustomers = await CustomerService.GetCustomersAsync();
+        try
+        {
+            allCustomers = await CustomerService.GetCustomersAsync();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Error al cargar clientes.";
+        }
     }
 
     private void HandleDeleteCustomer(Guid id)
