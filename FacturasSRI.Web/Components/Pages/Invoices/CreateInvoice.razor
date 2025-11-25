@@ -37,7 +37,8 @@
     <EditForm Model="@formModel">
         <DataAnnotationsValidator />
 
-        <div class="row g-3"> <div class="col-lg-8">
+        <div class="invoice-layout">
+            <div class="invoice-main-content">
                 <div class="card shadow-sm border-0 rounded-3 h-100">
                     <div class="card-body p-0 d-flex flex-column">
                         
@@ -73,9 +74,9 @@
                             </div>
                         </div>
 
-                        <div class="table-responsive flex-grow-1">
+                        <div class="table-responsive flex-grow-1" style="overflow-y: auto;">
                             <table class="table table-hover table-sm table-compact align-middle mb-0">
-                                <thead class="bg-white text-uppercase text-secondary border-bottom">
+                                <thead class="bg-white text-uppercase text-secondary border-bottom position-sticky top-0" style="z-index: 1;">
                                     <tr>
                                         <th class="ps-3" style="width: 45%;">Producto</th>
                                         <th class="text-center" style="width: 15%;">Cant.</th>
@@ -160,164 +161,166 @@
                 </div>
             </div>
 
-            <div class="col-lg-4 d-flex flex-column gap-3">
-                
-                <div class="card shadow-sm border-0 rounded-3">
-                    <div class="card-body p-3"> <h6 class="fw-bold mb-2 small text-uppercase text-muted d-flex align-items-center">
-                            <i class="bi bi-person-badge me-2"></i> Cliente
-                        </h6>
-                        
-                        <div class="btn-group w-100 mb-2 btn-group-sm" role="group">
-                            <input type="radio" class="btn-check" name="customerType" id="typeExisting"
-                                checked="@(customerSelectionType == "existing")"
-                                @onchange="@(() => ChangeCustomerType("existing"))">
-                            <label class="btn btn-outline-brand" for="typeExisting">Registrado</label>
+            <div class="invoice-sidebar">
+                <div class="d-flex flex-column gap-3">
+                    <div class="card shadow-sm border-0 rounded-3">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold mb-2 small text-uppercase text-muted d-flex align-items-center">
+                                <i class="bi bi-person-badge me-2"></i> Cliente
+                            </h6>
+                            
+                            <div class="btn-group w-100 mb-2 btn-group-sm" role="group">
+                                <input type="radio" class="btn-check" name="customerType" id="typeExisting"
+                                    checked="@(customerSelectionType == "existing")"
+                                    @onchange="@(() => ChangeCustomerType("existing"))">
+                                <label class="btn btn-outline-brand" for="typeExisting">Registrado</label>
 
-                            <input type="radio" class="btn-check" name="customerType" id="typeFinal"
-                                checked="@(customerSelectionType == "finalConsumer")"
-                                @onchange="@(() => ChangeCustomerType("finalConsumer"))">
-                            <label class="btn btn-outline-brand" for="typeFinal">Consumidor Final</label>
-                        </div>
-
-                        @if (customerSelectionType == "existing")
-                        {
-                            <div class="position-relative mb-2">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control border-start-0 shadow-none" placeholder="Buscar cliente..."
-                                           @bind="customerSearchTerm" @bind:event="oninput" @onkeyup="SearchCustomers" />
-                                </div>
-
-                                @if (customerSearchResults.Any())
-                                {
-                                    <div class="list-group position-absolute w-100 shadow mt-1 bg-white rounded-3 overflow-hidden border" style="z-index: 1050; max-height: 180px; overflow-y: auto;">
-                                        @foreach (var customer in customerSearchResults)
-                                        {
-                                            <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-0 border-bottom small" @onclick="() => SelectCustomer(customer)">
-                                                <div class="fw-bold text-dark text-truncate">@customer.RazonSocial</div>
-                                                <div class="text-muted" style="font-size: 0.7rem;">@customer.NumeroIdentificacion</div>
-                                            </button>
-                                        }
-                                    </div>
-                                }
+                                <input type="radio" class="btn-check" name="customerType" id="typeFinal"
+                                    checked="@(customerSelectionType == "finalConsumer")"
+                                    @onchange="@(() => ChangeCustomerType("finalConsumer"))">
+                                <label class="btn btn-outline-brand" for="typeFinal">Consumidor Final</label>
                             </div>
 
-                            @if (formModel.SelectedClienteId.HasValue)
+                            @if (customerSelectionType == "existing")
                             {
-                                <div class="bg-primary bg-opacity-10 rounded p-2 border border-primary border-opacity-10 position-relative fade-in mt-2">
-                                    <button type="button" class="btn-close position-absolute top-0 end-0 m-1" style="font-size: 0.6rem;" aria-label="Close" @onclick="ClearCustomer"></button>
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-white p-1 rounded text-primary me-2 shadow-sm d-flex justify-content-center align-items-center" style="width: 28px; height: 28px;">
-                                            <i class="bi bi-building small"></i>
-                                        </div>
-                                        <div class="overflow-hidden" style="line-height: 1.2;">
-                                            <div class="fw-bold text-dark text-truncate small">@selectedCustomer?.RazonSocial</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">@selectedCustomer?.NumeroIdentificacion</div>
-                                        </div>
+                                <div class="position-relative mb-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control border-start-0 shadow-none" placeholder="Buscar cliente..."
+                                               @bind="customerSearchTerm" @bind:event="oninput" @onkeyup="SearchCustomers" />
                                     </div>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="text-center py-2 bg-light rounded border border-dashed mt-2">
-                                    <small class="text-muted" style="font-size: 0.75rem;">Seleccione un cliente</small>
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
 
-                <div class="card shadow-sm border-0 rounded-3">
-                    <div class="card-body p-3">
-                        <h6 class="fw-bold mb-2 small text-uppercase text-muted d-flex align-items-center">
-                            <i class="bi bi-wallet2 me-2"></i> Pago
-                        </h6>
-                        
-                        <div class="mb-2">
-                            <InputSelect @bind-Value="formModel.FormaDePago" class="form-select form-select-sm shadow-none" disabled="@(customerSelectionType == "finalConsumer")">
-                                @foreach (var forma in Enum.GetValues(typeof(FormaDePago)))
+                                    @if (customerSearchResults.Any())
+                                    {
+                                        <div class="list-group position-absolute w-100 shadow mt-1 bg-white rounded-3 overflow-hidden border" style="z-index: 1050; max-height: 180px; overflow-y: auto;">
+                                            @foreach (var customer in customerSearchResults)
+                                            {
+                                                <button type="button" class="list-group-item list-group-item-action px-3 py-2 border-0 border-bottom small" @onclick="() => SelectCustomer(customer)">
+                                                    <div class="fw-bold text-dark text-truncate">@customer.RazonSocial</div>
+                                                    <div class="text-muted" style="font-size: 0.7rem;">@customer.NumeroIdentificacion</div>
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                @if (formModel.SelectedClienteId.HasValue)
                                 {
-                                    <option value="@forma">@forma.ToString()</option>
-                                }
-                            </InputSelect>
-                        </div>
-
-                        @if (formModel.FormaDePago == FormaDePago.Credito)
-                        {
-                            <div class="credit-options-container p-2 rounded-end fade-in mt-2">
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <label class="compact-form-label">Días</label>
-                                        <InputNumber @bind-Value="formModel.DiasCredito" class="form-control form-control-sm shadow-none" min="1" />
-                                        @if (formModel.DiasCredito.HasValue && formModel.DiasCredito.GetValueOrDefault() < 1)
-                                        {
-                                            <div class="text-danger mt-1 lh-1" style="font-size: 0.65rem;">
-                                                <i class="bi bi-x-circle-fill"></i> Mín. 1
+                                    <div class="bg-primary bg-opacity-10 rounded p-2 border border-primary border-opacity-10 position-relative fade-in mt-2">
+                                        <button type="button" class="btn-close position-absolute top-0 end-0 m-1" style="font-size: 0.6rem;" aria-label="Close" @onclick="ClearCustomer"></button>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-white p-1 rounded text-primary me-2 shadow-sm d-flex justify-content-center align-items-center" style="width: 28px; height: 28px;">
+                                                <i class="bi bi-building small"></i>
                                             </div>
-                                        }
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="compact-form-label">Abono</label>
-                                        <div class="input-group input-group-sm">
-                                            <span class="input-group-text bg-white border-end-0 text-muted px-1">$</span>
-                                            <InputNumber @bind-Value="formModel.MontoAbonoInicial" class="form-control border-start-0 ps-1 shadow-none" step="0.01" />
+                                            <div class="overflow-hidden" style="line-height: 1.2;">
+                                                <div class="fw-bold text-dark text-truncate small">@selectedCustomer?.RazonSocial</div>
+                                                <div class="text-muted" style="font-size: 0.7rem;">@selectedCustomer?.NumeroIdentificacion</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="col-12">
-                                        @if (formModel.MontoAbonoInicial > total)
-                                        {
-                                            <div class="text-danger small bg-white border border-danger rounded p-1 text-center" style="font-size: 0.75rem;">
-                                                <i class="bi bi-exclamation-circle-fill"></i> Abono no puede ser mayor al total
+                                }
+                                else
+                                {
+                                    <div class="text-center py-2 bg-light rounded border border-dashed mt-2">
+                                        <small class="text-muted" style="font-size: 0.75rem;">Seleccione un cliente</small>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 rounded-3">
+                        <div class="card-body p-3">
+                            <h6 class="fw-bold mb-2 small text-uppercase text-muted d-flex align-items-center">
+                                <i class="bi bi-wallet2 me-2"></i> Pago
+                            </h6>
+                            
+                            <div class="mb-2">
+                                <InputSelect @bind-Value="formModel.FormaDePago" class="form-select form-select-sm shadow-none" disabled="@(customerSelectionType == "finalConsumer")">
+                                    @foreach (var forma in Enum.GetValues(typeof(FormaDePago)))
+                                    {
+                                        <option value="@forma">@forma.ToString()</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            @if (formModel.FormaDePago == FormaDePago.Credito)
+                            {
+                                <div class="credit-options-container p-2 rounded-end fade-in mt-2">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="compact-form-label">Días</label>
+                                            <InputNumber @bind-Value="formModel.DiasCredito" class="form-control form-control-sm shadow-none" min="1" />
+                                            @if (formModel.DiasCredito.HasValue && formModel.DiasCredito.GetValueOrDefault() < 1)
+                                            {
+                                                <div class="text-danger mt-1 lh-1" style="font-size: 0.65rem;">
+                                                    <i class="bi bi-x-circle-fill"></i> Mín. 1
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="compact-form-label">Abono</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white border-end-0 text-muted px-1">$</span>
+                                                <InputNumber @bind-Value="formModel.MontoAbonoInicial" class="form-control border-start-0 ps-1 shadow-none" step="0.01" />
                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary border-opacity-10 mt-1">
-                                                <span class="small text-muted fw-semibold" style="font-size: 0.7rem;">Pendiente:</span>
-                                                <span class="fw-bold text-dark small">@((total - formModel.MontoAbonoInicial).ToString("C"))</span>
-                                            </div>
-                                        }
+                                        </div>
+                                        <div class="col-12">
+                                            @if (formModel.MontoAbonoInicial > total)
+                                            {
+                                                <div class="text-danger small bg-white border border-danger rounded p-1 text-center" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-exclamation-circle-fill"></i> Abono no puede ser mayor al total
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex justify-content-between align-items-center pt-1 border-top border-secondary border-opacity-10 mt-1">
+                                                    <span class="small text-muted fw-semibold" style="font-size: 0.7rem;">Pendiente:</span>
+                                                    <span class="fw-bold text-dark small">@((total - formModel.MontoAbonoInicial).ToString("C"))</span>
+                                                </div>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        @if (isEditMode)
+                        {
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-primary" @onclick="() => HandleSave(false)" disabled="@(!IsValidForm() || isSubmitting)">
+                                    @if(isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                    <i class="bi bi-save-fill me-2"></i>Guardar Cambios
+                                </button>
+                                <button type="button" class="btn btn-success" @onclick="() => HandleSave(true)" disabled="@(!IsValidForm() || isSubmitting)">
+                                    @if(isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                    <i class="bi bi-send-check-fill me-2"></i>Guardar y Emitir
+                                </button>
                             </div>
                         }
+                        else
+                        {
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="borradorSwitch" @bind="formModel.EsBorrador">
+                                <label class="form-check-label" for="borradorSwitch">Guardar como Borrador</label>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100 py-2 shadow-sm fw-bold text-uppercase"
+                                    style="letter-spacing: 0.5px; font-size: 0.9rem;"
+                                    @onclick="() => HandleSave(false)"
+                                    disabled="@(!IsValidForm() || isSubmitting)">
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span> <span>Procesando...</span>
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-send-check-fill me-2"></i>@(formModel.EsBorrador ? "Guardar Borrador" : "Emitir Factura")</span>
+                                }
+                            </button>
+                        }
                     </div>
-                </div>
-
-                <div class="mt-auto">
-                    @if (isEditMode)
-                    {
-                        <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-primary" @onclick="() => HandleSave(false)" disabled="@(!IsValidForm() || isSubmitting)">
-                                @if(isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                                <i class="bi bi-save-fill me-2"></i>Guardar Cambios
-                            </button>
-                            <button type="button" class="btn btn-success" @onclick="() => HandleSave(true)" disabled="@(!IsValidForm() || isSubmitting)">
-                                @if(isSubmitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                                <i class="bi bi-send-check-fill me-2"></i>Guardar y Emitir
-                            </button>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" role="switch" id="borradorSwitch" @bind="formModel.EsBorrador">
-                            <label class="form-check-label" for="borradorSwitch">Guardar como Borrador</label>
-                        </div>
-                        <button type="button" class="btn btn-primary w-100 py-2 shadow-sm fw-bold text-uppercase"
-                                style="letter-spacing: 0.5px; font-size: 0.9rem;"
-                                @onclick="() => HandleSave(false)"
-                                disabled="@(!IsValidForm() || isSubmitting)">
-                            @if (isSubmitting)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span> <span>Procesando...</span>
-                            }
-                            else
-                            {
-                                <span><i class="bi bi-send-check-fill me-2"></i>@(formModel.EsBorrador ? "Guardar Borrador" : "Emitir Factura")</span>
-                            }
-                        </button>
-                    }
                 </div>
             </div>
         </div>
@@ -328,6 +331,18 @@
     .hover-opacity-100:hover { opacity: 1 !important; }
     .fade-in { animation: fadeIn 0.2s ease-in-out; }
     @@keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+
+    .invoice-layout {
+        display: grid;
+        grid-template-columns: 1fr 420px; 
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .invoice-sidebar {
+        position: sticky;
+        top: 1.5rem; 
+    }
 </style>
 
 @code {
