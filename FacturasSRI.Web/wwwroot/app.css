@@ -680,6 +680,11 @@ input.invalid:focus {
     font-size: 0.875rem;
 }
 
+.product-stock-info {
+    display: block;
+    margin-top: 0.25rem;
+}
+
 /* ==========================================================================
    Estilos personalizados para el color #1A237E (BLINDADOS)
    ========================================================================== */

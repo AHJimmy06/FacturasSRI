@@ -62,6 +62,18 @@
                                                         <div class="text-truncate me-2">
                                                             <span class="fw-bold text-dark small">@product.Nombre</span>
                                                             <span class="text-muted ms-1" style="font-size: 0.75rem;">| @product.CodigoPrincipal</span>
+                                                            
+                                                            <div class="product-stock-info">
+                                                                @if (product.ManejaInventario)
+                                                                {
+                                                                    <span class="badge bg-light text-dark border fw-normal">Stock: @product.StockTotal</span>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="badge bg-info-subtle text-info-emphasis border-info-subtle border fw-normal">Servicio</span>
+                                                                }
+                                                            </div>
+
                                                         </div>
                                                         <span class="badge bg-light text-dark border fw-normal text-end" style="min-width: 60px;">@product.PrecioVentaUnitario.ToString("C")</span>
                                                     </div>
