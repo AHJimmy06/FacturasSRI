@@ -63,13 +63,17 @@
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="cantidad" class="form-label">Cantidad</label>
-                        <InputNumber id="cantidad" class="form-control" @bind-Value="newPurchase.Cantidad" disabled="@isSubmitting" />
+                        <InputNumber id="cantidad" class="form-control" @bind-Value="newPurchase.Cantidad" @bind-Value:after="UpdateMontoTotal" disabled="@isSubmitting" />
                         <ValidationMessage For="@(() => newPurchase.Cantidad)" />
                     </div>
                     <div class="mb-3">
-                        <label for="montoTotal" class="form-label">Monto Total de la Factura (IVA incluido)</label>
-                        <InputNumber id="montoTotal" class="form-control" @bind-Value="newPurchase.MontoTotal" disabled="@isSubmitting" step="0.01" />
-                        <ValidationMessage For="@(() => newPurchase.MontoTotal)" />
+                        <label for="precioCompra" class="form-label">Precio de Compra Unitario (IVA incluido)</label>
+                        <InputNumber id="precioCompra" class="form-control" @bind-Value="newPurchase.PrecioCompraUnitario" @bind-Value:after="UpdateMontoTotal" disabled="@isSubmitting" step="0.01" />
+                        <ValidationMessage For="@(() => newPurchase.PrecioCompraUnitario)" />
+                    </div>
+                     <div class="mb-3">
+                        <label class="form-label">Monto Total Calculado</label>
+                        <input class="form-control" value="@montoTotalCalculado.ToString("C")" readonly disabled />
                     </div>
                     <div class="mb-3">
                         <label for="fechaCaducidad" class="form-label">Fecha de Caducidad (Opcional)</label>
@@ -125,6 +129,7 @@
 
     private IBrowserFile? comprobanteFile;
     private string? fileValidationMessage;
+    private decimal montoTotalCalculado = 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -138,6 +143,12 @@
             statusMessage = $"No se pudieron cargar los productos. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
             isSuccess = false;
         }
+    }
+
+    private void UpdateMontoTotal()
+    {
+        montoTotalCalculado = newPurchase.Cantidad * newPurchase.PrecioCompraUnitario;
+        StateHasChanged();
     }
 
     private void OnInputFileChange(InputFileChangeEventArgs e)

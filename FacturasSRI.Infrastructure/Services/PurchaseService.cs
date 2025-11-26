@@ -66,6 +66,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     throw new InvalidOperationException("La fecha de vencimiento debe ser una fecha futura.");
                 }
+                
+                var montoTotal = purchaseDto.Cantidad * purchaseDto.PrecioCompraUnitario;
 
                 var cuenta = new CuentaPorPagar
                 {
@@ -74,7 +76,7 @@ namespace FacturasSRI.Infrastructure.Services
                     NombreProveedor = purchaseDto.NombreProveedor,
                     FacturaCompraPath = purchaseDto.FacturaCompraPath,
                     FechaEmision = DateTime.UtcNow,
-                    MontoTotal = purchaseDto.MontoTotal,
+                    MontoTotal = montoTotal,
                     Cantidad = purchaseDto.Cantidad,
                     Estado = purchaseDto.FormaDePago == FormaDePago.Credito ? EstadoCompra.Pendiente : EstadoCompra.Pagada,
                     FormaDePago = purchaseDto.FormaDePago,
@@ -92,7 +94,7 @@ namespace FacturasSRI.Infrastructure.Services
                         ProductoId = purchaseDto.ProductoId,
                         CantidadComprada = purchaseDto.Cantidad,
                         CantidadDisponible = purchaseDto.Cantidad,
-                        PrecioCompraUnitario = (purchaseDto.Cantidad > 0) ? (purchaseDto.MontoTotal / purchaseDto.Cantidad) : 0,
+                        PrecioCompraUnitario = purchaseDto.PrecioCompraUnitario,
                         FechaCompra = DateTime.UtcNow,
                         FechaCaducidad = purchaseDto.FechaCaducidad?.ToUniversalTime(),
                         UsuarioIdCreador = purchaseDto.UsuarioIdCreador,
@@ -203,6 +205,7 @@ namespace FacturasSRI.Infrastructure.Services
                     NombreProveedor = p.NombreProveedor,
                     Cantidad = p.Cantidad,
                     MontoTotal = p.MontoTotal,
+                    PrecioCompraUnitario = (p.Cantidad > 0) ? (p.MontoTotal / p.Cantidad) : 0,
                     Estado = p.Estado,
                     FechaEmision = p.FechaEmision,
                     FechaVencimiento = p.FechaVencimiento,
@@ -227,6 +230,7 @@ namespace FacturasSRI.Infrastructure.Services
                     NombreProveedor = p.NombreProveedor,
                     Cantidad = p.Cantidad,
                     MontoTotal = p.MontoTotal,
+                    PrecioCompraUnitario = (p.Cantidad > 0) ? (p.MontoTotal / p.Cantidad) : 0,
                     Estado = p.Estado,
                     FechaEmision = p.FechaEmision,
                     FechaVencimiento = p.FechaVencimiento,

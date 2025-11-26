@@ -80,6 +80,7 @@ namespace FacturasSRI.Infrastructure.Services
                               ManejaInventario = product.ManejaInventario,
                               ManejaLotes = product.ManejaLotes,
                               StockTotal = product.ManejaLotes ? product.Lotes.Sum(l => l.CantidadDisponible) : product.StockTotal,
+                              MaxPurchasePrice = product.ManejaLotes && product.Lotes.Any() ? product.Lotes.Max(l => l.PrecioCompraUnitario) : (decimal?)null,
                               CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                               IsActive = product.EstaActivo,
                               FechaCreacion = product.FechaCreacion,

@@ -53,9 +53,16 @@ else
                             <InputText class="form-control" @bind-Value="product.Descripcion" />
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Precio de Venta</label>
-                            <InputNumber class="form-control" @bind-Value="product.PrecioVentaUnitario" step="0.01" />
+                            <label class="form-label">PVP</label>
+                            <InputNumber class="form-control" @bind-Value="product.PrecioVentaUnitario" @bind-Value:after="CheckPrice" step="0.01" />
                             <ValidationMessage For="@(() => product.PrecioVentaUnitario)" />
+                            @if (showPriceWarning)
+                            {
+                                <div class="alert alert-warning mt-2 small">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    Atención: El PVP es menor que el precio máximo de compra registrado (@maxPurchasePrice?.ToString("C")).
+                                </div>
+                            }
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Marca</label>
@@ -106,6 +113,8 @@ else
     private ProductDto? product;
     private string? errorMessage;
     private List<CategoriaDto> todasLasCategorias = new();
+    private decimal? maxPurchasePrice;
+    private bool showPriceWarning = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,10 +128,24 @@ else
             }
 
             todasLasCategorias = await ProductService.GetAllCategoriasAsync();
+            maxPurchasePrice = product.MaxPurchasePrice;
+            CheckPrice(); // Initial check
         }
         catch (Exception ex)
         {
             errorMessage = $"No se pudo cargar la información del producto o sus categorías. Por favor, inténtelo de nuevo. Si el problema persiste, contacte a soporte técnico. Detalles: {ex.Message}";
+        }
+    }
+
+    private void CheckPrice()
+    {
+        if (product != null && maxPurchasePrice.HasValue && product.PrecioVentaUnitario < maxPurchasePrice.Value)
+        {
+            showPriceWarning = true;
+        }
+        else
+        {
+            showPriceWarning = false;
         }
     }
 

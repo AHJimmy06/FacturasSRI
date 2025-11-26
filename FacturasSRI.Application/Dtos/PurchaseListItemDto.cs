@@ -10,6 +10,7 @@ namespace FacturasSRI.Application.Dtos
         public string NombreProveedor { get; set; } = string.Empty;
         public int Cantidad { get; set; }
         public decimal MontoTotal { get; set; }
+        public decimal PrecioCompraUnitario { get; set; }
         public EstadoCompra Estado { get; set; }
         public DateTime FechaEmision { get; set; }
         public DateTime? FechaVencimiento { get; set; }
