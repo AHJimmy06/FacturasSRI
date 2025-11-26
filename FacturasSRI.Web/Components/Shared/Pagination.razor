@@ -2,7 +2,12 @@
 {
     <nav aria-label="Page navigation">
         <ul class="pagination justify-content-center">
-            <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
+            <li class="page-item page-item-control @(CurrentPage == 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageSelected.InvokeAsync(1)" aria-label="First">
+                    <span aria-hidden="true">&laquo;</span>
+                </button>
+            </li>
+            <li class="page-item page-item-control @(CurrentPage == 1 ? "disabled" : "")">
                 <button class="page-link" @onclick="() => OnPageSelected.InvokeAsync(CurrentPage - 1)">Anterior</button>
             </li>
 
@@ -14,8 +19,13 @@
                 </li>
             }
 
-            <li class="page-item @(CurrentPage == TotalPages ? "disabled" : "")">
+            <li class="page-item page-item-control @(CurrentPage == TotalPages ? "disabled" : "")">
                 <button class="page-link" @onclick="() => OnPageSelected.InvokeAsync(CurrentPage + 1)">Siguiente</button>
+            </li>
+            <li class="page-item page-item-control @(CurrentPage == TotalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => OnPageSelected.InvokeAsync(TotalPages)" aria-label="Last">
+                    <span aria-hidden="true">&raquo;</span>
+                </button>
             </li>
         </ul>
     </nav>

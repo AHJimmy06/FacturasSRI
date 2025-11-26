@@ -166,13 +166,26 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public async Task<List<UserDto>> GetUsersAsync()
+        public async Task<PaginatedList<UserDto>> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
-            return await context.Usuarios
+            var query = context.Usuarios
                 .AsNoTracking()
                 .Include(u => u.UsuarioRoles)
                     .ThenInclude(ur => ur.Rol)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(u =>
+                    (u.PrimerNombre != null && u.PrimerNombre.Contains(searchTerm)) ||
+                    (u.PrimerApellido != null && u.PrimerApellido.Contains(searchTerm)) ||
+                    u.Email.Contains(searchTerm));
+            }
+
+            var finalQuery = query
+                .OrderBy(u => u.PrimerApellido)
+                .ThenBy(u => u.PrimerNombre)
                 .Select(user => new UserDto
                 {
                     Id = user.Id,
@@ -184,7 +197,9 @@ namespace FacturasSRI.Infrastructure.Services
                     EstaActivo = user.EstaActivo,
                     Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList(),
                     RolesId = user.UsuarioRoles.Select(ur => ur.RolId).ToList()
-                }).ToListAsync();
+                });
+
+            return await PaginatedList<UserDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
 
         public async Task<List<UserDto>> GetActiveUsersAsync()

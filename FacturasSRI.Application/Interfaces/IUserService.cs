@@ -5,12 +5,11 @@ using System.Threading.Tasks;
 
 namespace FacturasSRI.Application.Interfaces
 {
-    public interface IUserService
-    {
-        Task<List<UserDto>> GetUsersAsync();
-        Task<UserDto?> GetUserByIdAsync(Guid id);
-                Task<UserDto> CreateUserAsync(UserDto user);
-                Task UpdateUserAsync(UserDto user);
+        public interface IUserService
+        {
+            Task<PaginatedList<UserDto>> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm);
+            Task<UserDto?> GetUserByIdAsync(Guid id);
+            Task<UserDto> CreateUserAsync(UserDto user);                Task UpdateUserAsync(UserDto user);
                 Task DeleteUserAsync(Guid id);
                 Task<List<UserDto>> GetActiveUsersAsync();
                 Task<UserDto?> GetUserProfileAsync(string userId);
