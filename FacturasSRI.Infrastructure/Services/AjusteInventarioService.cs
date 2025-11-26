@@ -20,7 +20,7 @@ namespace FacturasSRI.Infrastructure.Services
             _contextFactory = contextFactory;
         }
 
-        public async Task<PaginatedList<AjusteListItemDto>> GetAdjustmentsAsync(int pageNumber, int pageSize, string? searchTerm)
+        public async Task<PaginatedList<AjusteListItemDto>> GetAdjustmentsAsync(int pageNumber, int pageSize, string? searchTerm, TipoAjusteInventario? tipo)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from ajuste in context.AjustesInventario
@@ -38,6 +38,11 @@ namespace FacturasSRI.Infrastructure.Services
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 query = query.Where(x => x.producto != null && x.producto.Nombre.Contains(searchTerm));
+            }
+
+            if (tipo.HasValue)
+            {
+                query = query.Where(x => x.ajuste.Tipo == tipo.Value);
             }
 
             var finalQuery = query

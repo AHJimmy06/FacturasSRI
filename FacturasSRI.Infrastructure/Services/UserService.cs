@@ -166,7 +166,7 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public async Task<PaginatedList<UserDto>> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm)
+        public async Task<PaginatedList<UserDto>> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm, Guid? rolId, bool? isActive)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = context.Usuarios
@@ -181,6 +181,16 @@ namespace FacturasSRI.Infrastructure.Services
                     (u.PrimerNombre != null && u.PrimerNombre.Contains(searchTerm)) ||
                     (u.PrimerApellido != null && u.PrimerApellido.Contains(searchTerm)) ||
                     u.Email.Contains(searchTerm));
+            }
+
+            if (rolId.HasValue)
+            {
+                query = query.Where(u => u.UsuarioRoles.Any(ur => ur.RolId == rolId.Value));
+            }
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(u => u.EstaActivo == isActive.Value);
             }
 
             var finalQuery = query

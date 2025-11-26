@@ -1,6 +1,7 @@
 using FacturasSRI.Application.Dtos;
 using FacturasSRI.Application.Interfaces;
 using FacturasSRI.Domain.Entities;
+using FacturasSRI.Domain.Enums;
 using FacturasSRI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -89,7 +90,7 @@ namespace FacturasSRI.Infrastructure.Services
             };
         }
 
-        public async Task<PaginatedList<CustomerDto>> GetCustomersAsync(int pageNumber, int pageSize, string? searchTerm)
+        public async Task<PaginatedList<CustomerDto>> GetCustomersAsync(int pageNumber, int pageSize, string? searchTerm, bool? isActive, TipoIdentificacion? tipoIdentificacion)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from customer in context.Clientes
@@ -97,34 +98,51 @@ namespace FacturasSRI.Infrastructure.Services
                           from usuarioCreador in usuarioCreadorJoin.DefaultIfEmpty()
                           join usuarioModificador in context.Usuarios on customer.UsuarioModificadorId equals usuarioModificador.Id into usuarioModificadorJoin
                           from usuarioModificador in usuarioModificadorJoin.DefaultIfEmpty()
-                          select new CustomerDto
+                          select new
                           {
-                              Id = customer.Id,
-                              TipoIdentificacion = customer.TipoIdentificacion,
-                              NumeroIdentificacion = customer.NumeroIdentificacion,
-                              RazonSocial = customer.RazonSocial,
-                              Email = customer.Email,
-                              Direccion = customer.Direccion,
-                              Telefono = customer.Telefono,
-                              EstaActivo = customer.EstaActivo,
-                              CreadoPor = usuarioCreador != null ? usuarioCreador.PrimerNombre + " " + usuarioCreador.PrimerApellido : "Usuario no encontrado",
-                              FechaCreacion = customer.FechaCreacion,
-                              FechaModificacion = customer.FechaModificacion,
-                              UltimaModificacionPor = usuarioModificador != null ? usuarioModificador.PrimerNombre + " " + usuarioModificador.PrimerApellido : "N/A"
+                              customer,
+                              usuarioCreador,
+                              usuarioModificador
                           };
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                query = query.Where(c => 
-                    c.RazonSocial.Contains(searchTerm) || 
-                    c.NumeroIdentificacion.Contains(searchTerm) ||
-                    (c.Email != null && c.Email.Contains(searchTerm)) ||
-                    (c.Telefono != null && c.Telefono.Contains(searchTerm)));
+                query = query.Where(x => 
+                    x.customer.RazonSocial.Contains(searchTerm) || 
+                    x.customer.NumeroIdentificacion.Contains(searchTerm) ||
+                    (x.customer.Email != null && x.customer.Email.Contains(searchTerm)) ||
+                    (x.customer.Telefono != null && x.customer.Telefono.Contains(searchTerm)));
             }
-            
-            query = query.OrderByDescending(c => c.FechaCreacion);
 
-            return await PaginatedList<CustomerDto>.CreateAsync(query, pageNumber, pageSize);
+            if (isActive.HasValue)
+            {
+                query = query.Where(x => x.customer.EstaActivo == isActive.Value);
+            }
+
+            if (tipoIdentificacion.HasValue)
+            {
+                query = query.Where(x => x.customer.TipoIdentificacion == tipoIdentificacion.Value);
+            }
+
+            var finalQuery = query
+                .OrderByDescending(x => x.customer.FechaCreacion)
+                .Select(x => new CustomerDto
+                {
+                    Id = x.customer.Id,
+                    TipoIdentificacion = x.customer.TipoIdentificacion,
+                    NumeroIdentificacion = x.customer.NumeroIdentificacion,
+                    RazonSocial = x.customer.RazonSocial,
+                    Email = x.customer.Email,
+                    Direccion = x.customer.Direccion,
+                    Telefono = x.customer.Telefono,
+                    EstaActivo = x.customer.EstaActivo,
+                    CreadoPor = x.usuarioCreador != null ? x.usuarioCreador.PrimerNombre + " " + x.usuarioCreador.PrimerApellido : "Usuario no encontrado",
+                    FechaCreacion = x.customer.FechaCreacion,
+                    FechaModificacion = x.customer.FechaModificacion,
+                    UltimaModificacionPor = x.usuarioModificador != null ? x.usuarioModificador.PrimerNombre + " " + x.usuarioModificador.PrimerApellido : "N/A"
+                });
+
+            return await PaginatedList<CustomerDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
 
         public async Task<List<CustomerDto>> GetActiveCustomersAsync()

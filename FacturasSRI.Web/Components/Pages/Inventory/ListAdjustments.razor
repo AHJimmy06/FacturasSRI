@@ -15,9 +15,20 @@
     </div>
 </div>
 
-<div class="mb-3">
-    <input type="text" class="form-control" placeholder="Buscar por producto..." 
-           @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+<div class="row g-2 mb-3">
+    <div class="col-md-8">
+        <input type="text" class="form-control" placeholder="Buscar por producto..." 
+               @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+    </div>
+    <div class="col-md-4">
+        <InputSelect class="form-select" @bind-Value="selectedTipo" @bind-Value:after="OnFilterChanged">
+            <option value="">Todos los Tipos</option>
+            @foreach (var tipo in Enum.GetValues(typeof(TipoAjusteInventario)))
+            {
+                <option value="@tipo">@tipo.ToString()</option>
+            }
+        </InputSelect>
+    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(errorMessage))
@@ -109,6 +120,7 @@ else
     private int currentPage = 1;
     private int pageSize = 15;
     private string searchTerm = string.Empty;
+    private TipoAjusteInventario? selectedTipo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,7 +133,7 @@ else
         isLoading = true;
         try
         {
-            paginatedAdjustments = await AjusteInventarioService.GetAdjustmentsAsync(currentPage, pageSize, searchTerm);
+            paginatedAdjustments = await AjusteInventarioService.GetAdjustmentsAsync(currentPage, pageSize, searchTerm, selectedTipo);
         }
         catch (Exception ex)
         {

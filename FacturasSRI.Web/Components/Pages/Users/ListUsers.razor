@@ -5,6 +5,7 @@
 @using FacturasSRI.Application.Interfaces
 @using FacturasSRI.Web.Components.Shared
 @inject IUserService UserService
+@inject IRoleService RoleService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -20,9 +21,27 @@
     </button>
 </div>
 
-<div class="mb-3">
-    <input type="text" class="form-control" placeholder="Buscar usuarios por nombre o correo..." 
-           @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+<div class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" class="form-control" placeholder="Buscar usuarios por nombre o correo..." 
+               @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+    </div>
+    <div class="col-md-3">
+        <InputSelect class="form-select" @bind-Value="selectedRolId" @bind-Value:after="OnFilterChanged">
+            <option value="">Todos los Roles</option>
+            @foreach (var rol in allRoles)
+            {
+                <option value="@rol.Id">@rol.Nombre</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="col-md-3">
+        <InputSelect class="form-select" @bind-Value="selectedStatusString" @bind-Value:after="OnFilterChanged">
+            <option value="">Todos los Estados</option>
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
+        </InputSelect>
+    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(statusMessage))
@@ -141,9 +160,13 @@ else
     private string? statusMessage;
     private bool isSuccess;
     
+    // Paginación y Filtros
     private int currentPage = 1;
     private int pageSize = 15;
     private string searchTerm = string.Empty;
+    private Guid? selectedRolId;
+    private string selectedStatusString = "";
+    private List<RoleDto> allRoles = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,7 +180,20 @@ else
                 currentUserId = id;
             }
         }
+        await LoadRoles();
         await LoadData(currentPage);
+    }
+
+    private async Task LoadRoles()
+    {
+        try
+        {
+            allRoles = await RoleService.GetRolesAsync();
+        }
+        catch
+        {
+            // Manejar error si es necesario, pero no es crítico.
+        }
     }
 
     private async Task LoadData(int page)
@@ -165,7 +201,13 @@ else
         currentPage = page;
         try
         {
-            paginatedUsers = await UserService.GetUsersAsync(currentPage, pageSize, searchTerm);
+            bool? isActive = selectedStatusString switch
+            {
+                "true" => true,
+                "false" => false,
+                _ => null
+            };
+            paginatedUsers = await UserService.GetUsersAsync(currentPage, pageSize, searchTerm, selectedRolId, isActive);
             StateHasChanged();
         }
         catch
