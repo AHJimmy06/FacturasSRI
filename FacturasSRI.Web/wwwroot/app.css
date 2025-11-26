@@ -818,3 +818,18 @@ input.invalid:focus {
     border-top-right-radius: var(--bs-pagination-border-radius);
     border-bottom-right-radius: var(--bs-pagination-border-radius);
 }
+
+/* ==========================================================================
+   Custom Form Switch Colors
+   ========================================================================== */
+
+.form-check-input.form-check-input-primary:checked {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+.form-check-input.form-check-input-primary:focus {
+    border-color: rgba(var(--primary-dark-rgb), 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-dark-rgb), 0.25);
+}
+

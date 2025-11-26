@@ -10,7 +10,8 @@ namespace FacturasSRI.Application.Interfaces
     public interface IPurchaseService
     {
         Task<bool> CreatePurchaseAsync(PurchaseDto purchase);
-        Task<PaginatedList<PurchaseListItemDto>> GetPurchasesAsync(int pageNumber, int pageSize, string? searchTerm, EstadoCompra? status, FormaDePago? formaDePago);
+        Task<PaginatedList<PurchaseListItemDto>> GetPurchasesAsync(int pageNumber, int pageSize, string? searchTerm, EstadoCompra? status, FormaDePago? formaDePago, string? supplierName);
+        Task<List<string>> GetAllProveedoresAsync();
         Task<PurchaseListItemDto?> GetPurchaseByIdAsync(Guid id);
         Task<bool> RegisterPaymentAsync(RegisterPaymentDto paymentDto, Stream fileStream, string fileName);
         Task MarcarComprasVencidasAsync();

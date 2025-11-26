@@ -35,13 +35,13 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="row g-2">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <input type="text" class="form-control" placeholder="Buscar productos por nombre o código..."
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
             </div>
             <div class="col-md-2">
                 <InputSelect class="form-select" @bind-Value="selectedCategoryId" @bind-Value:after="OnFilterChanged">
-                    <option value="">Categoría</option>
+                    <option value="">Todas las Categorías</option>
                     @foreach (var cat in allCategorias)
                     {
                         <option value="@cat.Id">@cat.Nombre</option>
@@ -50,18 +50,26 @@
             </div>
             <div class="col-md-2">
                 <InputSelect class="form-select" @bind-Value="selectedMarca" @bind-Value:after="OnFilterChanged">
-                    <option value="">Marca</option>
+                    <option value="">Todas las Marcas</option>
                     @foreach (var marca in allMarcas)
                     {
                         <option value="@marca">@marca</option>
                     }
                 </InputSelect>
             </div>
+            <div class="col-md-3">
+                <InputSelect class="form-select" @bind-Value="selectedInventoryType" @bind-Value:after="OnFilterChanged">
+                    <option value="All">Todos los tipos de inventario</option>
+                    <option value="Lotes">Maneja Lotes</option>
+                    <option value="Inventario">Maneja Inventario (Sin Lotes)</option>
+                    <option value="Servicios">Servicios (Sin Inventario)</option>
+                </InputSelect>
+            </div>
             <div class="col-md-2">
                 <InputSelect class="form-select" @bind-Value="selectedStockStatus" @bind-Value:after="OnFilterChanged">
-                    <option value="All">Stock (Todos)</option>
-                    <option value="InStock">Con Stock</option>
-                    <option value="OutOfStock">Sin Stock</option>
+                    <option value="All">Con o sin stock</option>
+                    <option value="InStock">Con stock</option>
+                    <option value="OutOfStock">Sin stock</option>
                 </InputSelect>
             </div>
         </div>
@@ -208,6 +216,7 @@ else if (paginatedProducts != null)
     private Guid? selectedCategoryId;
     private string? selectedMarca;
     private string selectedStockStatus = "All";
+    private string selectedInventoryType = "All"; // Nuevo filtro
 
     // Datos para los filtros
     private List<CategoriaDto> allCategorias = new();
@@ -249,7 +258,7 @@ else if (paginatedProducts != null)
         errorMessage = null;
         try
         {
-            paginatedProducts = await ProductService.GetProductsAsync(currentPage, pageSize, searchTerm, selectedCategoryId, selectedMarca, selectedStockStatus);
+            paginatedProducts = await ProductService.GetProductsAsync(currentPage, pageSize, searchTerm, selectedCategoryId, selectedMarca, selectedStockStatus, selectedInventoryType);
         }
         catch (Exception)
         {

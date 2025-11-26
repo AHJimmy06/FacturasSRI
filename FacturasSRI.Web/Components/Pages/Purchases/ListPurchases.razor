@@ -20,11 +20,20 @@
 </div>
 
 <div class="row g-2 mb-3">
-    <div class="col-md-5">
-        <input type="text" class="form-control" placeholder="Buscar por producto o proveedor..." 
+    <div class="col-md-3">
+        <input type="text" class="form-control" placeholder="Buscar por producto..." 
                @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
+        <InputSelect class="form-select" @bind-Value="selectedProveedor" @bind-Value:after="OnFilterChanged">
+            <option value="">Todos los Proveedores</option>
+            @foreach (var proveedor in allProveedores)
+            {
+                <option value="@proveedor">@proveedor</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="col-md-3">
         <InputSelect class="form-select" @bind-Value="selectedStatus" @bind-Value:after="OnFilterChanged">
             <option value="">Todos los Estados</option>
             @foreach (var s in Enum.GetValues(typeof(EstadoCompra)))
@@ -145,10 +154,33 @@ else
     private string searchTerm = string.Empty;
     private EstadoCompra? selectedStatus; 
     private FormaDePago? selectedFormaDePago;
+    private string? selectedProveedor; // Nuevo filtro
+
+    private List<string> allProveedores = new(); // Lista de proveedores para el filtro
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData(currentPage);
+        try
+        {
+            await LoadProveedores();
+            await LoadData(currentPage);
+        }
+        catch (Exception)
+        {
+            // Manejar errores de carga inicial
+        }
+    }
+
+    private async Task LoadProveedores()
+    {
+        try
+        {
+            allProveedores = await PurchaseService.GetAllProveedoresAsync();
+        }
+        catch (Exception)
+        {
+            // Manejar errores de carga de proveedores
+        }
     }
 
     private async Task LoadData(int page)
@@ -157,7 +189,7 @@ else
         isLoading = true;
         try
         {
-            paginatedPurchases = await PurchaseService.GetPurchasesAsync(currentPage, pageSize, searchTerm, selectedStatus, selectedFormaDePago);
+            paginatedPurchases = await PurchaseService.GetPurchasesAsync(currentPage, pageSize, searchTerm, selectedStatus, selectedFormaDePago, selectedProveedor);
         }
         finally
         {

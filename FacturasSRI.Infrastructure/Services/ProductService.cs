@@ -94,7 +94,7 @@ namespace FacturasSRI.Infrastructure.Services
                           }).FirstOrDefaultAsync();
         }
 
-        public async Task<PaginatedList<ProductDto>> GetProductsAsync(int pageNumber, int pageSize, string? searchTerm, Guid? categoryId, string? marca, string? stockStatus)
+        public async Task<PaginatedList<ProductDto>> GetProductsAsync(int pageNumber, int pageSize, string? searchTerm, Guid? categoryId, string? marca, string? stockStatus, string? inventoryType)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from product in context.Productos
@@ -132,6 +132,22 @@ namespace FacturasSRI.Infrastructure.Services
                 else if (stockStatus == "OutOfStock")
                 {
                     query = query.Where(x => (x.product.ManejaLotes ? x.product.Lotes.Sum(l => l.CantidadDisponible) : x.product.StockTotal) <= 0);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(inventoryType) && inventoryType != "All")
+            {
+                switch (inventoryType)
+                {
+                    case "Lotes":
+                        query = query.Where(x => x.product.ManejaLotes == true);
+                        break;
+                    case "Inventario": // Maneja Inventario, pero no Lotes
+                        query = query.Where(x => x.product.ManejaInventario == true && x.product.ManejaLotes == false);
+                        break;
+                    case "Servicios": // No maneja inventario
+                        query = query.Where(x => x.product.ManejaInventario == false);
+                        break;
                 }
             }
             

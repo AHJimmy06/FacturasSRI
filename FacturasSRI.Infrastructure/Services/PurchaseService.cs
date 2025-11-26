@@ -212,7 +212,7 @@ namespace FacturasSRI.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task<PaginatedList<PurchaseListItemDto>> GetPurchasesAsync(int pageNumber, int pageSize, string? searchTerm, EstadoCompra? status, FormaDePago? formaDePago)
+        public async Task<PaginatedList<PurchaseListItemDto>> GetPurchasesAsync(int pageNumber, int pageSize, string? searchTerm, EstadoCompra? status, FormaDePago? formaDePago, string? supplierName)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = context.CuentasPorPagar
@@ -235,6 +235,11 @@ namespace FacturasSRI.Infrastructure.Services
             if (formaDePago.HasValue)
             {
                 query = query.Where(p => p.FormaDePago == formaDePago.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(supplierName))
+            {
+                query = query.Where(p => p.NombreProveedor == supplierName);
             }
 
             var finalQuery = query
@@ -260,6 +265,17 @@ namespace FacturasSRI.Infrastructure.Services
                 });
 
             return await PaginatedList<PurchaseListItemDto>.CreateAsync(finalQuery, pageNumber, pageSize);
+        }
+
+        public async Task<List<string>> GetAllProveedoresAsync()
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.CuentasPorPagar
+                .Select(p => p.NombreProveedor)
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Distinct()
+                .OrderBy(p => p)
+                .ToListAsync();
         }
         
         public async Task<PurchaseListItemDto?> GetPurchaseByIdAsync(Guid id)

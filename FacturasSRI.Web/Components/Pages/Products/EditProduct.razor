@@ -82,15 +82,15 @@ else
                             </InputSelect>
                             <ValidationMessage For="@(() => product.CategoriaId)" />
                         </div>
-                        <div class="mb-3 form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="product.ManejaInventario" />
+                        <div class="mb-3 form-check form-switch form-check-input-primary">
+                            <InputCheckbox class="form-check-input" @bind-Value="product.ManejaInventario" disabled="@isManejaInventarioDisabled" />
                             <label class="form-check-label">Maneja Inventario</label>
                         </div>
-                        <div class="mb-3 form-check">
-                            <InputCheckbox class="form-check-input" @bind-Value="product.ManejaLotes" />
+                        <div class="mb-3 form-check form-switch form-check-input-primary">
+                            <InputCheckbox class="form-check-input" Value="product.ManejaLotes" ValueChanged="HandleManejaLotesChange" ValueExpression="@(() => product.ManejaLotes)" />
                             <label class="form-check-label">Maneja Lotes</label>
                         </div>
-                        <div class="mb-3 form-check">
+                        <div class="mb-3 form-check form-switch form-check-input-primary">
                             <InputCheckbox class="form-check-input" @bind-Value="product.IsActive" />
                             <label class="form-check-label">Está Activo</label>
                         </div>
@@ -115,6 +115,7 @@ else
     private List<CategoriaDto> todasLasCategorias = new();
     private decimal precioCompraPromedioPonderado;
     private bool showPriceWarning = false;
+    private bool isManejaInventarioDisabled = false; // Estado para deshabilitar el toggle de Inventario
 
     protected override async Task OnInitializedAsync()
     {
@@ -130,6 +131,7 @@ else
             todasLasCategorias = await ProductService.GetAllCategoriasAsync();
             precioCompraPromedioPonderado = product.PrecioCompraPromedioPonderado;
             CheckPrice(); // Initial check
+            isManejaInventarioDisabled = product.ManejaLotes; // Inicializar según el producto
         }
         catch (Exception ex)
         {
@@ -146,6 +148,23 @@ else
         else
         {
             showPriceWarning = false;
+        }
+    }
+
+    private void HandleManejaLotesChange(bool value)
+    {
+        if (product != null)
+        {
+            product.ManejaLotes = value;
+            if (product.ManejaLotes)
+            {
+                product.ManejaInventario = true; // Si maneja lotes, siempre maneja inventario
+                isManejaInventarioDisabled = true;
+            }
+            else
+            {
+                isManejaInventarioDisabled = false;
+            }
         }
     }
 
