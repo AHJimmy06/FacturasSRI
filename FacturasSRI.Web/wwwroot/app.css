@@ -357,6 +357,42 @@ html, body {
 }
 
 /* ==========================================================================
+   Mejoras Login Links
+   ========================================================================== */
+
+/* Link de contrase√±a olvidado */
+.forgot-password-link {
+    font-size: 0.85rem;
+    color: var(--text-color-light); /* Gris sutil */
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.forgot-password-link:hover {
+    color: var(--primary-dark); /* Color primario al pasar el mouse */
+    text-decoration: underline;
+}
+
+/* √Årea de registro al pie */
+.register-prompt {
+    font-size: 0.95rem;
+    border-top: 1px solid var(--border-color); /* Una l√≠nea sutil divisora */
+    padding-top: 1.5rem;
+}
+
+.register-link {
+    color: var(--primary-dark);
+    font-weight: 700; /* M√°s negrita para llamar la atenci√≥n */
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.register-link:hover {
+    color: var(--accent-color); /* Efecto hover con tu color de acento (rojo/rosa) */
+}
+
+/* ==========================================================================
    General Content Styles
    ========================================================================== */
 
@@ -754,7 +790,7 @@ input.invalid:focus {
    Custom Pagination Styles
    ========================================================================== */
 
-/* Estilo para los n˙meros de p·gina no seleccionados */
+/* Estilo para los nÔøΩmeros de pÔøΩgina no seleccionados */
 .pagination .page-link {
     color: var(--primary-dark);
     font-weight: 600;
@@ -764,7 +800,7 @@ input.invalid:focus {
     background-color: var(--primary-light);
 }
 
-/* Estilo para la p·gina ACTIVA */
+/* Estilo para la pÔøΩgina ACTIVA */
 .pagination .page-item.active .page-link {
     background-color: var(--primary-dark);
     border-color: var(--primary-dark);
@@ -779,7 +815,7 @@ input.invalid:focus {
 }
 
 .pagination .page-item-control .page-link:hover {
-    background-color: #10164E; /* Un poco m·s oscuro en hover */
+    background-color: #10164E; /* Un poco mÔøΩs oscuro en hover */
     border-color: #10164E;
     color: var(--white);
 }
@@ -798,11 +834,11 @@ input.invalid:focus {
    ========================================================================== */
 
 /*
-  Bootstrap normalmente colapsa los bordes de los items de paginaciÛn.
-  Al darles un color de fondo sÛlido, perdimos la separaciÛn visual.
+  Bootstrap normalmente colapsa los bordes de los items de paginaciÔøΩn.
+  Al darles un color de fondo sÔøΩlido, perdimos la separaciÔøΩn visual.
   Esta regla restaura un borde sutil solo para los botones de control
-  cuando no est·n deshabilitados, usando un color ligeramente m·s claro
-  o un blanco semitransparente para dar definiciÛn.
+  cuando no estÔøΩn deshabilitados, usando un color ligeramente mÔøΩs claro
+  o un blanco semitransparente para dar definiciÔøΩn.
 */
 
 .pagination .page-item-control:not(.disabled) .page-link {

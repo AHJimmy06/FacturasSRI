@@ -1,14 +1,115 @@
-Vale hay algunas correcciones que hacer, primero no valio el registrarme, dice:
-
-fail: FacturasSRI.Web.Components.Layout.MainLayout[0]
-      ErrorBoundary capturó una excepción en la UI.
-      System.InvalidOperationException: An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set.
-         at System.Net.Http.HttpClient.PrepareRequestMessage(HttpRequestMessage request)
-         at System.Net.Http.HttpClient.SendAsync(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationToken cancellationToken)
-         at FacturasSRI.Web.Components.Pages.PortalAuth.Registro.HandleRegistration() in C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Web\Components\Pages\PortalAuth\Registro.razor:line 82
-         at Microsoft.AspNetCore.Components.ComponentBase.CallStateHasChangedOnAsyncCompletion(Task task)
-         at Microsoft.AspNetCore.Components.Forms.EditForm.HandleSubmitAsync()
-         at Microsoft.AspNetCore.Components.ComponentBase.CallStateHasChangedOnAsyncCompletion(Task task)
-         at Microsoft.AspNetCore.Components.RenderTree.Renderer.GetErrorHandledTask(Task taskToHandle, ComponentState owningComponentState
-
-2. La pagina de registro es fea, ocupa toda la pagina cuando deberia estar en un contenedor, y opino que deberia tener el mismo fondo que el login. Revisa C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Web\wwwroot\app.css, que ahi esta todo el css, y puedes poner el css para la pagina de registro tambien
+PS C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Web> dotnet run --environment Development
+info: FacturasSRI.Infrastructure.Services.VencimientoComprasService[0]
+      Servicio de Vencimiento de Compras iniciado.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\THINKPAD\Desktop\FacturasSRI\FacturasSRI.Web
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+warn: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      NO se encontraron identidades autenticadas en el principal de usuario. Devolviendo estado anónimo.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+warn: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      NO se encontraron identidades autenticadas en el principal de usuario. Devolviendo estado anónimo.
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      AccountController: Intentando inicio de sesión unificado para baxase9989@httpsu.com
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      Autenticación de USUARIO falló, intentando como CLIENTE para baxase9989@httpsu.com
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      Autenticación de CLIENTE exitosa para baxase9989@httpsu.com
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      Creando 4 claims para el CLIENTE.
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      HttpContext.SignInAsync llamado para CLIENTE. Redirigiendo a /portal/dashboard
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      1 identidades AUTENTICADAS encontradas.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Identidad -> Esquema: CustomerAuth, Nombre: Corporacion Cliente14
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier, Valor: 1d2c5a8a-1d31-4644-8184-e88ca75b1588  
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name, Valor: Corporacion Cliente14
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress, Valor: baxase9989@httpsu.com
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: UserType, Valor: Cliente
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Devolviendo NUEVO AuthenticationState con el principal de usuario del HttpContext.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+warn: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      NO se encontraron identidades autenticadas en el principal de usuario. Devolviendo estado anónimo.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+warn: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      NO se encontraron identidades autenticadas en el principal de usuario. Devolviendo estado anónimo.
+warn: FacturasSRI.Web.Components.Layout.MainLayout[0]
+      MainLayout: El usuario es ANÓNIMO.
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      AccountController: Intentando inicio de sesión unificado para admin@facturassri.com
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      Autenticación de USUARIO exitosa para admin@facturassri.com
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      Creando 4 claims para el USUARIO.
+info: FacturasSRI.Web.Controllers.AccountController[0]
+      HttpContext.SignInAsync llamado para USUARIO. Redirigiendo a /dashboard
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      1 identidades AUTENTICADAS encontradas.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Identidad -> Esquema: Cookies, Nombre: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier, Valor: a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b  
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name, Valor: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress, Valor: admin@facturassri.com
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.microsoft.com/ws/2008/06/identity/claims/role, Valor: Administrador
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Devolviendo NUEVO AuthenticationState con el principal de usuario del HttpContext.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      1 identidades AUTENTICADAS encontradas.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Identidad -> Esquema: Cookies, Nombre: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier, Valor: a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b  
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name, Valor: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress, Valor: admin@facturassri.com
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.microsoft.com/ws/2008/06/identity/claims/role, Valor: Administrador
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Devolviendo NUEVO AuthenticationState con el principal de usuario del HttpContext.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      GetAuthenticationStateAsync fue llamado.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      1 identidades AUTENTICADAS encontradas.
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Identidad -> Esquema: Cookies, Nombre: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier, Valor: a9b1b4d3-3f7b-4e6a-9f6b-1c2c3d4e5f6b  
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name, Valor: Admin
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress, Valor: admin@facturassri.com
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+        Claim -> Tipo: http://schemas.microsoft.com/ws/2008/06/identity/claims/role, Valor: Administrador
+info: FacturasSRI.Web.Services.CookieAuthenticationStateProvider[0]
+      Devolviendo NUEVO AuthenticationState con el principal de usuario del HttpContext.
+info: FacturasSRI.Web.Components.Layout.MainLayout[0]
+      MainLayout: El usuario está AUTENTICADO. Nombre: Admin

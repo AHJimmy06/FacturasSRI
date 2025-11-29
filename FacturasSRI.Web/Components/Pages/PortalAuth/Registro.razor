@@ -10,82 +10,120 @@
 <div class="login-container">
     <div class="card login-card" style="max-width: 600px;">
         <div class="card-body">
+            
             <div class="text-center mb-4">
-                <img src="logo.png" alt="Logo Aether Tech" style="max-width: 100px; margin-bottom: 1rem;" />
-                <h1 class="h3 mb-3 fw-normal">Registro de Nuevo Cliente</h1>
-                <p class="text-muted">Este registro es exclusivo para clientes.</p>
+                <img src="logo.png" alt="Logo Aether Tech" style="max-width: 100px;" />
             </div>
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger">@errorMessage</div>
-            }
             @if (successMessage != null)
             {
-                <div class="alert alert-success">@successMessage</div>
+                /* =========================================
+                   VISTA DE ÉXITO (Se muestra solo si se registró bien)
+                   ========================================= */
+                <div class="text-center mb-4 animate-fade-in">
+                    <div class="mb-3">
+                        <i class="bi bi-envelope-check-fill" style="font-size: 4rem; color: var(--success-color);"></i>
+                    </div>
+                    <h4 class="h4 fw-bold text-success mb-3">¡Registro casi completo!</h4>
+                    <p class="text-muted">
+                        Hemos enviado las instrucciones para activar tu cuenta a:
+                        <br>
+                        <strong>@registerModel.Email</strong>
+                    </p>
+                    <div class="alert alert-light border-0 bg-light small fst-italic mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Si no lo ves en tu bandeja de entrada, revisa la carpeta de Spam.
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="/login" class="btn btn-primary px-4">Volver al Inicio de Sesión</a>
+                    </div>
+                </div>
             }
+            else
+            {
+                /* =========================================
+                   VISTA DEL FORMULARIO (Se oculta al tener éxito)
+                   ========================================= */
+                <div class="text-center mb-4">
+                    <h1 class="h3 mb-3 fw-normal">Registro de Nuevo Cliente</h1>
+                    <p class="text-muted">Este registro es exclusivo para clientes.</p>
+                </div>
 
-            <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration">
-                <DataAnnotationsValidator />
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-floating mb-3">
-                            <InputSelect class="form-select" id="tipoId" @bind-Value="registerModel.TipoIdentificacion">
-                                @foreach (var type in Enum.GetValues(typeof(TipoIdentificacion)))
-                                {
-                                    <option value="@type">@type</option>
-                                }
-                            </InputSelect>
-                            <label for="tipoId">Tipo de Identificación</label>
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputSelect class="form-select" id="tipoId" @bind-Value="registerModel.TipoIdentificacion">
+                                    @foreach (var type in Enum.GetValues(typeof(TipoIdentificacion)))
+                                    {
+                                        <option value="@type">@type</option>
+                                    }
+                                </InputSelect>
+                                <label for="tipoId">Tipo de Identificación</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <InputText id="numId" class="form-control" @bind-Value="registerModel.NumeroIdentificacion" />
+                                <label for="numId">Número de Identificación</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-floating mb-3">
-                            <InputText id="numId" class="form-control" @bind-Value="registerModel.NumeroIdentificacion" />
-                            <label for="numId">Número de Identificación</label>
-                        </div>
+        
+                    <div class="form-floating mb-3">
+                        <InputText id="razonSocial" class="form-control" @bind-Value="registerModel.RazonSocial" />
+                        <label for="razonSocial">Razón Social</label>
                     </div>
-                </div>
-    
-                <div class="form-floating mb-3">
-                    <InputText id="razonSocial" class="form-control" @bind-Value="registerModel.RazonSocial" />
-                    <label for="razonSocial">Razón Social (Nombre Completo o de Empresa)</label>
-                </div>
 
-                <div class="form-floating mb-3">
-                    <InputText id="email" type="email" class="form-control" @bind-Value="registerModel.Email" />
-                    <label for="email">Correo Electrónico</label>
-                </div>
+                    <div class="form-floating mb-3">
+                        <InputText id="email" type="email" class="form-control" @bind-Value="registerModel.Email" />
+                        <label for="email">Correo Electrónico</label>
+                    </div>
 
-                <div class="form-floating mb-3">
-                    <InputText id="direccion" class="form-control" @bind-Value="registerModel.Direccion" />
-                    <label for="direccion">Dirección</label>
-                </div>
+                    <div class="form-floating mb-3">
+                        <InputText id="direccion" class="form-control" @bind-Value="registerModel.Direccion" />
+                        <label for="direccion">Dirección</label>
+                    </div>
 
-                <div class="form-floating mb-3">
-                    <InputText id="telefono" class="form-control" @bind-Value="registerModel.Telefono" />
-                    <label for="telefono">Teléfono</label>
-                </div>
+                    <div class="form-floating mb-3">
+                        <InputText id="telefono" class="form-control" @bind-Value="registerModel.Telefono" />
+                        <label for="telefono">Teléfono</label>
+                    </div>
 
-                <div class="form-floating mb-3">
-                    <InputText id="password" type="password" class="form-control" @bind-Value="registerModel.Password" />
-                    <label for="password">Contraseña</label>
-                </div>
+                    <div class="form-floating mb-3">
+                        <InputText id="password" type="password" class="form-control" @bind-Value="registerModel.Password" />
+                        <label for="password">Contraseña</label>
+                    </div>
 
-                <div class="form-floating mb-3">
-                    <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="registerModel.ConfirmPassword" />
-                    <label for="confirmPassword">Confirmar Contraseña</label>
-                    <small class="form-text text-muted">La contraseña debe tener al menos 8 caracteres.</small>
-                </div>
-                
-                <ValidationSummary />
+                    <div class="form-floating mb-3">
+                        <InputText id="confirmPassword" type="password" class="form-control" @bind-Value="registerModel.ConfirmPassword" />
+                        <label for="confirmPassword">Confirmar Contraseña</label>
+                        <small class="form-text text-muted">Mínimo 8 caracteres.</small>
+                    </div>
+                    
+                    <ValidationSummary class="text-danger mb-3" />
 
-                <button type="submit" class="w-100 btn btn-lg btn-primary mt-3">Registrarse</button>
-                <div class="text-center mt-3">
-                    <a href="/login">¿Ya tienes cuenta? Inicia Sesión</a>
-                </div>
-            </EditForm>
+                    <button type="submit" class="w-100 btn btn-lg btn-primary mt-3 mb-4">Registrarse</button>
+
+                    <div class="text-center register-prompt">
+                        <span class="text-muted">¿Ya tienes cuenta?</span>
+                        <a href="/login" class="register-link ms-1">
+                            Inicia Sesión
+                        </a>
+                    </div>
+                </EditForm>
+            }
         </div>
     </div>
 </div>
@@ -93,25 +131,33 @@
 @code {
     private ClienteRegistroDto registerModel = new();
     private string? errorMessage;
-    private string? successMessage;
+    // Usamos esta variable como bandera (flag) para cambiar la vista
+    private string? successMessage; 
 
     private async Task HandleRegistration()
     {
         errorMessage = null;
         successMessage = null;
-        var response = await Http.PostAsJsonAsync("api/customer-registration/register", registerModel);
+        
+        try 
+        {
+            var response = await Http.PostAsJsonAsync("api/customer-registration/register", registerModel);
 
-        if (response.IsSuccessStatusCode)
-        {
-            successMessage = "¡Registro casi completo! Revisa tu correo electrónico para activar tu cuenta.";
-            // Clear the form by creating a new model, but don't redirect
-            registerModel = new();
-            StateHasChanged(); // Rerender the component with the success message and cleared form
+            if (response.IsSuccessStatusCode)
+            {
+                // Al asignar un valor aquí, el HTML cambiará automáticamente a la vista de éxito
+                successMessage = "Success"; 
+                StateHasChanged(); 
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error: {errorContent}";
+            }
         }
-        else
+        catch (Exception)
         {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            errorMessage = $"Error en el registro: {errorContent}";
+            errorMessage = "Ocurrió un error de conexión. Inténtalo de nuevo.";
         }
     }
 }

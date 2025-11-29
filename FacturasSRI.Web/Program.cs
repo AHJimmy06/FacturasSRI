@@ -122,9 +122,12 @@ builder.Services.AddAuthentication("Cookies")
     })
     .AddCookie("CustomerAuth", options =>
     {
-        options.LoginPath = "/portal/login";
+        options.LoginPath = "/login";
         options.AccessDeniedPath = "/portal/forbidden";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        // This forwards the sign-in to the default scheme ("Cookies"), making the auth state
+        // available to the Blazor Server circuit.
+        options.ForwardSignIn = "Cookies";
     });
 
 builder.Services.AddAuthorization(options =>
