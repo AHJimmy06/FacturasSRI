@@ -316,5 +316,33 @@ namespace FacturasSRI.Infrastructure.Services
             await context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<UserDto?> AuthenticateAsync(string email, string password)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var user = await context.Usuarios
+                .AsNoTracking()
+                .Include(u => u.UsuarioRoles)
+                    .ThenInclude(ur => ur.Rol)
+                .FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user == null || !user.EstaActivo || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+            {
+                return null;
+            }
+
+            return new UserDto
+            {
+                Id = user.Id,
+                PrimerNombre = user.PrimerNombre,
+                SegundoNombre = user.SegundoNombre,
+                PrimerApellido = user.PrimerApellido,
+                SegundoApellido = user.SegundoApellido,
+                Email = user.Email,
+                EstaActivo = user.EstaActivo,
+                RolesId = user.UsuarioRoles.Select(ur => ur.RolId).ToList(),
+                Roles = user.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList()
+            };
+        }
     }
 }

@@ -206,5 +206,74 @@ namespace FacturasSRI.Infrastructure.Services
                 await context.SaveChangesAsync();
             }
         }
+
+        public async Task<CustomerDto> RegistrarNuevoClienteAsync(ClienteRegistroDto dto)
+        {
+            if (!_validationService.IsValid(dto.NumeroIdentificacion, dto.TipoIdentificacion.ToString()))
+            {
+                throw new InvalidOperationException("El número de identificación no es válido.");
+            }
+
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var existingCustomer = await context.Clientes
+                .FirstOrDefaultAsync(c => c.NumeroIdentificacion == dto.NumeroIdentificacion || c.Email == dto.Email);
+
+            if (existingCustomer != null)
+            {
+                throw new InvalidOperationException("Ya existe un cliente con el mismo número de identificación o correo electrónico.");
+            }
+
+            var customer = new Cliente
+            {
+                Id = Guid.NewGuid(),
+                TipoIdentificacion = dto.TipoIdentificacion,
+                NumeroIdentificacion = dto.NumeroIdentificacion,
+                RazonSocial = dto.RazonSocial,
+                Email = dto.Email,
+                Direccion = dto.Direccion,
+                Telefono = dto.Telefono,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                FechaCreacion = DateTime.UtcNow,
+                EstaActivo = true
+            };
+
+            context.Clientes.Add(customer);
+            await context.SaveChangesAsync();
+
+            return new CustomerDto
+            {
+                Id = customer.Id,
+                TipoIdentificacion = customer.TipoIdentificacion,
+                NumeroIdentificacion = customer.NumeroIdentificacion,
+                RazonSocial = customer.RazonSocial,
+                Email = customer.Email,
+                Direccion = customer.Direccion,
+                Telefono = customer.Telefono,
+                EstaActivo = customer.EstaActivo
+            };
+        }
+
+        public async Task<CustomerDto?> AutenticarClienteAsync(ClienteLoginDto dto)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var customer = await context.Clientes.FirstOrDefaultAsync(c => c.Email == dto.Email);
+
+            if (customer == null || !customer.EstaActivo || !BCrypt.Net.BCrypt.Verify(dto.Password, customer.PasswordHash))
+            {
+                return null;
+            }
+
+            return new CustomerDto
+            {
+                Id = customer.Id,
+                TipoIdentificacion = customer.TipoIdentificacion,
+                NumeroIdentificacion = customer.NumeroIdentificacion,
+                RazonSocial = customer.RazonSocial,
+                Email = customer.Email,
+                Direccion = customer.Direccion,
+                Telefono = customer.Telefono,
+                EstaActivo = customer.EstaActivo
+            };
+        }
     }
 }

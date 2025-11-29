@@ -1,0 +1,16 @@
+@page "/portal/dashboard"
+@layout ClienteLayout
+
+@attribute [Authorize(Policy = "IsCustomer")]
+
+<h3>Dashboard del Cliente</h3>
+
+<AuthorizeView>
+    <Authorized>
+        <p>Bienvenido a tu portal, @context.User.Identity?.Name!</p>
+        <p>Aquí podrás ver tus facturas, notas de crédito y más.</p>
+    </Authorized>
+    <NotAuthorized>
+        <p>No estás autorizado para ver esta página.</p>
+    </NotAuthorized>
+</AuthorizeView>

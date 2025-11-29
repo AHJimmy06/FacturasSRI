@@ -1,0 +1,38 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <nav class="navbar navbar-dark bg-dark">
+            <a class="navbar-brand" href="/portal/dashboard">Portal Cliente</a>
+            <ul class="navbar-nav px-3">
+                <li class="nav-item">
+                    <a class="nav-link" href="/portal/dashboard">
+                        <span class="oi oi-home" aria-hidden="true"></span> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                     <a class="nav-link" href="/portal/my-profile">
+                        <span class="oi oi-person" aria-hidden="true"></span> Mi Perfil
+                    </a>
+                </li>
+                 <li class="nav-item">
+                    <form action="/api/PortalAuth/logout" method="post">
+                        <button type="submit" class="nav-link btn btn-link">
+                            <span class="oi oi-account-logout" aria-hidden="true"></span> Cerrar Sesión
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>

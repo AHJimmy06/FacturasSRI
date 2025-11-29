@@ -13,6 +13,9 @@ namespace FacturasSRI.Domain.Entities
         public string Email { get; set; } = string.Empty;
         public string Direccion { get; set; } = string.Empty;
         public string Telefono { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty;
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetTokenExpiry { get; set; }
         public bool EstaActivo { get; set; } = true;
         public Guid UsuarioIdCreador { get; set; }
         public DateTime FechaCreacion { get; set; }

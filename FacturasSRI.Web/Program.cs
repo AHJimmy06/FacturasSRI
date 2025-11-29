@@ -97,6 +97,12 @@ builder.Services.AddAuthentication("Cookies")
         options.LoginPath = "/login";
         options.AccessDeniedPath = "/forbidden";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    })
+    .AddCookie("CustomerAuth", options =>
+    {
+        options.LoginPath = "/portal/login";
+        options.AccessDeniedPath = "/portal/forbidden";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
     });
 
 builder.Services.AddAuthorization(options =>
@@ -104,6 +110,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminPolicy", policy => policy.RequireRole("Administrador"));
     options.AddPolicy("VendedorPolicy", policy => policy.RequireRole("Vendedor", "Administrador"));
     options.AddPolicy("BodegueroPolicy", policy => policy.RequireRole("Bodeguero", "Administrador"));
+    options.AddPolicy("IsCustomer", policy => policy.RequireClaim("UserType", "Cliente").AddAuthenticationSchemes("CustomerAuth"));
 });
 
 builder.Services.AddHostedService<VencimientoComprasService>();
