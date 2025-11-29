@@ -50,7 +50,7 @@
 
 <div class="card">
     <div class="card-body">
-        <EditForm Model="nuevoCobro" OnValidSubmit="HandleRegistrarPago">
+        <EditForm EditContext="editContext" OnValidSubmit="HandleRegistrarPago">
             <DataAnnotationsValidator />
             <div class="mb-3">
                 <label class="form-label">Monto</label>
@@ -59,15 +59,16 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">Método de Pago</label>
-                <InputSelect @bind-Value="selectedMetodoDePago" class="form-control">
+                <InputSelect @bind-Value="SelectedMetodoDePago" class="form-control">
                     @foreach (var metodo in metodosDePago)
                     {
                         <option value="@metodo">@metodo</option>
                     }
                 </InputSelect>
+                <ValidationMessage For="@(() => nuevoCobro.MetodoDePago)" />
             </div>
 
-            @if (selectedMetodoDePago == "Otro")
+            @if (SelectedMetodoDePago == "Otro")
             {
                 <div class="mb-3">
                     <label class="form-label">Especificar Otro Método de Pago</label>
@@ -76,17 +77,25 @@
             }
 
             <div class="mb-3">
-                <label class="form-label">Referencia (Opcional)</label>
+                <label class="form-label">@referenciaLabel</label>
                 <InputText @bind-Value="nuevoCobro.Referencia" class="form-control" />
+                <ValidationMessage For="@(() => nuevoCobro.Referencia)" />
             </div>
-            <div class="mb-3">
-                <label for="comprobante" class="form-label">Comprobante de Pago (PDF, PNG, JPG)</label>
-                <InputFile id="comprobante" class="form-control" OnChange="@OnInputFileChange" disabled="@isSubmitting" accept=".pdf,.png,.jpg,.jpeg" />
-                @if (!string.IsNullOrEmpty(fileValidationMessage))
-                {
-                    <div class="text-danger small mt-1">@fileValidationMessage</div>
-                }
-            </div>
+
+            @if (isComprobanteVisible)
+            {
+                <div class="mb-3">
+                    <label for="comprobante" class="form-label">Comprobante de Pago (PDF, PNG, JPG)
+                        @if (!isComprobanteRequired) { <span class="text-muted">(Opcional)</span> }
+                    </label>
+                    <InputFile id="comprobante" class="form-control" OnChange="@OnInputFileChange" disabled="@isSubmitting" accept=".pdf,.png,.jpg,.jpeg" />
+                    @if (!string.IsNullOrEmpty(fileValidationMessage))
+                    {
+                        <div class="text-danger small mt-1">@fileValidationMessage</div>
+                    }
+                </div>
+            }
+
             <div class="mt-4">
                 <button type="button" class="btn btn-secondary me-2" @onclick="GoBack">Cancelar</button>
                 <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
@@ -111,13 +120,31 @@
 
     private InvoiceDto? invoice;
     private RegistrarCobroDto nuevoCobro = new();
+    private EditContext? editContext;
+
     private string? errorMessage;
     private bool isSubmitting = false;
     private IBrowserFile? comprobanteFile;
     private string? fileValidationMessage;
-    
+
+    // --- Dynamic Form State ---
+    private string referenciaLabel = "Observación (Opcional)";
+    private bool isComprobanteVisible = false;
+    private bool isComprobanteRequired = false;
+    // -------------------------
+
     private List<string> metodosDePago = new() { "Efectivo", "Transferencia", "Cheque", "Tarjeta de Crédito/Débito", "Otro" };
-    private string selectedMetodoDePago = "Efectivo";
+    private string _selectedMetodoDePago = "Efectivo";
+    private string SelectedMetodoDePago
+    {
+        get => _selectedMetodoDePago;
+        set
+        {
+            _selectedMetodoDePago = value;
+            nuevoCobro.MetodoDePago = value; // Keep the model in sync
+            UpdateFormBasedOnPaymentMethod(value);
+        }
+    }
     private string otroMetodoDePago = "";
 
     private decimal Monto
@@ -128,6 +155,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        editContext = new EditContext(nuevoCobro);
+        
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -140,11 +169,45 @@
 
         nuevoCobro.UsuarioIdCreador = Guid.Parse(userId);
         nuevoCobro.FacturaId = FacturaId;
-        nuevoCobro.FechaCobro = DateTime.UtcNow; // Set automatically
+        nuevoCobro.FechaCobro = DateTime.UtcNow;
 
-        // Optionally load invoice details to display for context
+        SelectedMetodoDePago = "Efectivo"; // Set initial state
         invoice = await InvoiceService.GetInvoiceByIdAsync(FacturaId);
     }
+
+    private void UpdateFormBasedOnPaymentMethod(string metodo)
+    {
+        switch (metodo)
+        {
+            case "Efectivo":
+                referenciaLabel = "Observación (Opcional)";
+                isComprobanteVisible = false;
+                isComprobanteRequired = false;
+                break;
+            case "Transferencia":
+                referenciaLabel = "Nro. de Comprobante / ID Transacción";
+                isComprobanteVisible = true;
+                isComprobanteRequired = true;
+                break;
+            case "Cheque":
+                referenciaLabel = "Nro. Cheque y Banco";
+                isComprobanteVisible = true;
+                isComprobanteRequired = true;
+                break;
+            case "Tarjeta de Crédito/Débito":
+                referenciaLabel = "Lote / Autorización (Voucher)";
+                isComprobanteVisible = true;
+                isComprobanteRequired = false; // Opcional
+                break;
+            case "Otro":
+                referenciaLabel = "Referencia";
+                isComprobanteVisible = true;
+                isComprobanteRequired = false; // Opcional
+                break;
+        }
+        StateHasChanged();
+    }
+
 
     private void OnInputFileChange(InputFileChangeEventArgs e)
     {
@@ -165,35 +228,54 @@
     {
         isSubmitting = true;
         errorMessage = null;
+        fileValidationMessage = null;
 
-        if (comprobanteFile == null)
+        // Finalize payment method if "Otro" is selected
+        if (SelectedMetodoDePago == "Otro")
         {
-            errorMessage = "Error: Debe adjuntar el comprobante de pago.";
+            nuevoCobro.MetodoDePago = otroMetodoDePago;
+        }
+
+        // File validation
+        if (isComprobanteRequired && comprobanteFile == null)
+        {
+            fileValidationMessage = "Debe adjuntar el comprobante de pago para este método.";
             isSubmitting = false;
             return;
         }
 
-        // Assign payment method from dropdown/text input
-        nuevoCobro.MetodoDePago = selectedMetodoDePago == "Otro" ? otroMetodoDePago : selectedMetodoDePago;
-        
-        if (string.IsNullOrWhiteSpace(nuevoCobro.MetodoDePago))
+        if (editContext != null && editContext.Validate())
         {
-            errorMessage = "Error: Debe especificar un método de pago.";
-            isSubmitting = false;
-            return;
-        }
+            try
+            {
+                Stream? fileStream = null;
+                string? fileName = null;
 
-        try
-        {
-            await using var fileStream = comprobanteFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-            await CobroService.RegistrarCobroAsync(nuevoCobro, fileStream, comprobanteFile.Name);
-            Navigation.NavigateTo($"/invoices/{FacturaId}"); // Go back to invoice details on success
+                if (comprobanteFile != null)
+                {
+                    fileStream = comprobanteFile.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                    fileName = comprobanteFile.Name;
+                }
+                
+                await CobroService.RegistrarCobroAsync(nuevoCobro, fileStream, fileName);
+                
+                if (fileStream != null)
+                {
+                    await fileStream.DisposeAsync();
+                }
+
+                Navigation.NavigateTo($"/invoices/{FacturaId}");
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al registrar el pago: {ex.Message}";
+            }
+            finally
+            {
+                isSubmitting = false;
+            }
         }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
+        else
         {
             isSubmitting = false;
         }
@@ -201,6 +283,6 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo($"/invoices/{FacturaId}"); // Go back to invoice details
+        Navigation.NavigateTo($"/invoices/{FacturaId}");
     }
 }

@@ -87,7 +87,7 @@ namespace FacturasSRI.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<CobroDto> RegistrarCobroAsync(RegistrarCobroDto cobroDto, Stream fileStream, string fileName)
+        public async Task<CobroDto> RegistrarCobroAsync(RegistrarCobroDto cobroDto, Stream? fileStream, string? fileName)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             using var transaction = await context.Database.BeginTransactionAsync();
@@ -118,14 +118,18 @@ namespace FacturasSRI.Infrastructure.Services
                     throw new ArgumentException($"El monto del cobro (${cobroDto.Monto}) no puede ser mayor al saldo pendiente (${cuentaPorCobrar.SaldoPendiente}).", nameof(cobroDto.Monto));
                 }
 
-                var fileExtension = Path.GetExtension(fileName);
-                var newFileName = $"{Guid.NewGuid()}{fileExtension}";
-                var bucketPath = $"{cobroDto.UsuarioIdCreador}/{newFileName}";
+                string? bucketPath = null;
+                if (fileStream != null && !string.IsNullOrEmpty(fileName))
+                {
+                    var fileExtension = Path.GetExtension(fileName);
+                    var newFileName = $"{Guid.NewGuid()}{fileExtension}";
+                    bucketPath = $"{cobroDto.UsuarioIdCreador}/{newFileName}";
 
-                await using var memoryStream = new MemoryStream();
-                await fileStream.CopyToAsync(memoryStream);
-                
-                await _supabase.Storage.From("comprobantes-facturas-emitidas").Upload(memoryStream.ToArray(), bucketPath);
+                    await using var memoryStream = new MemoryStream();
+                    await fileStream.CopyToAsync(memoryStream);
+                    
+                    await _supabase.Storage.From("comprobantes-facturas-emitidas").Upload(memoryStream.ToArray(), bucketPath);
+                }
 
                 var cobro = new Cobro
                 {
@@ -135,7 +139,7 @@ namespace FacturasSRI.Infrastructure.Services
                     Monto = cobroDto.Monto,
                     MetodoDePago = cobroDto.MetodoDePago,
                     Referencia = cobroDto.Referencia,
-                    ComprobantePagoPath = bucketPath,
+                    ComprobantePagoPath = bucketPath, // Can be null
                     UsuarioIdCreador = cobroDto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow
                 };
