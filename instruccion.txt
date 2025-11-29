@@ -1,39 +1,7 @@
-Hola Gemini, ayudame con esto porfa, analiza el proyecto que esta con blazor server, netcore 8 y supabase, y necesito que:
+Hola Gemini, ayudame por favor con este sistema de facturacion que ocupa blazor server, netcore 8, y supabase.
 
-Rol: Actúa como un experto en UX y Desarrollador Frontend Senior.
-Contexto: Estoy desarrollando un módulo de "Registro de Pagos" para un sistema de facturación. Tengo un formulario modal con los siguientes campos:
+Actualmente estoy haciendo el portal de cliente, necesito que me ayudes por favor pensando que puedo poner en el navmenu del que tenga sentido para un cliente. De momento pensaba en una lista de las facturas pagadas, que las pueda descargar, y ver sus detalles. Y una lista de las facturas que tiene por pagar, pero no se que mas poner, notas de credito tambien?
 
-Monto (Input numérico)
-Método de Pago (Select/Dropdown)
-Referencia (Input texto)
-Comprobante/Soporte (Input tipo File)
-Las opciones del Select "Método de Pago" son:
-Efectivo
-Transferencia
-Cheque
-Tarjeta de Crédito/Débito
-Otro
+Puedes revisar por favor el proyecto en general para ver que puede ser una buena idea para que tenga el portal del cliente porfa
 
-El requerimiento:
-
-Necesito que el formulario sea dinámico basándose en la selección del "Método de Pago". Por favor, cambia el código para cumplir las siguientes reglas de negocio:
-
-Reglas de Comportamiento:
-Si selecciona "Efectivo":
-Campo Referencia: El label debe decir "Observación (Opcional)". No es obligatorio.
-Campo Comprobante (File): Debe ocultarse completamente (no es necesario subir nada).
-
-Si selecciona "Transferencia":
-Campo Referencia: El label debe cambiar a "Nro. de Comprobante / ID Transacción". Debe ser OBLIGATORIO.
-Campo Comprobante (File): Debe mostrarse y ser OBLIGATORIO (para subir la captura).
-
-Si selecciona "Cheque":
-Campo Referencia: El label debe cambiar a "Nro. Cheque y Banco". Debe ser OBLIGATORIO.
-Campo Comprobante (File): Debe mostrarse y ser OBLIGATORIO (foto del cheque).
-
-Si selecciona "Tarjeta de Crédito/Débito":
-Campo Referencia: El label debe cambiar a "Lote / Autorización (Voucher)". Debe ser OBLIGATORIO.
-Campo Comprobante (File): Debe mostrarse pero ser OPCIONAL (a veces el voucher es digital, a veces físico).
-
-Si selecciona "Otro":
-Comportamiento estándar: Referencia obligatoria y Archivo opcional.
+Y me lo pones en un .txt para decirte si apruebo o no hacer esto, y si lo apruebo hagas otro .txt con un plan de accion para realizar esto
