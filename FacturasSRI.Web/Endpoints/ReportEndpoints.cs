@@ -1,4 +1,5 @@
 using FacturasSRI.Application.Interfaces;
+using FacturasSRI.Infrastructure.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -63,6 +64,24 @@ namespace FacturasSRI.Web.Endpoints
             })
             .WithName("GetCreditNotesReport")
             .Produces(200, typeof(IEnumerable<FacturasSRI.Application.Dtos.Reports.NotasDeCreditoReportDto>));
+
+            reportGroup.MapGet("/sales/by-period/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+
+                var reportData = await reportService.GetVentasPorPeriodoAsync(finalStartDate, finalEndDate);
+
+                if (reportData == null || !reportData.Any())
+                {
+                    return Results.NotFound("No se encontraron datos para generar el PDF.");
+                }
+
+                var pdfBytes = pdfService.GenerateVentasPorPeriodoPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Ventas_Periodo_{finalStartDate.ToString("yyyyMMdd")}-{finalEndDate.ToString("yyyyMMdd")}.pdf");
+            })
+            .WithName("GetSalesByPeriodPdf")
+            .Produces(200, typeof(byte[]));
         }
     }
 }

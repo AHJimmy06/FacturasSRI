@@ -71,6 +71,7 @@ builder.Services.AddScoped<FacturasSRI.Core.Services.SriResponseParserService>()
 builder.Services.AddScoped<ICreditNoteService, CreditNoteService>();
 
 builder.Services.AddScoped<FacturasSRI.Infrastructure.Services.PdfGeneratorService>();
+builder.Services.AddScoped<FacturasSRI.Infrastructure.Services.ReportPdfGeneratorService>();
 
 builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
