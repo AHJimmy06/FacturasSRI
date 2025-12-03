@@ -82,6 +82,52 @@ namespace FacturasSRI.Web.Endpoints
             })
             .WithName("GetSalesByPeriodPdf")
             .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/sales/by-product/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetVentasPorProductoAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateVentasPorProductoPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Ventas_Producto_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetSalesByProductPdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/sales/customer-activity/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetActividadClientesAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateActividadClientesPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Actividad_Clientes_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetCustomerActivityPdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/sales/accounts-receivable/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService) =>
+            {
+                var reportData = await reportService.GetCuentasPorCobrarAsync();
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateCuentasPorCobrarPdf(reportData);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Cuentas_Por_Cobrar_{DateTime.Now:yyyyMMdd}.pdf");
+            })
+            .WithName("GetAccountsReceivablePdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/sales/credit-notes/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetNotasDeCreditoAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateNotasDeCreditoPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Notas_De_Credito_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetCreditNotesPdf")
+            .Produces(200, typeof(byte[]));
         }
     }
 }
