@@ -355,5 +355,238 @@ namespace FacturasSRI.Infrastructure.Services
                 });
             }).GeneratePdf();
         }
+
+        public byte[] GenerateStockActualPdf(IEnumerable<StockActualDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(1, Unit.Centimetre);
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Stock Actual"));
+                    page.Content().Element(compose =>
+                    {
+                        compose.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(75);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                            });
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCellStyle).Text("Código");
+                                header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).Text("Categoría");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Stock Actual");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Costo Promedio");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Valor Inventario");
+                            });
+                            foreach (var item in data)
+                            {
+                                table.Cell().Element(DataCellStyle).Text(item.CodigoPrincipal);
+                                table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
+                                table.Cell().Element(DataCellStyle).Text(item.Categoria);
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.StockTotal.ToString());
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.PrecioCompraPromedioPonderado.ToString("C", esEcCulture));
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.ValorInventario.ToString("C", esEcCulture)).Bold();
+                            }
+                            table.Cell().ColumnSpan(6).Element(TotalsRowStyle).Row(row =>
+                            {
+                                row.RelativeItem(8.5f).AlignRight().Text("Valor Total del Inventario:").Bold();
+                                row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.ValorInventario).ToString("C", esEcCulture)).Bold();
+                            });
+                        });
+                    });
+                    page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+                });
+            }).GeneratePdf();
+        }
+        
+        public byte[] GenerateMovimientosInventarioPdf(IEnumerable<MovimientoInventarioDto> data, DateTime startDate, DateTime endDate)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(1, Unit.Centimetre);
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Movimientos de Inventario", startDate, endDate));
+                    page.Content().Element(compose =>
+                    {
+                        compose.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(1);
+                            });
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCellStyle).Text("Fecha");
+                                header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).Text("Tipo de Movimiento");
+                                header.Cell().Element(HeaderCellStyle).Text("Documento / Motivo");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad");
+                            });
+                            foreach (var item in data)
+                            {
+                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                                table.Cell().Element(DataCellStyle).Text(item.ProductoNombre);
+                                table.Cell().Element(DataCellStyle).Text(item.TipoMovimiento);
+                                table.Cell().Element(DataCellStyle).Text(item.DocumentoReferencia);
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.Cantidad.ToString()).Bold();
+                            }
+                        });
+                    });
+                    page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateComprasPorPeriodoPdf(IEnumerable<ComprasPorPeriodoDto> data, DateTime startDate, DateTime endDate)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1, Unit.Centimetre);
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Compras por Período", startDate, endDate));
+                    page.Content().Element(compose =>
+                    {
+                        compose.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                            });
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad Comprada");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Costo Promedio Unitario");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Costo Total");
+                            });
+                            foreach (var item in data)
+                            {
+                                table.Cell().Element(DataCellStyle).Text(item.ProductoNombre);
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadComprada.ToString("N2"));
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.CostoPromedio.ToString("C", esEcCulture));
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.CostoTotal.ToString("C", esEcCulture));
+                            }
+                            table.Cell().ColumnSpan(4).Element(TotalsRowStyle).Row(row =>
+                            {
+                                row.RelativeItem(3).AlignRight().Text("Totales:").Bold();
+                                row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.CantidadComprada).ToString("N2")).Bold();
+                                row.RelativeItem(2); // Spacer for average cost
+                                row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.CostoTotal).ToString("C", esEcCulture)).Bold();
+                            });
+                        });
+                    });
+                    page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateProductosBajoStockMinimoPdf(IEnumerable<ProductoStockMinimoDto> data)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1, Unit.Centimetre);
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Productos Bajo Stock Mínimo"));
+                    page.Content().Element(compose =>
+                    {
+                        compose.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(75);
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                            });
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCellStyle).Text("Código");
+                                header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Stock Actual");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Stock Mínimo");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad Faltante");
+                            });
+                            foreach (var item in data)
+                            {
+                                table.Cell().Element(DataCellStyle).Text(item.CodigoPrincipal);
+                                table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.StockActual.ToString());
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.StockMinimo.ToString());
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadFaltante.ToString()).Bold();
+                            }
+                        });
+                    });
+                    page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+                });
+            }).GeneratePdf();
+        }
+
+        public byte[] GenerateAjustesInventarioPdf(IEnumerable<AjusteInventarioReportDto> data, DateTime startDate, DateTime endDate)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4.Landscape());
+                    page.Margin(1, Unit.Centimetre);
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ajustes de Inventario", startDate, endDate));
+                    page.Content().Element(compose =>
+                    {
+                        compose.Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1.5f);
+                                columns.RelativeColumn(3);
+                            });
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCellStyle).Text("Fecha");
+                                header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).Text("Tipo de Ajuste");
+                                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad Ajustada");
+                                header.Cell().Element(HeaderCellStyle).Text("Motivo");
+
+                            });
+                            foreach (var item in data)
+                            {
+                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                                table.Cell().Element(DataCellStyle).Text(item.ProductoNombre);
+                                table.Cell().Element(DataCellStyle).Text(item.TipoAjuste);
+                                table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadAjustada.ToString());
+                                table.Cell().Element(DataCellStyle).Text(item.Motivo);
+                            }
+                        });
+                    });
+                    page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
+                });
+            }).GeneratePdf();
+        }
     }
 }

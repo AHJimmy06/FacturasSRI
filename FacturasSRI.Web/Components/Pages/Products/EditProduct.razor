@@ -90,6 +90,11 @@ else
                             <InputCheckbox class="form-check-input" Value="product.ManejaLotes" ValueChanged="HandleManejaLotesChange" ValueExpression="@(() => product.ManejaLotes)" />
                             <label class="form-check-label">Maneja Lotes</label>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Stock Mínimo</label>
+                            <InputNumber class="form-control" @bind-Value="product.StockMinimo" min="0" />
+                            <ValidationMessage For="@(() => product.StockMinimo)" />
+                        </div>
                         <div class="mb-3 form-check form-switch form-check-input-primary">
                             <InputCheckbox class="form-check-input" @bind-Value="product.IsActive" />
                             <label class="form-check-label">Está Activo</label>

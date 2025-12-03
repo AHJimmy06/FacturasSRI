@@ -174,6 +174,62 @@ namespace FacturasSRI.Web.Endpoints
             })
             .WithName("GetInventoryAdjustmentsReport")
             .Produces(200, typeof(IEnumerable<FacturasSRI.Application.Dtos.Reports.AjusteInventarioReportDto>));
+
+            reportGroup.MapGet("/warehouse/current-stock/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService) =>
+            {
+                var reportData = await reportService.GetStockActualAsync();
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateStockActualPdf(reportData);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Stock_Actual_{DateTime.Now:yyyyMMdd}.pdf");
+            })
+            .WithName("GetStockActualPdf")
+            .Produces(200, typeof(byte[]));
+            
+            reportGroup.MapGet("/warehouse/inventory-movements/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetMovimientosInventarioAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateMovimientosInventarioPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Movimientos_Inventario_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetInventoryMovementsPdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/warehouse/purchases-by-period/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetComprasPorPeriodoAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateComprasPorPeriodoPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Compras_Periodo_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetPurchasesByPeriodPdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/warehouse/low-stock-products/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService) =>
+            {
+                var reportData = await reportService.GetProductosBajoStockMinimoAsync();
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateProductosBajoStockMinimoPdf(reportData);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Productos_Bajo_Stock_{DateTime.Now:yyyyMMdd}.pdf");
+            })
+            .WithName("GetLowStockProductsPdf")
+            .Produces(200, typeof(byte[]));
+
+            reportGroup.MapGet("/warehouse/inventory-adjustments/pdf", async (IReportService reportService, ReportPdfGeneratorService pdfService, DateTime? startDate, DateTime? endDate) =>
+            {
+                var finalStartDate = (startDate ?? DateTime.Now.AddMonths(-1)).ToUniversalTime();
+                var finalEndDate = (endDate ?? DateTime.Now).ToUniversalTime();
+                var reportData = await reportService.GetAjustesInventarioAsync(finalStartDate, finalEndDate);
+                if (reportData == null || !reportData.Any()) return Results.NotFound("No se encontraron datos para generar el PDF.");
+                var pdfBytes = pdfService.GenerateAjustesInventarioPdf(reportData, finalStartDate, finalEndDate);
+                return Results.File(pdfBytes, "application/pdf", $"Reporte_Ajustes_Inventario_{finalStartDate:yyyyMMdd}-{finalEndDate:yyyyMMdd}.pdf");
+            })
+            .WithName("GetInventoryAdjustmentsPdf")
+            .Produces(200, typeof(byte[]));
         }
     }
 }

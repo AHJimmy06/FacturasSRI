@@ -3,6 +3,7 @@
 @using System.Globalization
 @using FacturasSRI.Application.Dtos.Reports
 @inject HttpClient Http
+@inject IJSRuntime JSRuntime
 
 @attribute [Authorize(Roles = "Administrador, Bodeguero")]
 
@@ -13,18 +14,27 @@
                 <h4 class="m-0 font-weight-bold text-primary">Reporte de Productos Bajo Stock Mínimo</h4>
                 <p class="text-muted mb-0">Muestra los productos cuyo stock actual es inferior al stock mínimo definido.</p>
             </div>
-            <button class="btn btn-primary" @onclick="GenerateReport" disabled="@isLoading">
-                @if (isLoading)
+            <div>
+                <button class="btn btn-primary me-2" @onclick="GenerateReport" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span class="ms-1">Actualizando...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-arrow-clockwise me-1"></i>
+                        <span>Actualizar</span>
+                    }
+                </button>
+                @if (reportData != null && reportData.Any())
                 {
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    <span class="ms-1">Actualizando...</span>
+                    <button class="btn btn-info" @onclick="DownloadPdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>
+                        Descargar PDF
+                    </button>
                 }
-                else
-                {
-                    <i class="bi bi-arrow-clockwise me-1"></i>
-                    <span>Actualizar</span>
-                }
-            </button>
+            </div>
         </div>
         <div class="card-body">
             @if (errorMessage != null)
@@ -60,7 +70,7 @@
                             <tbody>
                                 @foreach (var item in reportData)
                                 {
-                                    <tr class="table-danger">
+                                    <tr>
                                         <td>@item.CodigoPrincipal</td>
                                         <td>@item.NombreProducto</td>
                                         <td class="text-end">@item.StockActual</td>
@@ -114,5 +124,11 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task DownloadPdf()
+    {
+        var url = "/api/reports/warehouse/low-stock-products/pdf";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
     }
 }

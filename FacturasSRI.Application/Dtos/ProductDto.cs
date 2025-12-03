@@ -27,6 +27,9 @@ namespace FacturasSRI.Application.Dtos
         public bool ManejaInventario { get; set; } = true;
         public bool ManejaLotes { get; set; } = true;
         public int StockTotal { get; set; }
+        
+        [Range(0, int.MaxValue, ErrorMessage = "El stock mínimo no puede ser un número negativo.")]
+        public int StockMinimo { get; set; } = 5;
         public string CreadoPor { get; set; } = string.Empty;
         public Guid UsuarioIdCreador { get; set; }
         public bool IsActive { get; set; } = true;

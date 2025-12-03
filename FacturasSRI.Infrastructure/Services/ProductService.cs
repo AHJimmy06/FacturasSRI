@@ -44,6 +44,7 @@ namespace FacturasSRI.Infrastructure.Services
                 PrecioVentaUnitario = productDto.PrecioVentaUnitario,
                 ManejaInventario = productDto.ManejaInventario,
                 ManejaLotes = productDto.ManejaLotes,
+                StockMinimo = productDto.StockMinimo,
                 UsuarioIdCreador = productDto.UsuarioIdCreador,
                 FechaCreacion = DateTime.UtcNow,
                 Marca = productDto.Marca,
@@ -88,6 +89,7 @@ namespace FacturasSRI.Infrastructure.Services
                               ManejaInventario = product.ManejaInventario,
                               ManejaLotes = product.ManejaLotes,
                               StockTotal = product.ManejaLotes ? product.Lotes.Sum(l => l.CantidadDisponible) : product.StockTotal,
+                              StockMinimo = product.StockMinimo,
                               PrecioCompraPromedioPonderado = product.PrecioCompraPromedioPonderado,
                               CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                               IsActive = product.EstaActivo,
@@ -168,6 +170,7 @@ namespace FacturasSRI.Infrastructure.Services
                     ManejaInventario = x.product.ManejaInventario,
                     ManejaLotes = x.product.ManejaLotes,
                     StockTotal = x.product.ManejaLotes ? x.product.Lotes.Sum(l => l.CantidadDisponible) : x.product.StockTotal,
+                    StockMinimo = x.product.StockMinimo,
                     PrecioCompraPromedioPonderado = x.product.PrecioCompraPromedioPonderado,
                     CreadoPor = x.usuario != null ? x.usuario.PrimerNombre + " " + x.usuario.PrimerApellido : "Usuario no encontrado",
                     IsActive = x.product.EstaActivo,
@@ -187,7 +190,7 @@ namespace FacturasSRI.Infrastructure.Services
             return await context.Productos
                 .AsNoTracking()
                 .OrderBy(p => p.Nombre)
-                .Select(p => new ProductDto { Id = p.Id, Nombre = p.Nombre, CodigoPrincipal = p.CodigoPrincipal, PrecioVentaUnitario = p.PrecioVentaUnitario, IsActive = p.EstaActivo, ManejaInventario = p.ManejaInventario, StockTotal = p.StockTotal, PrecioCompraPromedioPonderado = p.PrecioCompraPromedioPonderado })
+                .Select(p => new ProductDto { Id = p.Id, Nombre = p.Nombre, CodigoPrincipal = p.CodigoPrincipal, PrecioVentaUnitario = p.PrecioVentaUnitario, IsActive = p.EstaActivo, ManejaInventario = p.ManejaInventario, StockTotal = p.StockTotal, StockMinimo = p.StockMinimo, PrecioCompraPromedioPonderado = p.PrecioCompraPromedioPonderado })
                 .ToListAsync();
         }
 
@@ -209,6 +212,7 @@ namespace FacturasSRI.Infrastructure.Services
                               ManejaInventario = product.ManejaInventario,
                               ManejaLotes = product.ManejaLotes,
                               StockTotal = product.ManejaLotes ? product.Lotes.Sum(l => l.CantidadDisponible) : product.StockTotal,
+                              StockMinimo = product.StockMinimo,
                               PrecioCompraPromedioPonderado = product.PrecioCompraPromedioPonderado,
                               CreadoPor = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado",
                               IsActive = product.EstaActivo,
@@ -240,6 +244,7 @@ namespace FacturasSRI.Infrastructure.Services
                 product.ManejaInventario = productDto.ManejaInventario;
                 product.ManejaLotes = productDto.ManejaLotes;
                 product.EstaActivo = productDto.IsActive;
+                product.StockMinimo = productDto.StockMinimo;
                 product.Marca = productDto.Marca;
                 product.CategoriaId = productDto.CategoriaId;
                 await context.SaveChangesAsync();
@@ -357,6 +362,7 @@ namespace FacturasSRI.Infrastructure.Services
                     ManejaLotes = p.ManejaLotes,
                     IsActive = p.EstaActivo,
                     StockTotal = p.ManejaLotes ? p.Lotes.Sum(l => l.CantidadDisponible) : p.StockTotal,
+                    StockMinimo = p.StockMinimo,
                     Taxes = p.ProductoImpuestos.Select(pi => new TaxDto
                     {
                         Id = pi.Impuesto.Id,

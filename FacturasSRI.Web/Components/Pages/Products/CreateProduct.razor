@@ -71,6 +71,11 @@
                         </InputSelect>
                         <ValidationMessage For="@(() => newProduct.CategoriaId)" />
                     </div>
+                    <div class="mb-3">
+                        <label for="stockMinimo" class="form-label">Stock Mínimo</label>
+                        <InputNumber id="stockMinimo" class="form-control" @bind-Value="newProduct.StockMinimo" min="0" />
+                        <ValidationMessage For="@(() => newProduct.StockMinimo)" />
+                    </div>
                 </div>
 
             </div>

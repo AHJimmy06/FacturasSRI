@@ -3,6 +3,7 @@
 @using System.Globalization
 @using FacturasSRI.Application.Dtos.Reports
 @inject HttpClient Http
+@inject IJSRuntime JSRuntime
 
 @attribute [Authorize(Roles = "Administrador, Bodeguero")]
 
@@ -23,7 +24,7 @@
                     <input type="date" id="endDate" class="form-control" @bind="endDate" />
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
-                    <button class="btn btn-primary" @onclick="GenerateReport" disabled="@isLoading">
+                    <button class="btn btn-primary me-2" @onclick="GenerateReport" disabled="@isLoading">
                         @if (isLoading)
                         {
                             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -35,6 +36,13 @@
                             <span>Generar Reporte</span>
                         }
                     </button>
+                    @if (reportData != null && reportData.Any())
+                    {
+                        <button class="btn btn-info" @onclick="DownloadPdf">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>
+                            Descargar PDF
+                        </button>
+                    }
                 </div>
             </div>
 
@@ -130,5 +138,11 @@
         {
             isLoading = false;
         }
+    }
+    
+    private async Task DownloadPdf()
+    {
+        var url = $"/api/reports/warehouse/inventory-adjustments/pdf?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
     }
 }
