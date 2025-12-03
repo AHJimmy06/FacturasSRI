@@ -1,0 +1,56 @@
+
+Propuestas de Reportes:
+
+Para Vendedor (Salesperson):
+
+1.  **Reporte de Ventas por Período:**
+    *   **Descripción:** Muestra el total de ventas (monto y cantidad de facturas) dentro de un rango de fechas especificado. Puede desglosarse por día, semana o mes.
+    *   **Datos Clave:** `Factura.FechaEmision`, `Factura.Total`, `Factura.EstadoFactura` (para ventas confirmadas).
+    *   **Utilidad:** Permite al vendedor monitorear su rendimiento de ventas y el progreso hacia objetivos.
+
+2.  **Reporte de Ventas por Producto/Servicio:**
+    *   **Descripción:** Detalla qué productos o servicios se han vendido más (en cantidad y/o monto) dentro de un período.
+    *   **Datos Clave:** `FacturaDetalle.ProductoId`, `FacturaDetalle.Cantidad`, `FacturaDetalle.PrecioUnitario`, `Producto.Nombre`.
+    *   **Utilidad:** Identificar los productos más populares, gestionar el stock, y enfocar esfuerzos de venta.
+
+3.  **Reporte de Clientes (Activos/Inactivos y Compras):**
+    *   **Descripción:** Lista de clientes, su última fecha de compra, y el total gastado en un período. Puede filtrar por clientes que no han comprado en X tiempo.
+    *   **Datos Clave:** `Cliente.Nombre`, `Cliente.Identificacion`, `Factura.ClienteId`, `Factura.FechaEmision`, `Factura.Total`.
+    *   **Utilidad:** Identificar clientes VIP, clientes a los que reactivar, y entender el valor de la cartera de clientes.
+
+4.  **Reporte de Cuentas por Cobrar / Pagos Pendientes:**
+    *   **Descripción:** Muestra las facturas con saldos pendientes, desglosado por cliente y antigüedad de la deuda.
+    *   **Datos Clave:** `Factura.ClienteId`, `Factura.Total`, `Cobro.Monto`, `Factura.EstadoFactura` (si indica pendiente). Requiere unir `Factura` y `Cobro` para calcular el saldo restante, o usar `CuentaPorCobrar` si rastrea esto.
+    *   **Utilidad:** Ayuda a la gestión de cobros y reduce la morosidad.
+
+5.  **Reporte de Notas de Crédito Emitidas:**
+    *   **Descripción:** Muestra un listado de notas de crédito emitidas, con detalles como fecha, cliente, motivo y monto.
+    *   **Datos Clave:** `NotaDeCredito.FechaEmision`, `NotaDeCredito.ClienteId`, `NotaDeCredito.Motivo`, `NotaDeCredito.ValorTotal`.
+    *   **Utilidad:** Controlar devoluciones y ajustes de facturación.
+
+Para Bodeguero (Warehouse Worker):
+
+1.  **Reporte de Stock Actual por Producto:**
+    *   **Descripción:** Muestra el inventario actual de cada producto, incluyendo la cantidad disponible.
+    *   **Datos Clave:** `Producto.Nombre`, `Producto.StockActual`. Si se gestiona por lotes, también `Lote.CantidadDisponible`.
+    *   **Utilidad:** Conocer el estado del inventario en tiempo real, identificar productos con bajo stock para reordenar.
+
+2.  **Reporte de Movimientos de Inventario (Entradas/Salidas):**
+    *   **Descripción:** Detalle de todas las entradas (compras, ajustes positivos) y salidas (ventas, ajustes negativos) de productos en un período.
+    *   **Datos Clave:** `FacturaDetalle.ProductoId` (salidas por venta), `AjusteInventario.ProductoId`, `AjusteInventario.TipoAjuste`, `AjusteInventario.Cantidad`, `AjusteInventario.Fecha`. Las entradas por compra se reflejarían en los lotes o en el aumento del stock del producto.
+    *   **Utilidad:** Trazabilidad de productos, auditoría de inventario, detección de discrepancias.
+
+3.  **Reporte de Compras por Período y Producto:**
+    *   **Descripción:** Sumariza las compras realizadas dentro de un período, desglosado por producto.
+    *   **Datos Clave:** `Lote.ProductoId`, `Lote.FechaIngreso`, `Lote.CantidadInicial`, `Lote.CostoUnitario`. (Esto requeriría unirse con `Producto`).
+    *   **Utilidad:** Controlar gastos de compra, evaluar la rentabilidad de los productos.
+
+4.  **Reporte de Productos Bajo Stock Mínimo:**
+    *   **Descripción:** Lista los productos cuyo stock actual está por debajo de un nivel mínimo predefinido.
+    *   **Datos Clave:** `Producto.Nombre`, `Producto.StockActual`, `Producto.StockMinimo` (asumiendo que este campo existe o puede ser añadido).
+    *   **Utilidad:** Prevenir roturas de stock, optimizar la gestión de pedidos.
+
+5.  **Reporte de Ajustes de Inventario:**
+    *   **Descripción:** Detalla todos los ajustes realizados al inventario (aumentos, disminuciones), con la fecha, el producto, la cantidad y el motivo.
+    *   **Datos Clave:** `AjusteInventario.Fecha`, `AjusteInventario.ProductoId`, `AjusteInventario.Cantidad`, `AjusteInventario.TipoAjuste`, `AjusteInventario.Motivo`.
+    *   **Utilidad:** Auditar la precisión del inventario, identificar problemas recurrentes en la gestión de almacén.

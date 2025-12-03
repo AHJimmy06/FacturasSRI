@@ -1,0 +1,53 @@
+
+Plan de Acción: Implementación de Reportes para Vendedor
+
+**Parte 1: Modificación de la Interfaz de Usuario (UI)**
+
+1.  **Propuesta de Ubicación en el Menú:**
+    *   Se recomienda crear una nueva sección principal en el `NavMenu.razor` llamada "Reportes".
+    *   **Justificación:** Agrupar todos los reportes en una sola sección mejora la organización y la escalabilidad a futuro (cuando se añadan reportes para otros roles). Evita saturar los menús existentes ("Facturas", "Clientes") que están más orientados a operaciones del día a día que al análisis de datos.
+    *   Dentro de esta sección "Reportes", se añadirán los enlaces a cada uno de los 5 reportes, y toda la sección será visible únicamente para los roles `Administrador` y `Vendedor`.
+
+2.  **Pasos para Implementar la UI:**
+    *   **Modificar `NavMenu.razor`:** Añadir el nuevo bloque de código para la sección "Reportes", utilizando `AuthorizeView` para restringir su visibilidad a los roles correctos.
+    *   **Crear Nuevos Componentes Razor:** Se crearán 5 nuevos componentes Blazor (`.razor`) en una nueva estructura de carpetas: `FacturasSRI.Web/Components/Pages/Reports/Sales/`.
+        *   `VentasPorPeriodoReport.razor`
+        *   `VentasPorProductoReport.razor`
+        *   `ClientesActividadReport.razor`
+        *   `CuentasPorCobrarReport.razor`
+        *   `NotasDeCreditoReport.razor`
+    *   **Contenido de Componentes:** Cada uno de estos archivos contendrá inicialmente el HTML para el título del reporte, los controles de filtro (ej., selectores de fecha) y un área designada para mostrar los resultados (una tabla).
+    *   **Definición de Rutas:** No se modificará `Routes.razor`. En su lugar, a cada nuevo componente de reporte (ej. `VentasPorPeriodoReport.razor`) se le añadirá la directiva `@page "/reports/sales/period"` en la primera línea para definir su ruta de acceso.
+
+**Parte 2: Lógica del Backend y Acceso a Datos**
+
+Para evitar modificar el frontend y el backend en cada paso, primero se construirá toda la lógica de negocio y los endpoints necesarios.
+
+1.  **Definir DTOs (Data Transfer Objects) para Reportes:**
+    *   En `FacturasSRI.Application/Dtos/`, se creará una nueva carpeta `Reports`.
+    *   Dentro, se definirán clases C# que representen la estructura de datos de cada reporte. Por ejemplo, `VentaProductoDto` tendrá propiedades como `NombreProducto`, `CantidadVendida`, `TotalVendido`.
+
+2.  **Crear Servicio de Reportes:**
+    *   **Interfaz:** Se creará una nueva interfaz `IReportService.cs` en `FacturasSRI.Application/Interfaces`. Esta definirá los métodos para obtener los datos de cada reporte.
+        *   Ej: `Task<IEnumerable<VentaProductoDto>> GetVentasPorProductoAsync(DateTime fechaInicio, DateTime fechaFin);`
+    *   **Implementación:** Se creará la clase `ReportService.cs` en el proyecto `FacturasSRI.Infrastructure` (en una carpeta `Services` si no existe). Esta clase implementará `IReportService`.
+    *   **Lógica de Consultas:** El `ReportService` utilizará el `ApplicationDbContext` para realizar las consultas a la base de datos usando LINQ. Aquí se agruparán, sumarán y filtrarán los datos de las entidades (`Factura`, `FacturaDetalle`, `Cliente`, etc.) para generar la información requerida por cada reporte.
+
+3.  **Crear Endpoints de API:**
+    *   En `FacturasSRI.Web/Endpoints/`, se creará un nuevo archivo `ReportEndpoints.cs`.
+    *   Se mapearán los métodos del `IReportService` a endpoints HTTP GET. Estos serán los puntos de acceso que el frontend consumirá.
+    *   Ej: `app.MapGet("/api/reports/sales/by-product", async (IReportService service, DateTime start, DateTime end) => ...)`
+    *   Se registrarán estos endpoints en `Program.cs`.
+
+**Parte 3: Conexión Frontend con Backend**
+
+Una vez que los endpoints de la API estén listos, se conectará la interfaz de usuario.
+
+1.  **Lógica en los Componentes Razor:**
+    *   En cada componente `.razor` de reporte (creado en la Parte 1), se inyectará `HttpClient`.
+    *   Se añadirá código C# dentro del bloque `@code` para:
+        *   Gestionar los valores de los filtros (fechas de inicio y fin).
+        *   Llamar al endpoint de la API correspondiente al hacer clic en un botón "Generar Reporte".
+        *   Almacenar los resultados devueltos por la API en una variable.
+        *   Manejar estados de "Cargando..." y "Error".
+    *   **Renderizar Datos:** Se usará un bucle `@foreach` en el HTML para iterar sobre los resultados y mostrarlos en una tabla.

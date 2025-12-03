@@ -58,6 +58,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
 builder.Services.AddScoped<ICobroService, CobroService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddSingleton<DataCacheService>();
 builder.Services.AddHostedService<VencimientoComprasService>();
@@ -178,5 +179,6 @@ app.UseAntiforgery();
 app.MapControllers();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.MapDownloadEndpoints();
+app.MapReportEndpoints();
 
 app.Run();
