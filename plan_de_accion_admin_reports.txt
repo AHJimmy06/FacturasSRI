@@ -1,0 +1,48 @@
+# Plan de Acción para Reportes de Administrador (Filtros Opcionales por Usuario)
+
+## Objetivo
+Permitir que los reportes de "Bodega" puedan ser filtrados opcionalmente por un `UsuarioIdCreador` para el rol de Administrador, manteniendo la vista de todos los registros por defecto cuando no se especifica un usuario.
+
+## Reportes Afectados
+Los reportes de "Bodega" que requieren este cambio son:
+1.  `GetStockActualAsync`
+2.  `GetMovimientosInventarioAsync`
+3.  `GetComprasPorPeriodoAsync`
+4.  `GetProductosBajoStockMinimoAsync`
+5.  `GetAjustesInventarioAsync`
+
+## Acciones a Realizar
+
+### 1. Modificar `IReportService.cs`
+-   **Descripción:** Añadir el parámetro `Guid? userId` a las firmas de los métodos de los 5 reportes de bodega afectados.
+-   **Ubicación:** `FacturasSRI.Application\Interfaces\IReportService.cs`
+
+### 2. Modificar `ReportService.cs` (Implementación)
+-   **Descripción:**
+    -   Para cada uno de los 5 métodos listados en `FacturasSRI.Infrastructure\Services\ReportService.cs`, añadir el parámetro `Guid? userId` a la firma del método.
+    -   Dentro de cada método, implementar una cláusula condicional para aplicar el filtro por `UsuarioIdCreador` si se proporciona un `userId`.
+-   **Detalles por método:**
+    -   **`GetStockActualAsync`**: La entidad principal es `Producto`. Para filtrar por el `UsuarioIdCreador` de los movimientos que afectan el stock, será necesario realizar `joins` o `includes` con `Lotes` y `FacturaDetalles` y luego aplicar el filtro condicional.
+    -   **`GetMovimientosInventarioAsync`**: Este método ya trabaja con `FacturaDetalles`, `Lotes` y `AjustesInventario`. Se debe añadir una lógica condicional para filtrar los movimientos por el `UsuarioIdCreador` de la factura, lote o ajuste correspondiente.
+    -   **`GetComprasPorPeriodoAsync`**: La entidad principal es `Lotes`. Se deberá añadir el filtro condicional por `UsuarioIdCreador` del lote.
+    -   **`GetProductosBajoStockMinimoAsync`**: Similar a `GetStockActualAsync`, la entidad principal es `Producto`. Se requerirá lógica adicional (posiblemente `joins` o `includes`) para acceder al `UsuarioIdCreador` de los movimientos de stock relacionados y aplicar el filtro.
+    -   **`GetAjustesInventarioAsync`**: La entidad principal es `AjustesInventario`. Se deberá añadir el filtro condicional por `UsuarioIdCreador` del ajuste.
+-   **Ubicación:** `FacturasSRI.Infrastructure\Services\ReportService.cs`
+
+### 3. Modificar Componentes `.razor` (Para Administrador)
+-   **Descripción:**
+    -   Identificar los componentes `.razor` asociados a los 5 reportes de bodega afectados.
+    -   En cada componente, añadir un control de UI (ej. `InputSelect`) para permitir al administrador seleccionar un usuario específico. Este control deberá estar poblado con la lista de usuarios del sistema.
+    -   Modificar la llamada al método correspondiente del `ReportService` para pasar el `userId` seleccionado.
+    -   Asegurar que, si no se selecciona ningún usuario en la UI, el parámetro `userId` se pase como `null` al servicio para obtener todos los registros (comportamiento por defecto).
+-   **Ubicación:** Buscar en `FacturasSRI.Web\Components\Pages\Reports\` (ej: `StockActualReport.razor`, `MovimientosInventarioReport.razor`, etc.)
+
+### 4. Verificación Final
+-   **Descripción:**
+    -   Ejecutar `dotnet build` para asegurar que el proyecto compila correctamente después de todos los cambios.
+    -   Probar cada uno de los 5 reportes de bodega en la interfaz de usuario con un usuario Administrador.
+    -   Verificar que el filtro opcional por usuario funciona correctamente.
+    -   Verificar que, al no seleccionar ningún usuario, se muestran todos los registros.
+
+---
+**Nota:** El preámbulo sobre el `NavMenu` del administrador se considerará una mejora de UI separada y se podrá abordar una vez completados los filtros de reportes.

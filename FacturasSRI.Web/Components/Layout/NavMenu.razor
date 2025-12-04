@@ -114,30 +114,42 @@
                     </div>
                 </AuthorizeView>
 
-                <AuthorizeView Roles="Administrador, Vendedor, Bodeguero">
+
+
+                <AuthorizeView Roles="Administrador, Vendedor">
                     <div class="nav-section">
-                        <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isReportesOpen); }">
+                        <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isReportesVentasOpen); }">
                             <i class="bi bi-graph-up"></i>
-                            @if (!IsCollapsed) { <span>Reportes</span> }
-                            @if (!IsCollapsed) { <i class="bi @(isReportesOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
+                            @if (!IsCollapsed) { <span>Reportes de Ventas</span> }
+                            @if (!IsCollapsed) { <i class="bi @(isReportesVentasOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
                         </div>
-                        @if (isReportesOpen || IsCollapsed)
+                        @if (isReportesVentasOpen || IsCollapsed)
                         {
                             <ul class="nav-submenu">
-                                <AuthorizeView Roles="Administrador, Vendedor" Context="salesContext">
-                                    <li><NavLink href="reports/sales/by-period" Match="NavLinkMatch.All"><i class="bi bi-calendar-week submenu-icon"></i><span>Ventas por Período</span></NavLink></li>
-                                    <li><NavLink href="reports/sales/by-product" Match="NavLinkMatch.All"><i class="bi bi-box-seam submenu-icon"></i><span>Ventas por Producto</span></NavLink></li>
-                                    <li><NavLink href="reports/sales/customer-activity" Match="NavLinkMatch.All"><i class="bi bi-people submenu-icon"></i><span>Actividad de Clientes</span></NavLink></li>
-                                    <li><NavLink href="reports/sales/accounts-receivable" Match="NavLinkMatch.All"><i class="bi bi-wallet2 submenu-icon"></i><span>Cuentas por Cobrar</span></NavLink></li>
-                                    <li><NavLink href="reports/sales/credit-notes" Match="NavLinkMatch.All"><i class="bi bi-arrow-left-circle submenu-icon"></i><span>Notas de Crédito</span></NavLink></li>
-                                </AuthorizeView>
-                                <AuthorizeView Roles="Administrador, Bodeguero" Context="warehouseContext">
-                                    <li><NavLink href="reports/warehouse/current-stock" Match="NavLinkMatch.All"><i class="bi bi-boxes submenu-icon"></i><span>Stock Actual</span></NavLink></li>
-                                    <li><NavLink href="reports/warehouse/inventory-movements" Match="NavLinkMatch.All"><i class="bi bi-arrows-expand-vertical submenu-icon"></i><span>Movimientos de Inventario</span></NavLink></li>
-                                    <li><NavLink href="reports/warehouse/purchases-by-period" Match="NavLinkMatch.All"><i class="bi bi-cart-check submenu-icon"></i><span>Compras por Período</span></NavLink></li>
-                                    <li><NavLink href="reports/warehouse/low-stock-products" Match="NavLinkMatch.All"><i class="bi bi-exclamation-triangle submenu-icon"></i><span>Productos Bajo Stock Mínimo</span></NavLink></li>
-                                    <li><NavLink href="reports/warehouse/inventory-adjustments" Match="NavLinkMatch.All"><i class="bi bi-tools submenu-icon"></i><span>Ajustes de Inventario</span></NavLink></li>
-                                </AuthorizeView>
+                                <li><NavLink href="reports/sales/by-period" Match="NavLinkMatch.All"><i class="bi bi-calendar-week submenu-icon"></i><span>Ventas por Período</span></NavLink></li>
+                                <li><NavLink href="reports/sales/by-product" Match="NavLinkMatch.All"><i class="bi bi-box-seam submenu-icon"></i><span>Ventas por Producto</span></NavLink></li>
+                                <li><NavLink href="reports/sales/customer-activity" Match="NavLinkMatch.All"><i class="bi bi-people submenu-icon"></i><span>Actividad de Clientes</span></NavLink></li>
+                                <li><NavLink href="reports/sales/accounts-receivable" Match="NavLinkMatch.All"><i class="bi bi-wallet2 submenu-icon"></i><span>Cuentas por Cobrar</span></NavLink></li>
+                                <li><NavLink href="reports/sales/credit-notes" Match="NavLinkMatch.All"><i class="bi bi-arrow-return-left submenu-icon"></i><span>Notas de Crédito</span></NavLink></li>
+                            </ul>
+                        }
+                    </div>
+                </AuthorizeView>
+                <AuthorizeView Roles="Administrador, Bodeguero">
+                    <div class="nav-section">
+                        <div class="nav-link-header" @onclick="() => { if (!IsCollapsed) ToggleSubMenu(ref isReportesBodegaOpen); }">
+                            <i class="bi bi-box-seam-fill"></i> @* Changed icon to be more warehouse-related *@
+                            @if (!IsCollapsed) { <span>Reportes de Bodega</span> }
+                            @if (!IsCollapsed) { <i class="bi @(isReportesBodegaOpen ? "bi-chevron-down" : "bi-chevron-right") ms-auto"></i> }
+                        </div>
+                        @if (isReportesBodegaOpen || IsCollapsed)
+                        {
+                            <ul class="nav-submenu">
+                                <li><NavLink href="reports/warehouse/current-stock" Match="NavLinkMatch.All"><i class="bi bi-boxes submenu-icon"></i><span>Stock Actual</span></NavLink></li>
+                                <li><NavLink href="reports/warehouse/inventory-movements" Match="NavLinkMatch.All"><i class="bi bi-arrows-expand-vertical submenu-icon"></i><span>Movimientos de Inventario</span></NavLink></li>
+                                <li><NavLink href="reports/warehouse/purchases-by-period" Match="NavLinkMatch.All"><i class="bi bi-cart-check submenu-icon"></i><span>Compras por Período</span></NavLink></li>
+                                <li><NavLink href="reports/warehouse/low-stock-products" Match="NavLinkMatch.All"><i class="bi bi-exclamation-triangle submenu-icon"></i><span>Productos Bajo Stock Mínimo</span></NavLink></li>
+                                <li><NavLink href="reports/warehouse/inventory-adjustments" Match="NavLinkMatch.All"><i class="bi bi-tools submenu-icon"></i><span>Ajustes de Inventario</span></NavLink></li>
                             </ul>
                         }
                     </div>
@@ -227,7 +239,8 @@
     private bool isImpuestosOpen;
     private bool isUsuariosOpen;
     private bool isInventarioOpen;
-    private bool isReportesOpen;
+    private bool isReportesVentasOpen;
+    private bool isReportesBodegaOpen;
 
     private void ToggleSubMenu(ref bool subMenuState)
     {
