@@ -1,6 +1,7 @@
 using FacturasSRI.Domain.Enums;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FacturasSRI.Domain.Entities
 {
@@ -20,6 +21,8 @@ namespace FacturasSRI.Domain.Entities
         public decimal TotalIVA { get; set; }
         public decimal Total { get; set; }
         public Guid UsuarioIdCreador { get; set; }
+        [ForeignKey("UsuarioIdCreador")]
+        public virtual Usuario UsuarioCreador { get; set; } = null!;
         public DateTime FechaCreacion { get; set; }
         public virtual ICollection<FacturaDetalle> Detalles { get; set; } = new List<FacturaDetalle>();
         public virtual ICollection<Cobro> Cobros { get; set; } = new List<Cobro>();
