@@ -72,10 +72,10 @@
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
                                 <tr>
+                                    <th>Fecha Emisión</th>
+                                    <th>Resp.</th>
                                     <th>Cliente</th>
                                     <th>Factura #</th>
-                                    <th>Vendedor</th>
-                                    <th>Fecha Emisión</th>
                                     <th class="text-end">Días Vencida</th>
                                     <th class="text-end">Monto Factura</th>
                                     <th class="text-end">Monto Pagado</th>
@@ -86,10 +86,10 @@
                                 @foreach (var item in reportData.OrderByDescending(x => x.DiasVencida))
                                 {
                                     <tr class="@(item.DiasVencida > 30 ? "table-danger" : item.DiasVencida > 15 ? "table-warning" : "")">
+                                        <td>@item.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                        <td>@item.Vendedor</td>
                                         <td>@item.NombreCliente</td>
                                         <td>@item.NumeroFactura</td>
-                                        <td>@item.Vendedor</td>
-                                        <td>@item.FechaEmision.ToString("dd/MM/yyyy")</td>
                                         <td class="text-end">@item.DiasVencida</td>
                                         <td class="text-end">@item.MontoFactura.ToString("C", esEcCulture)</td>
                                         <td class="text-end">@item.MontoPagado.ToString("C", esEcCulture)</td>

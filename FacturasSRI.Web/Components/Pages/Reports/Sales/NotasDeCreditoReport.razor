@@ -81,12 +81,12 @@
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
                                 <tr>
-                                    <th># Nota de Crédito</th>
                                     <th>Fecha Emisión</th>
+                                    <th>Resp.</th>
+                                    <th># Nota de Crédito</th>
                                     <th>Cliente</th>
                                     <th>Factura Afectada</th>
                                     <th>Motivo</th>
-                                    <th>Vendedor</th>
                                     <th class="text-end">Valor</th>
                                 </tr>
                             </thead>
@@ -94,12 +94,12 @@
                                 @foreach (var item in reportData)
                                 {
                                     <tr>
-                                        <td>@item.NumeroNotaCredito</td>
                                         <td>@item.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                        <td>@item.Vendedor</td>
+                                        <td>@item.NumeroNotaCredito</td>
                                         <td>@item.NombreCliente</td>
                                         <td>@item.FacturaModificada</td>
                                         <td>@item.Motivo</td>
-                                        <td>@item.Vendedor</td>
                                         <td class="text-end">@item.ValorTotal.ToString("C", esEcCulture)</td>
                                     </tr>
                                 }

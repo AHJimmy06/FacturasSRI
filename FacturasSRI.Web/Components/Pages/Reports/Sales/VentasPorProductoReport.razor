@@ -81,10 +81,10 @@
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
                                 <tr>
+                                    <th>Fecha</th>
+                                    <th>Resp.</th>
                                     <th>Código</th>
                                     <th>Producto</th>
-                                    <th>Fecha</th>
-                                    <th>Vendedor</th>
                                     <th class="text-end">Cantidad Vendida</th>
                                     <th class="text-end">Precio Promedio</th>
                                     <th class="text-end">Total Vendido</th>
@@ -94,10 +94,10 @@
                                 @foreach (var item in reportData)
                                 {
                                     <tr>
-                                    <td>@item.CodigoProducto</td>
-                                    <td>@item.NombreProducto</td>
-                                    <td>@item.Fecha.ToShortDateString()</td>
-                                    <td>@item.Vendedor</td>
+                                        <td>@item.Fecha.ToShortDateString()</td>
+                                        <td>@item.Vendedor</td>
+                                        <td>@item.CodigoProducto</td>
+                                        <td>@item.NombreProducto</td>
                                         <td class="text-end">@item.CantidadVendida</td>
                                         <td class="text-end">@item.PrecioPromedio.ToString("C", esEcCulture)</td>
                                         <td class="text-end">@item.TotalVendido.ToString("C", esEcCulture)</td>

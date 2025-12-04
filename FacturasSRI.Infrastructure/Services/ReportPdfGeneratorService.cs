@@ -34,6 +34,8 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Período", startDate, endDate));
                     page.Content().Element(compose => ComposeContentVentas(compose, data));
                     page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
@@ -49,6 +51,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4);
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Producto", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -56,30 +60,30 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.ConstantColumn(60);
-                                columns.RelativeColumn(1.5f);
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
+                                columns.RelativeColumn(); // Fecha
+                                columns.RelativeColumn(); // Resp.
+                                columns.ConstantColumn(60); // Código
+                                columns.RelativeColumn(1.5f); // Producto
+                                columns.RelativeColumn(); // Cantidad
+                                columns.RelativeColumn(); // Precio
+                                columns.RelativeColumn(); // Total
                             });
                             table.Header(header =>
                             {
+                                header.Cell().Element(HeaderCellStyle).Text("Fecha");
+                                header.Cell().Element(HeaderCellStyle).Text("Resp.");
                                 header.Cell().Element(HeaderCellStyle).Text("Código");
                                 header.Cell().Element(HeaderCellStyle).Text("Producto");
-                                header.Cell().Element(HeaderCellStyle).Text("Fecha");
-                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad Vendida");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Precio Promedio");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Total Vendido");
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.CodigoProducto);
-                                table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
                                 table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
                                 table.Cell().Element(DataCellStyle).Text(item.Vendedor);
+                                table.Cell().Element(DataCellStyle).Text(item.CodigoProducto);
+                                table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadVendida.ToString("N2"));
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.PrecioPromedio.ToString("C", esEcCulture));
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.TotalVendido.ToString("C", esEcCulture));
@@ -106,6 +110,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Actividad de Clientes", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -153,6 +159,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Cuentas por Cobrar"));
                     page.Content().Element(compose =>
                     {
@@ -160,21 +168,21 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(3);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(1.5f);
-                                columns.RelativeColumn(1.5f);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1.5f); // Fecha
+                                columns.RelativeColumn(2);    // Resp
+                                columns.RelativeColumn(3);    // Cliente
+                                columns.RelativeColumn(2);    // Factura #
+                                columns.RelativeColumn(1.5f); // Días
+                                columns.RelativeColumn(2);    // Monto
+                                columns.RelativeColumn(2);    // Pagado
+                                columns.RelativeColumn(2);    // Saldo
                             });
                             table.Header(header =>
                             {
+                                header.Cell().Element(HeaderCellStyle).Text("Fecha Emisión");
+                                header.Cell().Element(HeaderCellStyle).Text("Resp.");
                                 header.Cell().Element(HeaderCellStyle).Text("Cliente");
                                 header.Cell().Element(HeaderCellStyle).Text("Factura #");
-                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
-                                header.Cell().Element(HeaderCellStyle).Text("Fecha Emisión");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Días Vencida");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Monto Factura");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Monto Pagado");
@@ -186,10 +194,10 @@ namespace FacturasSRI.Infrastructure.Services
                                                     : item.DiasVencida > 15 ? Colors.Yellow.Lighten4
                                                     : Colors.White;
 
+                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
+                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NumeroFactura);
-                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.Vendedor);
-                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.DiasVencida.ToString());
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.MontoFactura.ToString("C", esEcCulture));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.MontoPagado.ToString("C", esEcCulture));
@@ -215,6 +223,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Notas de Crédito Emitidas", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -222,32 +232,32 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(1.5f);
-                                columns.RelativeColumn(3);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(3);
-                                columns.RelativeColumn(2);
-                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1.5f); // Fecha
+                                columns.RelativeColumn(2);    // Resp
+                                columns.RelativeColumn(2);    // # NC
+                                columns.RelativeColumn(3);    // Cliente
+                                columns.RelativeColumn(2);    // Factura
+                                columns.RelativeColumn(3);    // Motivo
+                                columns.RelativeColumn(2);    // Valor
                             });
                             table.Header(header =>
                             {
-                                header.Cell().Element(HeaderCellStyle).Text("# Nota de Crédito");
                                 header.Cell().Element(HeaderCellStyle).Text("Fecha Emisión");
+                                header.Cell().Element(HeaderCellStyle).Text("Resp.");
+                                header.Cell().Element(HeaderCellStyle).Text("# Nota de Crédito");
                                 header.Cell().Element(HeaderCellStyle).Text("Cliente");
                                 header.Cell().Element(HeaderCellStyle).Text("Factura Afectada");
                                 header.Cell().Element(HeaderCellStyle).Text("Motivo");
-                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Valor");
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.NumeroNotaCredito);
                                 table.Cell().Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
+                                table.Cell().Element(DataCellStyle).Text(item.Vendedor);
+                                table.Cell().Element(DataCellStyle).Text(item.NumeroNotaCredito);
                                 table.Cell().Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Element(DataCellStyle).Text(item.FacturaModificada);
                                 table.Cell().Element(DataCellStyle).Text(item.Motivo);
-                                table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.ValorTotal.ToString("C", esEcCulture));
                             }
                             table.Cell().ColumnSpan(7).Element(TotalsRowStyle).Row(row =>
@@ -270,6 +280,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     var title = hiddenZeros ? "Reporte de Stock Actual (Solo productos con stock)" : "Reporte de Stock Actual (Completo)";
                     page.Header().Element(compose => ComposeHeader(compose, title));
                     page.Content().Element(compose =>
@@ -323,6 +335,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Kardex de Movimientos", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -379,6 +393,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte Detallado de Compras", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -447,6 +463,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reposición de Inventario (Bajo Stock Mínimo)"));
                     page.Content().Element(compose =>
                     {
@@ -505,6 +523,8 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     page.Size(PageSizes.A4.Landscape());
                     page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ajustes de Inventario", startDate, endDate));
                     page.Content().Element(compose =>
                     {
@@ -616,7 +636,7 @@ namespace FacturasSRI.Infrastructure.Services
                 table.Header(header =>
                 {
                     header.Cell().Element(HeaderCellStyle).Text("Fecha");
-                    header.Cell().Element(HeaderCellStyle).Text("Vendedor");
+                    header.Cell().Element(HeaderCellStyle).Text("Resp.");
                     header.Cell().Element(HeaderCellStyle).Text("Facturas Emitidas");
                     header.Cell().Element(HeaderCellStyle).Text("Subtotal");
                     header.Cell().Element(HeaderCellStyle).Text("Total IVA");
@@ -645,10 +665,10 @@ namespace FacturasSRI.Infrastructure.Services
         }
 
         static IContainer HeaderCellStyle(IContainer container) =>
-            container.DefaultTextStyle(x => x.Bold().FontSize(10)).BorderBottom(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3).PaddingVertical(5).PaddingHorizontal(5).AlignCenter();
+            container.DefaultTextStyle(x => x.Bold().FontSize(10)).Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3).PaddingVertical(5).PaddingHorizontal(5).AlignCenter();
 
         static IContainer DataCellStyle(IContainer container) =>
-            container.BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten1).PaddingVertical(3).PaddingHorizontal(5);
+            container.Border(1).BorderColor(Colors.Black).PaddingVertical(3).PaddingHorizontal(5);
 
         static IContainer TotalsRowStyle(IContainer container) =>
             container.BorderTop(1).BorderBottom(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten4).PaddingVertical(5);

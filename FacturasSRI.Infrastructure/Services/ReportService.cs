@@ -37,11 +37,14 @@ namespace FacturasSRI.Infrastructure.Services
 
             var reportData = await query
                 .Where(f => f.FechaEmision >= startDate && f.FechaEmision <= endDate && f.Estado != EstadoFactura.Cancelada)
-                .Join(_context.Usuarios,
+                .GroupJoin(_context.Usuarios,
                     factura => factura.UsuarioIdCreador,
                     usuario => usuario.Id,
-                    (factura, usuario) => new { factura, usuario })
-                .GroupBy(x => new { x.factura.FechaEmision.Date, Vendedor = x.usuario.PrimerNombre + " " + x.usuario.PrimerApellido })
+                    (factura, usuarios) => new { factura, usuarios })
+                .SelectMany(
+                    x => x.usuarios.DefaultIfEmpty(),
+                    (x, usuario) => new { x.factura, usuario })
+                .GroupBy(x => new { x.factura.FechaEmision.Date, Vendedor = x.usuario != null ? x.usuario.PrimerNombre + " " + x.usuario.PrimerApellido : "Usuario no encontrado" })
                 .Select(g => new VentasPorPeriodoDto
                 {
                     Fecha = g.Key.Date,
@@ -72,28 +75,31 @@ namespace FacturasSRI.Infrastructure.Services
 
             var query = _context.FacturaDetalles
                 .AsNoTracking()
-                .Where(d => d.Factura.FechaEmision >= startDate && d.Factura.FechaEmision <= endDate && d.Factura.Estado != EstadoFactura.Cancelada)
+                .Where(d => d.Factura.FechaEmision >= startDate && d.Factura.FechaEmision <= endDate && d.Factura.Estado != EstadoFactura.Cancelada);
+
+            if (userId.HasValue)
+            {
+                query = query.Where(d => d.Factura.UsuarioIdCreador == userId.Value);
+            }
+
+            var reportData = await query
                 .Join(_context.Facturas,
                     detalle => detalle.FacturaId,
                     factura => factura.Id,
                     (detalle, factura) => new { detalle, factura })
-                .Join(_context.Usuarios,
+                .GroupJoin(_context.Usuarios,
                     df => df.factura.UsuarioIdCreador,
                     usuario => usuario.Id,
-                    (df, usuario) => new { df.detalle, df.factura, usuario });
-
-            if (userId.HasValue)
-            {
-                query = query.Where(x => x.factura.UsuarioIdCreador == userId.Value);
-            }
-
-            var reportData = await query
+                    (df, usuarios) => new { df.detalle, df.factura, usuarios })
+                .SelectMany(
+                    x => x.usuarios.DefaultIfEmpty(),
+                    (x, usuario) => new { x.detalle, x.factura, usuario })
                 .GroupBy(x => new {
                     x.detalle.ProductoId,
                     x.detalle.Producto.CodigoPrincipal,
                     x.detalle.Producto.Nombre,
                     Fecha = x.factura.FechaEmision.Date,
-                    Vendedor = x.usuario.PrimerNombre + " " + x.usuario.PrimerApellido
+                    Vendedor = x.usuario != null ? x.usuario.PrimerNombre + " " + x.usuario.PrimerApellido : "Usuario no encontrado"
                 })
                 .Select(g => new VentasPorProductoDto
                 {
@@ -175,14 +181,14 @@ namespace FacturasSRI.Infrastructure.Services
 
             var query = _context.Facturas
                 .AsNoTracking()
-                .Where(f => f.Estado != EstadoFactura.Cancelada && f.ClienteId != null && f.Total > f.Cobros.Sum(c => c.Monto));
+                .Where(f => f.Estado != EstadoFactura.Cancelada && f.ClienteId != null && f.Total > f.Cobros.Sum(c => c.Monto) && f.Cliente.RazonSocial != "CONSUMIDOR FINAL");
 
             if (userId.HasValue)
             {
                 query = query.Where(f => f.UsuarioIdCreador == userId.Value);
             }
 
-            var queryWithIncludes = query.Include(f => f.UsuarioCreador);
+            var queryWithIncludes = query.Include(f => f.UsuarioCreador).Include(f => f.Cliente);
 
             var reportData = await queryWithIncludes
                 .Select(f => new CuentasPorCobrarDto
@@ -196,7 +202,7 @@ namespace FacturasSRI.Infrastructure.Services
                     MontoFactura = f.Total,
                     MontoPagado = f.Cobros.Sum(c => c.Monto),
                     SaldoPendiente = f.Total - f.Cobros.Sum(c => c.Monto),
-                    Vendedor = f.UsuarioCreador.PrimerNombre + " " + f.UsuarioCreador.PrimerApellido
+                    Vendedor = f.UsuarioCreador != null ? f.UsuarioCreador.PrimerNombre + " " + f.UsuarioCreador.PrimerApellido : "Usuario no encontrado"
                 })
                 .OrderBy(dto => dto.DiasVencida)
                 .ToListAsync();
@@ -227,7 +233,7 @@ namespace FacturasSRI.Infrastructure.Services
                 query = query.Where(nc => nc.UsuarioIdCreador == userId.Value);
             }
 
-            var queryWithIncludes = query.Include(nc => nc.UsuarioCreador);
+            var queryWithIncludes = query.Include(nc => nc.UsuarioCreador).Include(nc => nc.Cliente).Include(nc => nc.Factura);
 
             var reportData = await queryWithIncludes
                 .Select(nc => new NotasDeCreditoReportDto
@@ -238,7 +244,7 @@ namespace FacturasSRI.Infrastructure.Services
                     FacturaModificada = nc.Factura.NumeroFactura,
                     Motivo = nc.RazonModificacion,
                     ValorTotal = nc.Total,
-                    Vendedor = nc.UsuarioCreador.PrimerNombre + " " + nc.UsuarioCreador.PrimerApellido
+                    Vendedor = nc.UsuarioCreador != null ? nc.UsuarioCreador.PrimerNombre + " " + nc.UsuarioCreador.PrimerApellido : "Usuario no encontrado"
                 })
                 .OrderByDescending(dto => dto.FechaEmision)
                 .ToListAsync();
@@ -292,16 +298,15 @@ namespace FacturasSRI.Infrastructure.Services
             return _pdfGeneratorService.GenerateStockActualPdf(data, hideZeroStock);
         }
 
-        // CORREGIDO: Método de Movimientos con JOINS explícitos para evitar errores de navegación y warnings
         public async Task<IEnumerable<MovimientoInventarioDto>> GetMovimientosInventarioAsync(DateTime fechaInicio, DateTime fechaFin, Guid? userId)
         {
             var startDate = DateTime.SpecifyKind(fechaInicio.Date, DateTimeKind.Utc);
             var endDate = DateTime.SpecifyKind(fechaFin.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
 
-            // 1. Ventas (Usamos Include porque Factura sí tiene navegación, pero un Join es más seguro para el select)
+            // 1. Ventas
             var salesMovements = await _context.FacturaDetalles
                 .AsNoTracking()
-                .Include(d => d.Factura).ThenInclude(f => f.UsuarioCreador) // Aseguramos carga de usuario
+                .Include(d => d.Factura).ThenInclude(f => f.UsuarioCreador)
                 .Include(d => d.Producto)
                 .Where(d => d.Factura.FechaEmision >= startDate && d.Factura.FechaEmision <= endDate && d.Factura.Estado != EstadoFactura.Cancelada)
                 .Select(d => new MovimientoInventarioDto
@@ -312,17 +317,15 @@ namespace FacturasSRI.Infrastructure.Services
                     DocumentoReferencia = d.Factura.NumeroFactura,
                     Entrada = 0,
                     Salida = d.Cantidad,
-                    UsuarioResponsable = d.Factura.UsuarioCreador.PrimerNombre + " " + d.Factura.UsuarioCreador.PrimerApellido
+                    UsuarioResponsable = d.Factura.UsuarioCreador != null ? d.Factura.UsuarioCreador.PrimerNombre + " " + d.Factura.UsuarioCreador.PrimerApellido : "Usuario no encontrado"
                 }).ToListAsync();
 
-            // 2. Compras (CORREGIDO: Usamos JOIN explícito porque CuentaPorPagar no tiene navegación UsuarioCreador)
+            // 2. Compras
             var purchaseMovements = await _context.CuentasPorPagar
                 .AsNoTracking()
                 .Where(c => c.FechaEmision >= startDate && c.FechaEmision <= endDate && c.Estado != EstadoCompra.Cancelada)
-                .Join(_context.Usuarios,
-                      c => c.UsuarioIdCreador,
-                      u => u.Id,
-                      (c, u) => new { c, u })
+                .GroupJoin(_context.Usuarios, c => c.UsuarioIdCreador, u => u.Id, (c, u) => new { c, u })
+                .SelectMany(x => x.u.DefaultIfEmpty(), (x, u) => new { x.c, u })
                 .Join(_context.Productos,
                       cu => cu.c.ProductoId,
                       p => p.Id,
@@ -334,7 +337,7 @@ namespace FacturasSRI.Infrastructure.Services
                           DocumentoReferencia = string.IsNullOrEmpty(cu.c.NumeroFacturaProveedor) ? $"Int #{cu.c.NumeroCompraInterno}" : $"Prov {cu.c.NumeroFacturaProveedor}",
                           Entrada = cu.c.Cantidad,
                           Salida = 0,
-                          UsuarioResponsable = cu.u.PrimerNombre + " " + cu.u.PrimerApellido
+                          UsuarioResponsable = cu.u != null ? cu.u.PrimerNombre + " " + cu.u.PrimerApellido : "Usuario no encontrado"
                       })
                 .ToListAsync();
 
@@ -343,7 +346,8 @@ namespace FacturasSRI.Infrastructure.Services
                 .AsNoTracking()
                 .Where(a => a.Fecha >= startDate && a.Fecha <= endDate)
                 .Join(_context.Productos, a => a.ProductoId, p => p.Id, (a, p) => new { a, p })
-                .Join(_context.Usuarios, x => x.a.UsuarioIdAutoriza, u => u.Id, (x, u) => new { x.a, x.p, u })
+                .GroupJoin(_context.Usuarios, x => x.a.UsuarioIdAutoriza, u => u.Id, (x, u) => new { x.a, x.p, u })
+                .SelectMany(x => x.u.DefaultIfEmpty(), (x, u) => new { x.a, x.p, u })
                 .Select(x => new
                 {
                     x.a.Fecha,
@@ -351,7 +355,7 @@ namespace FacturasSRI.Infrastructure.Services
                     x.a.Tipo,
                     x.a.Motivo,
                     x.a.CantidadAjustada,
-                    Usuario = x.u.PrimerNombre + " " + x.u.PrimerApellido
+                    Usuario = x.u != null ? x.u.PrimerNombre + " " + x.u.PrimerApellido : "Usuario no encontrado"
                 })
                 .ToListAsync();
 
@@ -369,7 +373,7 @@ namespace FacturasSRI.Infrastructure.Services
                 };
             }).ToList();
 
-            // Unimos todo en una lista fuertemente tipada para evitar warning CS8619
+            // Unimos todo
             List<MovimientoInventarioDto> allMovements = new List<MovimientoInventarioDto>();
             allMovements.AddRange(salesMovements);
             allMovements.AddRange(purchaseMovements);
@@ -392,7 +396,8 @@ namespace FacturasSRI.Infrastructure.Services
 
             var query = from c in _context.CuentasPorPagar.AsNoTracking()
                         join p in _context.Productos on c.ProductoId equals p.Id
-                        join u in _context.Usuarios on c.UsuarioIdCreador equals u.Id
+                        join u in _context.Usuarios on c.UsuarioIdCreador equals u.Id into uJoin
+                        from u in uJoin.DefaultIfEmpty()
                         join l in _context.Lotes on c.LoteId equals l.Id into lJoin
                         from l in lJoin.DefaultIfEmpty()
                         where c.FechaEmision >= startDate && c.FechaEmision <= endDate
@@ -407,7 +412,7 @@ namespace FacturasSRI.Infrastructure.Services
                             CantidadComprada = (decimal)c.Cantidad,
                             CostoTotal = c.MontoTotal,
                             CostoUnitario = l != null ? l.PrecioCompraUnitario : (c.Cantidad > 0 ? c.MontoTotal / c.Cantidad : 0),
-                            UsuarioResponsable = u.PrimerNombre + " " + u.PrimerApellido
+                            UsuarioResponsable = u != null ? u.PrimerNombre + " " + u.PrimerApellido : "Usuario no encontrado"
                         };
 
             return await query.OrderBy(c => c.Fecha).ToListAsync();
@@ -459,7 +464,8 @@ namespace FacturasSRI.Infrastructure.Services
 
             var query = from ajuste in _context.AjustesInventario.AsNoTracking()
                         join producto in _context.Productos on ajuste.ProductoId equals producto.Id
-                        join usuario in _context.Usuarios on ajuste.UsuarioIdAutoriza equals usuario.Id
+                        join usuario in _context.Usuarios on ajuste.UsuarioIdAutoriza equals usuario.Id into uJoin
+                        from usuario in uJoin.DefaultIfEmpty()
                         where ajuste.Fecha >= startDate && ajuste.Fecha <= endDate
                         select new AjusteInventarioReportDto
                         {
@@ -468,7 +474,7 @@ namespace FacturasSRI.Infrastructure.Services
                             TipoAjuste = ajuste.Tipo.ToString(),
                             CantidadAjustada = ajuste.CantidadAjustada,
                             Motivo = ajuste.Motivo,
-                            UsuarioResponsable = usuario.PrimerNombre + " " + usuario.PrimerApellido
+                            UsuarioResponsable = usuario != null ? usuario.PrimerNombre + " " + usuario.PrimerApellido : "Usuario no encontrado"
                         };
 
             return await query.OrderBy(a => a.Fecha).ToListAsync();
