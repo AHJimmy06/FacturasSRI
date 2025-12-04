@@ -100,6 +100,7 @@ namespace FacturasSRI.Infrastructure.Services
                 table.ColumnsDefinition(columns =>
                 {
                     columns.RelativeColumn(1.5f); // Fecha
+                    columns.RelativeColumn(2); // Vendedor
                     columns.RelativeColumn(1.5f); // CantidadFacturas
                     columns.RelativeColumn(2); // Subtotal
                     columns.RelativeColumn(1.5f); // TotalIva
@@ -109,6 +110,7 @@ namespace FacturasSRI.Infrastructure.Services
                 table.Header(header =>
                 {
                     header.Cell().Element(HeaderCellStyle).Text("Fecha");
+                    header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                     header.Cell().Element(HeaderCellStyle).Text("Facturas Emitidas");
                     header.Cell().Element(HeaderCellStyle).Text("Subtotal");
                     header.Cell().Element(HeaderCellStyle).Text("Total IVA");
@@ -120,15 +122,16 @@ namespace FacturasSRI.Infrastructure.Services
                 foreach (var item in data)
                 {
                     table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
+                    table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadFacturas.ToString());
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.Subtotal.ToString("C", esEcCulture));
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.TotalIva.ToString("C", esEcCulture));
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.Total.ToString("C", esEcCulture));
                 }
 
-                table.Cell().ColumnSpan(5).Element(TotalsRowStyle).Row(row =>
+                table.Cell().ColumnSpan(6).Element(TotalsRowStyle).Row(row =>
                 {
-                    row.RelativeItem(1.5f).AlignRight().Text("Totales:").Bold();
+                    row.RelativeItem(3.5f).AlignRight().Text("Totales:").Bold(); // Adjusted to span Fecha + Vendedor columns
                     row.RelativeItem(1.5f).AlignRight().Text(data.Sum(x => x.CantidadFacturas).ToString()).Bold();
                     row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.Subtotal).ToString("C", esEcCulture)).Bold();
                     row.RelativeItem(1.5f).AlignRight().Text(data.Sum(x => x.TotalIva).ToString("C", esEcCulture)).Bold();
@@ -162,16 +165,20 @@ namespace FacturasSRI.Infrastructure.Services
                         {
                             table.ColumnsDefinition(columns =>
                             {
-                                columns.ConstantColumn(75);
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
-                                columns.RelativeColumn();
+                                columns.ConstantColumn(60); // Codigo
+                                columns.RelativeColumn(1.5f); // Producto
+                                columns.RelativeColumn(); // Fecha
+                                columns.RelativeColumn(); // Vendedor
+                                columns.RelativeColumn(); // Cantidad Vendida
+                                columns.RelativeColumn(); // Precio Promedio
+                                columns.RelativeColumn(); // Total Vendido
                             });
                             table.Header(header =>
                             {
                                 header.Cell().Element(HeaderCellStyle).Text("Código");
                                 header.Cell().Element(HeaderCellStyle).Text("Producto");
+                                header.Cell().Element(HeaderCellStyle).Text("Fecha");
+                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Cantidad Vendida");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Precio Promedio");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Total Vendido");
@@ -180,13 +187,15 @@ namespace FacturasSRI.Infrastructure.Services
                             {
                                 table.Cell().Element(DataCellStyle).Text(item.CodigoProducto);
                                 table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
+                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
+                                table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadVendida.ToString("N2"));
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.PrecioPromedio.ToString("C", esEcCulture));
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.TotalVendido.ToString("C", esEcCulture));
                             }
-                            table.Cell().ColumnSpan(5).Element(TotalsRowStyle).Row(row =>
+                            table.Cell().ColumnSpan(7).Element(TotalsRowStyle).Row(row =>
                             {
-                                row.RelativeItem(3).AlignRight().Text("Total:").Bold(); // Corresponds to Codigo + Producto
+                                row.RelativeItem(3.1f).AlignRight().Text("Total:").Bold(); // Corresponds to Codigo + Producto + Fecha + Vendedor roughly
                                 row.RelativeItem(1).AlignRight().Text(data.Sum(x => x.CantidadVendida).ToString("N2")).Bold();
                                 row.RelativeItem(1); // Spacer for Precio Promedio
                                 row.RelativeItem(1).AlignRight().Text(data.Sum(x => x.TotalVendido).ToString("C", esEcCulture)).Bold();
@@ -262,6 +271,7 @@ namespace FacturasSRI.Infrastructure.Services
                             {
                                 columns.RelativeColumn(3);
                                 columns.RelativeColumn(2);
+                                columns.RelativeColumn(2); // Vendedor
                                 columns.RelativeColumn(1.5f);
                                 columns.RelativeColumn(1.5f);
                                 columns.RelativeColumn(2);
@@ -272,6 +282,7 @@ namespace FacturasSRI.Infrastructure.Services
                             {
                                 header.Cell().Element(HeaderCellStyle).Text("Cliente");
                                 header.Cell().Element(HeaderCellStyle).Text("Factura #");
+                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                                 header.Cell().Element(HeaderCellStyle).Text("Fecha Emisión");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Días Vencida");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Monto Factura");
@@ -286,15 +297,16 @@ namespace FacturasSRI.Infrastructure.Services
 
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NumeroFactura);
+                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.DiasVencida.ToString());
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.MontoFactura.ToString("C", esEcCulture));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.MontoPagado.ToString("C", esEcCulture));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).AlignRight().Text(item.SaldoPendiente.ToString("C", esEcCulture)).Bold();
                             }
-                             table.Cell().ColumnSpan(7).Element(TotalsRowStyle).Row(row =>
+                             table.Cell().ColumnSpan(8).Element(TotalsRowStyle).Row(row =>
                             {
-                                row.RelativeItem(9.5f).AlignRight().Text("Total Pendiente:").Bold(); // Spans first 6 columns
+                                row.RelativeItem(11.5f).AlignRight().Text("Total Pendiente:").Bold(); // Spans first 6 columns
                                 row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.SaldoPendiente).ToString("C", esEcCulture)).Bold();
                             });
                         });
@@ -325,6 +337,7 @@ namespace FacturasSRI.Infrastructure.Services
                                 columns.RelativeColumn(2);
                                 columns.RelativeColumn(3);
                                 columns.RelativeColumn(2);
+                                columns.RelativeColumn(2); // Vendedor
                             });
                             table.Header(header =>
                             {
@@ -333,6 +346,7 @@ namespace FacturasSRI.Infrastructure.Services
                                 header.Cell().Element(HeaderCellStyle).Text("Cliente");
                                 header.Cell().Element(HeaderCellStyle).Text("Factura Afectada");
                                 header.Cell().Element(HeaderCellStyle).Text("Motivo");
+                                header.Cell().Element(HeaderCellStyle).Text("Vendedor");
                                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Valor");
                             });
                             foreach (var item in data)
@@ -342,11 +356,12 @@ namespace FacturasSRI.Infrastructure.Services
                                 table.Cell().Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Element(DataCellStyle).Text(item.FacturaModificada);
                                 table.Cell().Element(DataCellStyle).Text(item.Motivo);
+                                table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.ValorTotal.ToString("C", esEcCulture));
                             }
-                            table.Cell().ColumnSpan(6).Element(TotalsRowStyle).Row(row =>
+                            table.Cell().ColumnSpan(7).Element(TotalsRowStyle).Row(row =>
                             {
-                                row.RelativeItem(11.5f).AlignRight().Text("Total Devuelto:").Bold(); // Spans first 5 columns
+                                row.RelativeItem(13.5f).AlignRight().Text("Total Devuelto:").Bold(); // Adjusted to span 6 columns for the label
                                 row.RelativeItem(2).AlignRight().Text(data.Sum(x => x.ValorTotal).ToString("C", esEcCulture)).Bold();
                             });
                         });
