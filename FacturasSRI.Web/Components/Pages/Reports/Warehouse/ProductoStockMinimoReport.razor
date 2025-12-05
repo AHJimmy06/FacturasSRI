@@ -66,6 +66,21 @@
                 }
                 else
                 {
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar en resultados..." 
+                                    @bind="searchText" @bind:event="oninput" />
+                                @if (!string.IsNullOrEmpty(searchText))
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="() => searchText = string.Empty">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
@@ -80,7 +95,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in reportData)
+                            @if (!FilteredData.Any() && reportData.Any())
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No hay coincidencias con la búsqueda.</td>
+                                </tr>
+                            }
+                            @foreach (var item in FilteredData)
                             {
                                 <tr>
                                     <td>@item.CodigoPrincipal</td>
@@ -102,6 +123,31 @@
 </div>
 
 @code {
+    private string searchText = "";
+
+    private IEnumerable<ProductoStockMinimoDto> FilteredData
+    {
+        get
+        {
+            if (reportData == null)
+            {
+                return new List<ProductoStockMinimoDto>();
+            }
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return reportData;
+            }
+
+            var lowerSearchText = searchText.ToLowerInvariant();
+
+            return reportData.Where(item =>
+                (item.CodigoPrincipal?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.NombreProducto?.ToLowerInvariant().Contains(lowerSearchText) ?? false)
+            );
+        }
+    }
+
     private IEnumerable<ProductoStockMinimoDto>? reportData;
     private bool isLoading = false;
     private bool isDownloading = false;

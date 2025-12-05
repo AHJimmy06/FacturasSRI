@@ -100,6 +100,21 @@
                 }
                 else
                 {
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar en resultados..." 
+                                    @bind="searchText" @bind:event="oninput" />
+                                @if (!string.IsNullOrEmpty(searchText))
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="() => searchText = string.Empty">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
@@ -114,7 +129,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var item in reportData)
+                            @if (!FilteredData.Any() && reportData.Any())
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No hay coincidencias con la búsqueda.</td>
+                                </tr>
+                            }
+                            @foreach (var item in FilteredData)
                             {
                                 <tr>
                                     <td>@TimeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy HH:mm")</td>
@@ -140,6 +161,34 @@
 </div>
 
 @code {
+    private string searchText = "";
+
+    private IEnumerable<MovimientoInventarioDto> FilteredData
+    {
+        get
+        {
+            if (reportData == null)
+            {
+                return new List<MovimientoInventarioDto>();
+            }
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return reportData;
+            }
+
+            var lowerSearchText = searchText.ToLowerInvariant();
+
+            return reportData.Where(item =>
+                (item.UsuarioResponsable?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.ProductoNombre?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.TipoMovimiento?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.DocumentoReferencia?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (TimeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy HH:mm").ToLowerInvariant().Contains(lowerSearchText))
+            );
+        }
+    }
+
     // Filtros
     private DateTime startDate = DateTime.Today.AddDays(-7);
     private DateTime endDate = DateTime.Today;

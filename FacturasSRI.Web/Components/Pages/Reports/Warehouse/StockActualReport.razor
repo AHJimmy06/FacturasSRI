@@ -72,6 +72,21 @@
                 }
                 else
                 {
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar en resultados..." 
+                                    @bind="searchText" @bind:event="oninput" />
+                                @if (!string.IsNullOrEmpty(searchText))
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="() => searchText = string.Empty">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
@@ -85,7 +100,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var item in reportData)
+                                @if (!FilteredData.Any() && reportData.Any())
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">No hay coincidencias con la búsqueda.</td>
+                                    </tr>
+                                }
+                                @foreach (var item in FilteredData)
                                 {
                                     <tr>
                                         <td>@item.CodigoPrincipal</td>
@@ -100,7 +121,7 @@
                              <tfoot>
                                 <tr class="table-primary">
                                     <td colspan="5" class="text-end font-weight-bold"><strong>Valor Total del Inventario:</strong></td>
-                                    <td class="text-end font-weight-bold"><strong>@reportData.Sum(x => x.ValorInventario).ToString("C", esEcCulture)</strong></td>
+                                    <td class="text-end font-weight-bold"><strong>@(reportData?.Sum(x => x.ValorInventario).ToString("C", esEcCulture) ?? 0.ToString("C", esEcCulture))</strong></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -113,6 +134,33 @@
 
 @code {
     private bool hideZeroStock = true;
+    private string searchText = "";
+
+    // Cambio: Quitamos el '?' porque el get asegura que no devuelve null
+    private IEnumerable<StockActualDto> FilteredData
+    {
+        get
+        {
+            if (reportData == null)
+            {
+                return new List<StockActualDto>();
+            }
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return reportData;
+            }
+
+            var lowerSearchText = searchText.ToLowerInvariant();
+
+            return reportData.Where(item =>
+                (item.CodigoPrincipal?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.NombreProducto?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.Categoria?.ToLowerInvariant().Contains(lowerSearchText) ?? false)
+            );
+        }
+    }
+
     private IEnumerable<StockActualDto>? reportData;
     private bool isLoading = false;
     private bool isDownloading = false;

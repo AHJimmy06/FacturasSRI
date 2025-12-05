@@ -92,6 +92,21 @@
                 }
                 else
                 {
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar en resultados..." 
+                                    @bind="searchText" @bind:event="oninput" />
+                                @if (!string.IsNullOrEmpty(searchText))
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="() => searchText = string.Empty">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover">
                             <thead class="table-dark">
@@ -107,7 +122,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var item in reportData.OrderByDescending(x => x.DiasVencida))
+                                @if (!FilteredData.Any() && reportData.Any())
+                                {
+                                    <tr>
+                                        <td colspan="8" class="text-center text-muted">No hay coincidencias con la búsqueda.</td>
+                                    </tr>
+                                }
+                                @foreach (var item in FilteredData.OrderByDescending(x => x.DiasVencida))
                                 {
                                     <tr class="@(item.DiasVencida > 30 ? "table-danger" : item.DiasVencida > 15 ? "table-warning" : "")">
                                         <td>@TimeZoneHelper.ConvertUtcToEcuadorTime(item.FechaEmision).ToString("dd/MM/yyyy")</td>
@@ -124,7 +145,7 @@
                              <tfoot>
                                 <tr class="table-primary">
                                     <td colspan="7" class="text-end font-weight-bold"><strong>Total Pendiente:</strong></td>
-                                    <td class="text-end font-weight-bold"><strong>@reportData.Sum(x => x.SaldoPendiente).ToString("C", esEcCulture)</strong></td>
+                                    <td class="text-end font-weight-bold"><strong>@((reportData?.Sum(x => x.SaldoPendiente) ?? 0).ToString("C", esEcCulture))</strong></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -136,6 +157,32 @@
 </div>
 
 @code {
+    private string searchText = "";
+
+    private IEnumerable<CuentasPorCobrarDto> FilteredData
+    {
+        get
+        {
+            if (reportData == null)
+            {
+                return new List<CuentasPorCobrarDto>();
+            }
+
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return reportData;
+            }
+
+            var lowerSearchText = searchText.ToLowerInvariant();
+
+            return reportData.Where(item =>
+                (item.Vendedor?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.NombreCliente?.ToLowerInvariant().Contains(lowerSearchText) ?? false) ||
+                (item.NumeroFactura?.ToLowerInvariant().Contains(lowerSearchText) ?? false)
+            );
+        }
+    }
+
     // Variables de Usuario y Roles
     private bool isAdmin = false;
     private Guid? loggedUserId;
