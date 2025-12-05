@@ -21,33 +21,38 @@
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <div class="row g-2">
-            <div class="col-md-3">
-                <input type="text" class="form-control" placeholder="Buscar por número de factura..."
-                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+        <div class="row g-3 align-items-end">
+            <div class="col-lg col-md-4">
+                <label for="search-invoice" class="form-label fw-bold mb-1">Búsqueda</label>
+                <input type="text" class="form-control" placeholder="Por Nro. de factura..."
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" id="search-invoice" />
             </div>
-            <div class="col-md-2">
-                <InputSelect class="form-select" @bind-Value="paymentStatus" @bind-Value:after="OnFilterChanged">
+            <div class="col-lg-2 col-md-4">
+                <label for="payment-status" class="form-label fw-bold mb-1">Estado de Pago</label>
+                <InputSelect class="form-select" @bind-Value="paymentStatus" @bind-Value:after="OnFilterChanged" id="payment-status">
                     <option value="All">Todos los Pagos</option>
                     <option value="Pending">Pendientes</option>
                     <option value="Paid">Pagadas</option>
                 </InputSelect>
             </div>
-            <div class="col-md-2">
-                <InputSelect class="form-select" @bind-Value="selectedFormaDePago" @bind-Value:after="OnFilterChanged">
+            <div class="col-lg-2 col-md-4">
+                <label for="payment-method" class="form-label fw-bold mb-1">Forma de Pago</label>
+                <InputSelect class="form-select" @bind-Value="selectedFormaDePago" @bind-Value:after="OnFilterChanged" id="payment-method">
                     <option value="">Toda Forma de Pago</option>
                     <option value="@FormaDePago.Contado">Contado</option>
                     <option value="@FormaDePago.Credito">Crédito</option>
                 </InputSelect>
             </div>
-            <div class="col-md-2">
-                <InputDate class="form-control" placeholder="Fecha de inicio" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" />
+            <div class="col-lg-2 col-md-4">
+                <label for="start-date" class="form-label fw-bold mb-1">Fecha de Inicio</label>
+                <InputDate class="form-control" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" id="start-date" />
             </div>
-            <div class="col-md-2">
-                <InputDate class="form-control" placeholder="Fecha de fin" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" />
+            <div class="col-lg-2 col-md-4">
+                <label for="end-date" class="form-label fw-bold mb-1">Fecha de Fin</label>
+                <InputDate class="form-control" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" id="end-date" />
             </div>
-             <div class="col-md-1">
-                <button class="btn btn-outline-secondary" @onclick="ClearFilters">Limpiar</button>
+            <div class="col-md-auto">
+                <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Limpiar</button>
             </div>
         </div>
     </div>
@@ -188,7 +193,9 @@ else if (paginatedInvoices != null)
         errorMessage = null;
         try
         {
-            paginatedInvoices = await InvoiceService.GetInvoicesByClientIdAsync(clienteId, currentPage, pageSize, paymentStatus, selectedFormaDePago, startDate, endDate, searchTerm);
+            var startDateUtc = startDate.HasValue ? startDate.Value.ToUniversalTime() : (DateTime?)null;
+            var endDateUtc = endDate.HasValue ? endDate.Value.ToUniversalTime() : (DateTime?)null;
+            paginatedInvoices = await InvoiceService.GetInvoicesByClientIdAsync(clienteId, currentPage, pageSize, paymentStatus, selectedFormaDePago, startDateUtc, endDateUtc, searchTerm);
         }
         catch (Exception ex)
         {

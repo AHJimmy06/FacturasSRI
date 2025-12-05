@@ -19,19 +19,22 @@
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input type="text" class="form-control" placeholder="Buscar por Nro. de NC o Factura..."
-                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+        <div class="row g-3 align-items-end">
+            <div class="col-lg col-md-6">
+                <label for="search-nc" class="form-label fw-bold mb-1">Búsqueda</label>
+                <input type="text" class="form-control" placeholder="Por Nro. de NC o Factura..."
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" id="search-nc" />
             </div>
-            <div class="col-md-3">
-                <InputDate class="form-control" placeholder="Fecha de inicio" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" />
+            <div class="col-lg-3 col-md-6">
+                <label for="start-date" class="form-label fw-bold mb-1">Fecha de Inicio</label>
+                <InputDate class="form-control" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" id="start-date" />
             </div>
-            <div class="col-md-3">
-                <InputDate class="form-control" placeholder="Fecha de fin" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" />
+            <div class="col-lg-3 col-md-6">
+                <label for="end-date" class="form-label fw-bold mb-1">Fecha de Fin</label>
+                <InputDate class="form-control" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" id="end-date" />
             </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-secondary" @onclick="ClearFilters">Limpiar</button>
+            <div class="col-lg-auto col-md-6">
+                <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Limpiar</button>
             </div>
         </div>
     </div>
@@ -143,7 +146,9 @@ else if (paginatedCreditNotes != null)
         errorMessage = null;
         try
         {
-            paginatedCreditNotes = await CreditNoteService.GetCreditNotesByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDate, endDate);
+            var startDateUtc = startDate.HasValue ? startDate.Value.ToUniversalTime() : (DateTime?)null;
+            var endDateUtc = endDate.HasValue ? endDate.Value.ToUniversalTime() : (DateTime?)null;
+            paginatedCreditNotes = await CreditNoteService.GetCreditNotesByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDateUtc, endDateUtc);
         }
         catch (Exception ex)
         {

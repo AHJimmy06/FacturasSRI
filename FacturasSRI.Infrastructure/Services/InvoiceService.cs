@@ -1116,12 +1116,13 @@ namespace FacturasSRI.Infrastructure.Services
 
             if (startDate.HasValue)
             {
-                query = query.Where(x => x.invoice.FechaEmision.Date >= startDate.Value.Date);
+                query = query.Where(x => x.invoice.FechaEmision >= startDate.Value);
             }
 
             if (endDate.HasValue)
             {
-                query = query.Where(x => x.invoice.FechaEmision.Date <= endDate.Value.Date);
+                var endOfDay = endDate.Value.Date.AddDays(1);
+                query = query.Where(x => x.invoice.FechaEmision < endOfDay);
             }
             
             var finalQuery = query

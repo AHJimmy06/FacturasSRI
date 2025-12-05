@@ -872,12 +872,13 @@ namespace FacturasSRI.Infrastructure.Services
 
     if (startDate.HasValue)
     {
-        query = query.Where(nc => nc.FechaEmision.Date >= startDate.Value.Date);
+        query = query.Where(nc => nc.FechaEmision >= startDate.Value);
     }
 
     if (endDate.HasValue)
     {
-        query = query.Where(nc => nc.FechaEmision.Date <= endDate.Value.Date);
+        var endOfDay = endDate.Value.Date.AddDays(1);
+        query = query.Where(nc => nc.FechaEmision < endOfDay);
     }
 
     return await PaginatedList<CreditNoteDto>.CreateAsync(query, pageNumber, pageSize);
