@@ -19,12 +19,18 @@ namespace FacturasSRI.Infrastructure.Services
         private readonly IDbContextFactory<FacturasSRIDbContext> _contextFactory;
         private readonly Client _supabase;
         private readonly ILogger<CobroService> _logger;
+        private readonly IEmailService _emailService;
 
-        public CobroService(IDbContextFactory<FacturasSRIDbContext> contextFactory, Client supabase, ILogger<CobroService> logger)
+        public CobroService(
+            IDbContextFactory<FacturasSRIDbContext> contextFactory, 
+            Client supabase, 
+            ILogger<CobroService> logger,
+            IEmailService emailService) // <--- 2. INYECTAR
         {
             _contextFactory = contextFactory;
             _supabase = supabase;
             _logger = logger;
+            _emailService = emailService; // <--- 3. ASIGNAR
         }
 
         public async Task<PaginatedList<CobroDto>> GetAllCobrosAsync(int pageNumber, int pageSize, string? searchTerm)
@@ -64,7 +70,7 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<List<CobroDto>> GetCobrosByFacturaIdAsync(Guid facturaId)
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
+             await using var context = await _contextFactory.CreateDbContextAsync();
             return await context.Cobros
                 .Where(c => c.FacturaId == facturaId)
                 .Include(c => c.Factura)
@@ -87,6 +93,7 @@ namespace FacturasSRI.Infrastructure.Services
                 .ToListAsync();
         }
 
+        // EL MÉTODO IMPORTANTE A MODIFICAR
         public async Task<CobroDto> RegistrarCobroAsync(RegistrarCobroDto cobroDto, Stream? fileStream, string? fileName)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
@@ -98,24 +105,14 @@ namespace FacturasSRI.Infrastructure.Services
                     .ThenInclude(f => f.Cliente)
                     .FirstOrDefaultAsync(cpc => cpc.FacturaId == cobroDto.FacturaId);
 
-                if (cuentaPorCobrar == null)
-                {
-                    throw new InvalidOperationException("No se encontró una cuenta por cobrar para la factura especificada.");
-                }
-
-                if (cuentaPorCobrar.Pagada)
-                {
-                    throw new InvalidOperationException("La factura ya se encuentra totalmente pagada.");
-                }
-
-                if (cobroDto.Monto <= 0)
-                {
-                    throw new ArgumentException("El monto del cobro debe ser positivo.", nameof(cobroDto.Monto));
-                }
+                if (cuentaPorCobrar == null) throw new InvalidOperationException("No se encontró una cuenta por cobrar para la factura especificada.");
+                if (cuentaPorCobrar.Pagada) throw new InvalidOperationException("La factura ya se encuentra totalmente pagada.");
+                if (cobroDto.Monto <= 0) throw new ArgumentException("El monto del cobro debe ser positivo.", nameof(cobroDto.Monto));
                 
-                if (cobroDto.Monto > cuentaPorCobrar.SaldoPendiente)
+                // Pequeña tolerancia para errores de redondeo decimal
+                if (cobroDto.Monto > cuentaPorCobrar.SaldoPendiente + 0.01m)
                 {
-                    throw new ArgumentException($"El monto del cobro (${cobroDto.Monto}) no puede ser mayor al saldo pendiente (${cuentaPorCobrar.SaldoPendiente}).", nameof(cobroDto.Monto));
+                     throw new ArgumentException($"El monto del cobro (${cobroDto.Monto}) no puede ser mayor al saldo pendiente (${cuentaPorCobrar.SaldoPendiente}).", nameof(cobroDto.Monto));
                 }
 
                 string? bucketPath = null;
@@ -139,7 +136,7 @@ namespace FacturasSRI.Infrastructure.Services
                     Monto = cobroDto.Monto,
                     MetodoDePago = cobroDto.MetodoDePago,
                     Referencia = cobroDto.Referencia,
-                    ComprobantePagoPath = bucketPath, // Can be null
+                    ComprobantePagoPath = bucketPath,
                     UsuarioIdCreador = cobroDto.UsuarioIdCreador,
                     FechaCreacion = DateTime.UtcNow
                 };
@@ -155,6 +152,31 @@ namespace FacturasSRI.Infrastructure.Services
 
                 await context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // 4. LOGICA NUEVA: ENVÍO DE CORREO (Fire and Forget)
+                // Ejecutamos en segundo plano para no hacer esperar al usuario en la UI
+                _ = Task.Run(async () => 
+                {
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(cuentaPorCobrar.Factura.Cliente.Email))
+                        {
+                            await _emailService.SendPaymentConfirmationEmailAsync(
+                                cuentaPorCobrar.Factura.Cliente.Email,
+                                cuentaPorCobrar.Factura.Cliente.RazonSocial,
+                                cuentaPorCobrar.Factura.NumeroFactura,
+                                cobro.Monto,
+                                cobro.FechaCobro.ToString("dd/MM/yyyy HH:mm"),
+                                cobro.Referencia ?? "Sin referencia"
+                            );
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Solo logueamos error de correo, no revertimos la transacción del cobro
+                        _logger.LogError(ex, "Error enviando correo de confirmación para cobro {CobroId}", cobro.Id);
+                    }
+                });
 
                 var creador = await context.Usuarios.FindAsync(cobro.UsuarioIdCreador);
                 return new CobroDto
@@ -178,10 +200,10 @@ namespace FacturasSRI.Infrastructure.Services
                 throw;
             }
         }
-
+        // ... (Resto de métodos GetAllCobros, etc... quedan igual)
         public async Task<PaginatedList<FacturasConPagosDto>> GetFacturasConPagosAsync(int pageNumber, int pageSize, string? searchTerm, FormaDePago? formaDePago, EstadoFactura? estadoFactura)
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
+             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from f in context.Facturas
                         join c in context.Clientes on f.ClienteId equals c.Id into clienteJoin
                         from cliente in clienteJoin.DefaultIfEmpty()
@@ -231,7 +253,7 @@ namespace FacturasSRI.Infrastructure.Services
 
         public async Task<PaginatedList<CobroDto>> GetCobrosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm)
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
+             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = context.Cobros
                 .Where(c => c.Factura.ClienteId == clienteId)
                 .Include(c => c.Factura)

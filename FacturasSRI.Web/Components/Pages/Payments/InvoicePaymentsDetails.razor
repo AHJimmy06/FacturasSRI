@@ -67,7 +67,7 @@ else
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -75,7 +75,7 @@ else
                                 <th>Referencia</th>
                                 <th>Registrado Por</th>
                                 <th class="text-end">Monto</th>
-                                <th class="text-center">Comprobante</th>
+                                <th class="text-center">Documentos</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -84,20 +84,33 @@ else
                                 <tr>
                                     <td>@cobro.FechaCobro.ToLocalTime().ToString("g")</td>
                                     <td>@cobro.MetodoDePago</td>
-                                    <td>@(cobro.Referencia ?? "N/A")</td>
-                                    <td>@cobro.CreadoPor</td>
-                                    <td class="text-end">@cobro.Monto.ToString("C")</td>
-                                    <td class="text-center">
-                                        @if (!string.IsNullOrEmpty(cobro.ComprobantePagoPath))
+                                    <td>
+                                        @if(cobro.Referencia != null && cobro.Referencia.StartsWith("Stripe"))
                                         {
-                                            <button class="btn btn-sm btn-outline-success" @onclick="() => DownloadCobroReceipt(cobro.Id)">
-                                                <i class="bi bi-download"></i>
-                                            </button>
+                                            <span class="badge bg-primary">Stripe</span>
                                         }
                                         else
                                         {
-                                            <span>N/A</span>
+                                            @(cobro.Referencia ?? "N/A")
                                         }
+                                    </td>
+                                    <td>@cobro.CreadoPor</td>
+                                    <td class="text-end fw-bold">@cobro.Monto.ToString("C")</td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            @* Botón 1: Recibo generado por el Sistema (Siempre disponible) *@
+                                            <button class="btn btn-outline-primary" @onclick="() => DownloadSystemReceipt(cobro.Id)" title="Descargar Recibo del Sistema">
+                                                <i class="bi bi-file-earmark-text"></i> Recibo
+                                            </button>
+
+                                            @* Botón 2: Comprobante Adjunto (Solo si existe) *@
+                                            @if (!string.IsNullOrEmpty(cobro.ComprobantePagoPath))
+                                            {
+                                                <button class="btn btn-outline-success" @onclick="() => DownloadUploadedProof(cobro.Id)" title="Ver Comprobante Adjunto/Original">
+                                                    <i class="bi bi-paperclip"></i> Adjunto
+                                                </button>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -153,7 +166,15 @@ else
         Navigation.NavigateTo("/payments");
     }
 
-    private async Task DownloadCobroReceipt(Guid cobroId)
+    // Descarga el PDF generado por QuestPDF (Endpoint Nuevo)
+    private async Task DownloadSystemReceipt(Guid cobroId)
+    {
+        var url = $"/api/public/payment-receipt/{cobroId}";
+        await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+
+    // Descarga el archivo subido a Supabase (Endpoint Existente)
+    private async Task DownloadUploadedProof(Guid cobroId)
     {
         var url = $"/api/downloads/invoice-receipt/{cobroId}";
         await JSRuntime.InvokeVoidAsync("open", url, "_blank");
