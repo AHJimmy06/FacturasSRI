@@ -154,12 +154,19 @@ namespace FacturasSRI.Infrastructure.Services
                             // === AQUÍ ESTÁ LA LÓGICA DE CRÉDITO (PRESERVADA) ===
                             if (factura.FormaDePago == FormaDePago.Credito)
                             {
-                                decimal abono = factura.Total - factura.SaldoPendiente;
+                                    decimal abonoInicial = factura.MontoAbonoInicial;
+                                decimal totalAbonado = factura.Total - factura.SaldoPendiente;
+
                                 info.Item().PaddingTop(3).Text("DETALLE DE CRÉDITO:").Bold().FontSize(7);
                                 
                                 info.Item().Row(r => {
-                                    r.RelativeItem().Text("Abono Inicial:").FontSize(7);
-                                    r.RelativeItem().AlignRight().Text(abono.ToString("N2")).FontSize(7);
+                                    r.RelativeItem().Text("Abono Inicial Registrado:").FontSize(7);
+                                    r.RelativeItem().AlignRight().Text(abonoInicial.ToString("N2")).FontSize(7);
+                                });
+
+                                info.Item().Row(r => {
+                                    r.RelativeItem().Text("Total Abonado a la Fecha:").FontSize(7);
+                                    r.RelativeItem().AlignRight().Text(totalAbonado.ToString("N2")).FontSize(7).Bold();
                                 });
                                 
                                 info.Item().Row(r => {

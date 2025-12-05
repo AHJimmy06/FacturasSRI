@@ -26,10 +26,9 @@ namespace FacturasSRI.Web.Endpoints
                                     .IgnoreAntiforgeryToken();
 
             var publicGroup = app.MapGroup("/api/public")
-                                 .AllowAnonymous()
-                                 .IgnoreAntiforgeryToken();
+                                     .AllowAnonymous()
+                                     .IgnoreAntiforgeryToken();
 
-            // --- ENDPOINT NUEVO: Descarga de Recibo de Cobro ---
             publicGroup.MapGet("/payment-receipt/{id:guid}", async (
                 Guid id,
                 HttpContext httpContext,
@@ -39,14 +38,12 @@ namespace FacturasSRI.Web.Endpoints
             {
                 var user = httpContext.User;
                 var isAdmin = user.IsInRole("Administrador");
-                var isVendedor = user.IsInRole("Vendedor"); 
-                var isCustomer = user.HasClaim("UserType", "Cliente"); 
+                var isVendedor = user.IsInRole("Vendedor");
+                var isCustomer = user.HasClaim("UserType", "Cliente");
                 var clienteIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                // Usamos el Factory directamente para no modificar ICobroService
                 using var dbContext = await dbContextFactory.CreateDbContextAsync();
-                
-                // Fetch cobro to check its details for authorization
+
                 var cobro = await dbContext.Cobros
                     .AsNoTracking()
                     .Include(c => c.Factura)
@@ -58,13 +55,13 @@ namespace FacturasSRI.Web.Endpoints
 
                 bool canAccess = false;
 
-                if (isAdmin || isVendedor) // Admins and Vendedores can access any receipt
+                if (isAdmin || isVendedor)
                 {
                     canAccess = true;
                 }
-                else if (isCustomer) // Customers can only access their own receipts
+                else if (isCustomer)
                 {
-                    if (Guid.TryParse(clienteIdClaim, out var authenticatedCustomerId) && cobro.Factura?.ClienteId == authenticatedCustomerId)
+                    if (Guid.TryParse(clienteIdClaim, out var authenticatedCustomerId) && cobro.Factura != null && cobro.Factura.ClienteId.HasValue && cobro.Factura.ClienteId.Value == authenticatedCustomerId)
                     {
                         canAccess = true;
                     }
@@ -75,13 +72,12 @@ namespace FacturasSRI.Web.Endpoints
                     return Results.Forbid();
                 }
 
-                // Map to CobroDto for PDF generation
                 var cobroDto = new CobroDto
                 {
                     Id = cobro.Id,
                     FacturaId = cobro.FacturaId,
-                    NumeroFactura = cobro.Factura.NumeroFactura,
-                    ClienteNombre = cobro.Factura?.Cliente?.RazonSocial, // Added null-conditional operators
+                    NumeroFactura = cobro.Factura?.NumeroFactura ?? string.Empty,
+                    ClienteNombre = cobro.Factura?.Cliente?.RazonSocial ?? string.Empty,
                     FechaCobro = cobro.FechaCobro,
                     Monto = cobro.Monto,
                     MetodoDePago = cobro.MetodoDePago,
@@ -91,7 +87,6 @@ namespace FacturasSRI.Web.Endpoints
                 var pdfBytes = pdfGenerator.GenerarReciboCobroPdf(cobroDto);
                 return Results.File(pdfBytes, "application/pdf", $"Recibo_{cobroDto.NumeroFactura}.pdf");
             });
-            // ---------------------------------------------------
 
             publicGroup.MapGet("/invoice-receipt/{id}", async (
                 Guid id,
@@ -101,11 +96,11 @@ namespace FacturasSRI.Web.Endpoints
                 ILoggerFactory loggerFactory) =>
             {
                 var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-                
+
                 await using var dbContext = await dbContextFactory.CreateDbContextAsync();
                 var cobro = await dbContext.Cobros
                     .AsNoTracking()
-                    .Include(c => c.Factura) // Ensure Factura is included
+                    .Include(c => c.Factura)
                     .FirstOrDefaultAsync(c => c.Id == id);
 
                 if (cobro == null)
@@ -122,7 +117,7 @@ namespace FacturasSRI.Web.Endpoints
                 var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
                 var isAdmin = user.IsInRole("Administrador");
                 var isVendedor = user.IsInRole("Vendedor");
-                
+
                 var isCustomer = user.HasClaim("UserType", "Cliente");
                 var clienteIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -141,7 +136,7 @@ namespace FacturasSRI.Web.Endpoints
                             .Include(c => c.Factura)
                             .Where(c => c.Id == id && c.Factura.ClienteId == authenticatedCustomerId)
                             .FirstOrDefaultAsync();
-                        
+
                         if (customerOwnedCobro != null)
                         {
                             canAccess = true;
@@ -163,13 +158,13 @@ namespace FacturasSRI.Web.Endpoints
                     var fileBytes = await supabase.Storage
                         .From("comprobantes-facturas-emitidas")
                         .Download(cobro.ComprobantePagoPath, null);
-                    
+
                     var fileName = Path.GetFileName(cobro.ComprobantePagoPath);
                     var contentType = "application/octet-stream";
-                    
-                    if(fileName.EndsWith(".pdf")) contentType = "application/pdf";
-                    if(fileName.EndsWith(".png")) contentType = "image/png";
-                    if(fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
+
+                    if (fileName.EndsWith(".pdf")) contentType = "application/pdf";
+                    if (fileName.EndsWith(".png")) contentType = "image/png";
+                    if (fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
 
                     return Results.File(fileBytes, contentType, fileDownloadName: fileName);
                 }
@@ -180,261 +175,68 @@ namespace FacturasSRI.Web.Endpoints
                 }
             });
 
-
-
-                        downloadsGroup.MapGet("/purchase-receipt/{id}", async (
-
-
-
-                            Guid id,
-
-
-
-                            [FromQuery] string? type,
-
-
-
-                            HttpContext httpContext,
-
-
-
-                            [FromServices] IDbContextFactory<FacturasSRIDbContext> dbContextFactory,
-
-
-
-                            Client supabase,
-
-
-
-                            ILoggerFactory loggerFactory) =>
-
-
-
-                        {
-
-
-
-                            var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-
-
-
-                            
-
-
-
-                            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-
-
-                            var cuentaPorPagar = await dbContext.CuentasPorPagar.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
-
-
-
-            
-
-
-
-                            if (cuentaPorPagar == null)
-
-
-
-                            {
-
-
-
-                                return Results.NotFound("El registro de compra no fue encontrado.");
-
-
-
-                            }
-
-
-
-            
-
-
-
-                            string? filePath = type?.ToLower() switch
-
-
-
-                            {
-
-
-
-                                "payment" => cuentaPorPagar.ComprobantePagoPath,
-
-
-
-                                "credit-note" => cuentaPorPagar.NotaCreditoPath,
-
-
-
-                                "invoice" or _ => cuentaPorPagar.FacturaCompraPath 
-
-
-
-                            };
-
-
-
-            
-
-
-
-                            if (string.IsNullOrEmpty(filePath))
-
-
-
-                            {
-
-
-
-                                return Results.NotFound("El archivo solicitado no fue encontrado o no ha sido cargado.");
-
-
-
-                            }
-
-
-
-            
-
-
-
-                            var user = httpContext.User;
-
-
-
-                            var isAdmin = user.IsInRole("Administrador");
-
-
-
-                            var isBodeguero = user.IsInRole("Bodeguero");
-
-
-
-            
-
-
-
-                            if (!isAdmin && !isBodeguero)
-
-
-
-                            {
-
-
-
-                                return Results.Forbid();
-
-
-
-                            }
-
-
-
-            
-
-
-
-                            try
-
-
-
-                            {
-
-
-
-                                var fileBytes = await supabase.Storage
-
-
-
-                                    .From("comprobantes-compra")
-
-
-
-                                    .Download(filePath, null);
-
-
-
-                                
-
-
-
-                                var fileName = Path.GetFileName(filePath);
-
-
-
-                                var contentType = "application/octet-stream";
-
-
-
-                                
-
-
-
-                                if(fileName.EndsWith(".pdf")) contentType = "application/pdf";
-
-
-
-                                if(fileName.EndsWith(".png")) contentType = "image/png";
-
-
-
-                                if(fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
-
-
-
-            
-
-
-
-                                return Results.File(fileBytes, contentType, fileDownloadName: fileName);
-
-
-
-                            }
-
-
-
-                            catch (Exception ex)
-
-
-
-                            {
-
-
-
-                                logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", filePath);
-
-
-
-                                return Results.StatusCode(500);
-
-
-
-                            }
-
-
-
-                        });
-
-
-
-            
-
-
-
-                        
-
-
-
-            
-
-
-
-                        downloadsGroup.MapGet("/invoice-ride/{id}", async (
+            downloadsGroup.MapGet("/purchase-receipt/{id}", async (
+                Guid id,
+                [FromQuery] string? type,
+                HttpContext httpContext,
+                [FromServices] IDbContextFactory<FacturasSRIDbContext> dbContextFactory,
+                Client supabase,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("DownloadEndpoints");
+
+                await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+                var cuentaPorPagar = await dbContext.CuentasPorPagar.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+
+                if (cuentaPorPagar == null)
+                {
+                    return Results.NotFound("El registro de compra no fue encontrado.");
+                }
+
+                string? filePath = type?.ToLower() switch
+                {
+                    "payment" => cuentaPorPagar.ComprobantePagoPath,
+                    "credit-note" => cuentaPorPagar.NotaCreditoPath,
+                    "invoice" or _ => cuentaPorPagar.FacturaCompraPath
+                };
+
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    return Results.NotFound("El archivo solicitado no fue encontrado o no ha sido cargado.");
+                }
+
+                var user = httpContext.User;
+                var isAdmin = user.IsInRole("Administrador");
+                var isBodeguero = user.IsInRole("Bodeguero");
+
+                if (!isAdmin && !isBodeguero)
+                {
+                    return Results.Forbid();
+                }
+
+                try
+                {
+                    var fileBytes = await supabase.Storage
+                        .From("comprobantes-compra")
+                        .Download(filePath, null);
+
+                    var fileName = Path.GetFileName(filePath);
+                    var contentType = "application/octet-stream";
+
+                    if (fileName.EndsWith(".pdf")) contentType = "application/pdf";
+                    if (fileName.EndsWith(".png")) contentType = "image/png";
+                    if (fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg")) contentType = "image/jpeg";
+
+                    return Results.File(fileBytes, contentType, fileDownloadName: fileName);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Ocurrió un error al intentar descargar el archivo desde Supabase. Path: {Path}", filePath);
+                    return Results.StatusCode(500);
+                }
+            });
+
+            downloadsGroup.MapGet("/invoice-ride/{id}", async (
                 Guid id,
                 IInvoiceService invoiceService,
                 PdfGeneratorService pdfGenerator,
