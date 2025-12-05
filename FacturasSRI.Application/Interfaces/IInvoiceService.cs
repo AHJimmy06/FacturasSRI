@@ -21,5 +21,6 @@ namespace FacturasSRI.Application.Interfaces
         Task SendPaymentReminderEmailAsync(Guid invoiceId);
 
         Task<PaginatedList<InvoiceDto>> GetInvoicesByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? paymentStatus, FormaDePago? formaDePago, DateTime? startDate, DateTime? endDate, string? searchTerm, EstadoFactura? status = null);
+        Task<string?> GetInvoiceXmlAsync(Guid invoiceId);
     }
 }

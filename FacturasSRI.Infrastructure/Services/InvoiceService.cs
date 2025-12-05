@@ -1146,5 +1146,15 @@ namespace FacturasSRI.Infrastructure.Services
 
             return await PaginatedList<InvoiceDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
+
+        public async Task<string?> GetInvoiceXmlAsync(Guid invoiceId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var facturaSri = await context.FacturasSRI
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.FacturaId == invoiceId);
+
+            return facturaSri?.XmlFirmado;
+        }
     }
 }

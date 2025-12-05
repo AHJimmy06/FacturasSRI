@@ -888,5 +888,15 @@ namespace FacturasSRI.Infrastructure.Services
 
     return await PaginatedList<CreditNoteDto>.CreateAsync(query, pageNumber, pageSize);
 }
+
+        public async Task<string?> GetCreditNoteXmlAsync(Guid creditNoteId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            var ncSri = await context.NotasDeCreditoSRI
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.NotaDeCreditoId == creditNoteId);
+
+            return ncSri?.XmlFirmado;
+        }
     }
 }

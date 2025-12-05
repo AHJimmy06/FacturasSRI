@@ -31,27 +31,35 @@ else if (invoice == null)
 }
 else
 {
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center mb-4 gap-3">
         <h1 class="page-title mb-0">Detalle de Factura</h1>
-        <div>
-            <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
+        <div class="d-flex flex-wrap gap-2 justify-content-xl-end align-items-center">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
                 <i class="bi bi-arrow-left-circle me-2"></i>Volver
             </button>
             
-            <a href="/api/public/invoice-ride/@invoice.Id" target="_blank" class="btn btn-danger me-2">
+            <a href="/api/public/invoice-ride/@invoice.Id" target="_blank" class="btn btn-danger">
                 <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
             </a>
+
+            @if (invoice.Estado == EstadoFactura.Autorizada)
+            {
+                <button class="btn btn-info text-white" @onclick="DownloadXmlAsync">
+                    <i class="bi bi-filetype-xml me-2"></i>Descargar XML
+                </button>
+            }
+
             <AuthorizeView Roles="Administrador, Vendedor">
                 @if (invoice.FormaDePago == FormaDePago.Credito)
                 {
-                    <a href="@($"payments/details/{InvoiceId}")" class="btn btn-info me-2">
+                    <a href="@($"payments/details/{InvoiceId}")" class="btn btn-dark">
                         <i class="bi bi-wallet me-2"></i>Ver Historial de Pagos
                     </a>
                 }
 
                 @if (invoice.Estado == EstadoFactura.Autorizada)
                 {
-                    <button class="btn btn-success me-2" @onclick="ResendEmail" disabled="@sendingEmail">
+                    <button class="btn btn-success" @onclick="ResendEmail" disabled="@sendingEmail">
                         @if (sendingEmail)
                         {
                             <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -67,7 +75,7 @@ else
 
                 @if (invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0 && invoice.FechaVencimiento.HasValue && (TimeZoneHelper.ConvertUtcToEcuadorTime(invoice.FechaVencimiento.Value).Date - DateTime.Today).Days <= 5)
                 {
-                    <button class="btn btn-warning me-2" @onclick="SendPaymentReminder" disabled="@sendingEmail">
+                    <button class="btn btn-warning" @onclick="SendPaymentReminder" disabled="@sendingEmail">
                         @if (sendingEmail)
                         {
                             <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -506,7 +514,6 @@ else
 
         try
         {
-            // Esta función ahora es inteligente: si está Pendiente hace recepción, si no, hace autorización
             var updatedInvoice = await InvoiceService.CheckSriStatusAsync(InvoiceId);
             
             if (updatedInvoice != null)
@@ -578,6 +585,32 @@ else
         Navigation.NavigateTo("/invoices");
     }
 
+    private async Task DownloadXmlAsync()
+    {
+        if (invoice == null) return;
+
+        try
+        {
+            var xmlContent = await InvoiceService.GetInvoiceXmlAsync(invoice.Id);
+            if (!string.IsNullOrEmpty(xmlContent))
+            {
+                var fileName = $"Factura_{invoice.NumeroFactura}.xml";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
+                var base64Content = Convert.ToBase64String(bytes);
+                await JSRuntime.InvokeVoidAsync("saveAsFile", fileName, base64Content);
+            }
+            else
+            {
+                errorMessage = "No se pudo obtener el contenido XML de la factura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al descargar el XML: {ex.Message}";
+        }
+    }
+
+
     private bool showConfirmationModal = false;
     private void OpenConfirmationModal() => showConfirmationModal = true;
     private void CloseConfirmationModal() => showConfirmationModal = false;
@@ -619,7 +652,7 @@ else
         try
         {
             await InvoiceService.ReactivateCancelledInvoiceAsync(InvoiceId);
-            await LoadInvoiceData(); // Recargamos los datos
+            await LoadInvoiceData();
             sriCheckMessage = "La factura ha sido reactivada como borrador.";
         }
         catch (Exception ex)

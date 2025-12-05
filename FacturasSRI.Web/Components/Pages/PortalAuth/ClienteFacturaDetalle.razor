@@ -7,6 +7,7 @@
 @inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITimeZoneHelper TimeZoneHelper
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Detalle de Factura - @(invoice?.NumeroFactura ?? "...")</PageTitle>
 
@@ -25,11 +26,14 @@ else if (invoice == null)
 }
 else
 {
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <h1 class="page-title mb-0">Detalle de Factura</h1>
-        <div>
-            <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
                 <i class="bi bi-arrow-left-circle me-2"></i>Volver a Mis Facturas
+            </button>
+            <button class="btn btn-info text-white" @onclick="DownloadXmlAsync">
+                <i class="bi bi-filetype-xml me-2"></i>Descargar XML
             </button>
             <a href="/api/public/invoice-ride/@invoice.Id" target="_blank" class="btn btn-danger">
                 <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
@@ -168,5 +172,30 @@ else
     private void GoBack()
     {
         Navigation.NavigateTo("/cliente/facturas");
+    }
+
+    private async Task DownloadXmlAsync()
+    {
+        if (invoice == null) return;
+
+        try
+        {
+            var xmlContent = await InvoiceService.GetInvoiceXmlAsync(invoice.Id);
+            if (!string.IsNullOrEmpty(xmlContent))
+            {
+                var fileName = $"Factura_{invoice.NumeroFactura}.xml";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
+                var base64Content = Convert.ToBase64String(bytes);
+                await JSRuntime.InvokeVoidAsync("saveAsFile", fileName, base64Content);
+            }
+            else
+            {
+                errorMessage = "No se pudo obtener el contenido XML de la factura.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al descargar el XML: {ex.Message}";
+        }
     }
 }

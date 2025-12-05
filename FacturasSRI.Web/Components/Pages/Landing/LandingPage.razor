@@ -21,10 +21,10 @@
                         <Authorized>
                             <AuthorizeView Policy="IsCustomer" Context="customerAuthContext">
                                 <Authorized>
-                                    <a href="/cliente/dashboard" class="btn btn-outline-light">Ir a mi Panel</a>
+                                    <a href="/cliente/dashboard" class="btn btn-outline-light">Ir a mi Portal</a>
                                 </Authorized>
                                 <NotAuthorized>
-                                    <a href="/dashboard" class="btn btn-outline-light">Ir a mi Panel</a>
+                                    <a href="/dashboard" class="btn btn-outline-light">Ir al panel</a>
                                 </NotAuthorized>
                             </AuthorizeView>
                         </Authorized>
@@ -42,8 +42,8 @@
     <!-- ============================================ -->
     <main class="hero-section text-center text-white">
         <div class="container">
-            <h1 class="display-4 fw-bold">Portal de Facturación Interno</h1>
-            <p class="lead col-lg-8 mx-auto">Bienvenido al sistema de gestión de facturas de Aether Tecnologías. Optimice su flujo de trabajo y gestione facturas de forma eficiente.</p>
+            <h1 class="display-4 fw-bold">Portal de Facturación Aether Tech</h1>
+            <p class="lead col-lg-8 mx-auto">Gestione sus documentos electrónicos o acceda a su portal de cliente para visualizar sus facturas y pagos.</p>
         </div>
     </main>
 
@@ -53,29 +53,29 @@
     <section class="features-section py-5">
         <div class="container">
             <div class="text-center mb-5">
-                <h2 class="fw-bold">Herramientas para la Gestión Diaria</h2>
-                <p class="text-muted">Funcionalidades diseñadas para agilizar nuestros procesos.</p>
+                <h2 class="fw-bold">Un Portal para Todos</h2>
+                <p class="text-muted">Tanto si eres parte de nuestro equipo como si eres uno de nuestros valiosos clientes, aquí encontrarás lo que necesitas.</p>
             </div>
             <div class="row g-4">
                 <div class="col-md-4">
                     <div class="feature-card text-center p-4 h-100">
-                        <i class="bi bi-speedometer2 fs-1 icon-primary"></i>
-                        <h4 class="fw-bold mt-3">Facturación Rápida</h4>
-                        <p>Genere y envíe facturas autorizadas por el SRI en cuestión de segundos.</p>
+                        <i class="bi bi-lightning-charge-fill fs-1 icon-primary"></i>
+                        <h4 class="fw-bold mt-3">Emisión Ágil de Facturas</h4>
+                        <p>Nuestro equipo puede generar y enviar facturas autorizadas por el SRI en segundos.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="feature-card text-center p-4 h-100">
-                        <i class="bi bi-clipboard-data fs-1 icon-primary"></i>
-                        <h4 class="fw-bold mt-3">Reportes Claros</h4>
-                        <p>Visualice reportes de ventas, impuestos y cuentas por cobrar en tiempo real.</p>
+                        <i class="bi bi-person-check-fill fs-1 icon-primary"></i>
+                        <h4 class="fw-bold mt-3">Portal de Cliente Seguro</h4>
+                        <p>Acceda a su historial de facturas, notas de crédito y pagos en un solo lugar, de forma segura.</p>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="feature-card text-center p-4 h-100">
-                        <i class="bi bi-box-seam fs-1 icon-primary"></i>
-                        <h4 class="fw-bold mt-3">Control de Inventario</h4>
-                        <p>Mantenga un registro actualizado del stock de productos y servicios.</p>
+                        <i class="bi bi-file-earmark-text-fill fs-1 icon-primary"></i>
+                        <h4 class="fw-bold mt-3">Gestión Simplificada</h4>
+                        <p>Visualice reportes, gestione sus documentos y mantenga todo bajo control, sin complicaciones.</p>
                     </div>
                 </div>
             </div>
@@ -85,29 +85,61 @@
     <!-- ============================================ -->
     <!-- SECCIÓN "CÓMO FUNCIONA" -->
     <!-- ============================================ -->
-    <section class="how-it-works-section py-5">
+    <section class="how-it-works-section py-5 bg-light">
         <div class="container">
             <div class="text-center mb-5">
-                <h2 class="fw-bold">Guía Rápida de Uso</h2>
+                <h2 class="fw-bold">¿Cómo funciona?</h2>
             </div>
-            <div class="row text-center align-items-center">
-                <div class="col-md">
-                    <h5 class="fw-bold">1. Inicie Sesión</h5>
-                    <p class="text-muted">Acceda con sus credenciales de Aether Tech.</p>
+            <div class="row g-5">
+                <!-- Columna para el Equipo -->
+                <div class="col-lg-6">
+                    <h4 class="text-center fw-bold mb-4">Para Nuestro Equipo</h4>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="step-circle me-3">1</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Inicie Sesión</h5>
+                            <p class="text-muted mb-0">Acceda con sus credenciales de Aether Tech.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="step-circle me-3">2</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Genere la Factura</h5>
+                            <p class="text-muted mb-0">Complete los datos del cliente y los productos.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="step-circle me-3">3</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Envíe y Gestione</h5>
+                            <p class="text-muted mb-0">Envíe el documento al SRI y al cliente.</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-auto d-none d-md-block text-muted">
-                    <i class="bi bi-chevron-right fs-3"></i>
-                </div>
-                <div class="col-md">
-                    <h5 class="fw-bold">2. Genere la Factura</h5>
-                    <p class="text-muted">Complete los datos del cliente y los productos/servicios.</p>
-                </div>
-                <div class="col-md-auto d-none d-md-block text-muted">
-                    <i class="bi bi-chevron-right fs-3"></i>
-                </div>
-                <div class="col-md">
-                    <h5 class="fw-bold">3. Envíe y Gestione</h5>
-                    <p class="text-muted">Envíe la factura al cliente y realice el seguimiento.</p>
+                <!-- Columna para Clientes -->
+                <div class="col-lg-6 border-start-lg">
+                    <h4 class="text-center fw-bold mb-4">Para Nuestros Clientes</h4>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="step-circle-alt me-3">1</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Regístrese</h5>
+                            <p class="text-muted mb-0">Cree su cuenta en el portal con su RUC o CI o pasaporte.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="step-circle-alt me-3">2</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Explore su Panel</h5>
+                            <p class="text-muted mb-0">Visualice todas sus facturas, pagos y documentos.</p>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="step-circle-alt me-3">3</div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Descargue sus Documentos</h5>
+                            <p class="text-muted mb-0">Obtenga los PDFs y XMLs de sus facturas cuando quiera.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -123,6 +155,71 @@
         </div>
     </footer>
 </div>
+
+<style>
+
+    .features-section {
+        background-color: #ffffff;
+    }
+    
+    .feature-card {
+        background-color: #ffffff;
+        border-radius: 8px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e9ecef;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .icon-primary {
+        color: #007bff; /* Un azul primario */
+    }
+
+    .how-it-works-section {
+        background-color: #f8f9fa;
+    }
+
+    .step-circle, .step-circle-alt {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .step-circle {
+        background-color: #17a2b8; /* Turquesa para el equipo */
+    }
+
+    .step-circle-alt {
+        background-color: #28a745; /* Verde para clientes */
+    }
+
+    .border-start-lg {
+        border-left: 1px solid #dee2e6;
+    }
+
+    @@media (max-width: 991.98px) {
+        .border-start-lg {
+            border-left: none;
+            padding-top: 2rem;
+            border-top: 1px solid #dee2e6;
+        }
+    }
+
+    .landing-footer {
+        /* background-color: #0d1b2a; */
+    }
+
+</style>
+
 
 @code {
     // No se necesita C# para esta página de presentación.

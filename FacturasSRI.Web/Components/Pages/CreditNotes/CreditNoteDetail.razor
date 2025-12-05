@@ -11,6 +11,7 @@
 @inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITimeZoneHelper TimeZoneHelper
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Nota de Crédito - @(creditNote?.NumeroNotaCredito ?? "...")</PageTitle>
 
@@ -29,20 +30,22 @@ else if (creditNote == null)
 }
 else
 {
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center mb-4 gap-3">
         <h1 class="page-title mb-0">Detalle de Nota de Crédito</h1>
-        <div>
-            <button class="btn btn-outline-secondary me-2" @onclick="GoBack">
+        <div class="d-flex flex-wrap gap-2 justify-content-xl-end align-items-center">
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
                 <i class="bi bi-arrow-left-circle me-2"></i>Volver
             </button>
             
             @if (creditNote.Estado == EstadoNotaDeCredito.Autorizada)
             {
-                <a href="/api/downloads/nc-ride/@creditNote.Id" target="_blank" class="btn btn-danger me-2">
+                <a href="/api/downloads/nc-ride/@creditNote.Id" target="_blank" class="btn btn-danger">
                     <i class="bi bi-file-earmark-pdf me-2"></i>Descargar PDF
                 </a>
+                <button class="btn btn-info text-white" @onclick="DownloadXmlAsync">
+                    <i class="bi bi-filetype-xml me-2"></i>Descargar XML
+                </button>
                 
-                @* OCULTO PARA BODEGUERO: No debe enviar correos a clientes *@
                 @if (!isBodeguero)
                 {
                     <button class="btn btn-success" @onclick="ResendEmail" disabled="@sendingEmail">
@@ -77,11 +80,9 @@ else
     }
 
     <div class="row">
-        <!-- COLUMNA IZQUIERDA: DATOS DEL DOCUMENTO -->
         <div class="col-lg-8">
             <div class="card invoice-card shadow-sm border-0">
                 <div class="card-body p-5">
-                    <!-- CABECERA -->
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <img src="/logo.png" alt="Logo" style="max-height: 80px;"/>
@@ -97,7 +98,6 @@ else
                     </div>
                     <hr/>
                     
-                    <!-- DATOS CLIENTE Y FACTURA -->
                     <div class="row my-4">
                         <div class="col-md-6">
                             <div class="card h-100 bg-light border-0">
@@ -128,7 +128,6 @@ else
                         </div>
                     </div>
 
-                    <!-- TABLA DE ITEMS -->
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <thead class="table-light">
@@ -153,7 +152,6 @@ else
                         </table>
                     </div>
 
-                    <!-- TOTALES -->
                     <div class="row mt-4 justify-content-end">
                         <div class="col-md-6">
                             <table class="table table-borderless">
@@ -178,7 +176,6 @@ else
             </div>
         </div>
 
-        <!-- COLUMNA DERECHA: ESTADO SRI -->
         <div class="col-lg-4">
             <div class="card mb-4 shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
@@ -225,7 +222,7 @@ else
                                         {
                                             <text>(@error.Identificador)</text>
                                         }
-                                    </p>
+                                        </p>
                                         @if(!string.IsNullOrEmpty(error.InformacionAdicional))
                                         {
                                             <small class="d-block mt-1">@error.InformacionAdicional</small>
@@ -236,7 +233,6 @@ else
                         </div>
                     }
                     
-                    @* OCULTO PARA BODEGUERO: Solo lectura *@
                     @if (!isBodeguero)
                     {
                         <div class="d-grid gap-2 mt-3">
@@ -313,7 +309,7 @@ else
     private string? sriCheckMessage;
     private bool isCheckingStatus = false;
     private bool userIsAdmin = false;
-    private bool isBodeguero = false; // Variable para controlar rol Bodeguero
+    private bool isBodeguero = false; 
     private bool showIssueModal = false;
     private bool sendingEmail = false;
     private bool emailSuccess = false;
@@ -354,7 +350,7 @@ else
         var user = authState.User;
         
         userIsAdmin = user.IsInRole("Administrador");
-        isBodeguero = user.IsInRole("Bodeguero"); // Detectamos si es bodeguero
+        isBodeguero = user.IsInRole("Bodeguero");
         
         await LoadData();
     }
@@ -442,7 +438,6 @@ else
         sriCheckMessage = null;
         try
         {
-            // Al recargar, el servicio ejecuta la lógica de reintento si es necesario
             await LoadData();
             sriCheckMessage = "Consulta / Reintento realizado.";
         }
@@ -458,26 +453,47 @@ else
 
     private void GoBack() => Navigation.NavigateTo("/credit-notes");
 
+    private async Task DownloadXmlAsync()
+    {
+        if (creditNote == null) return;
+
+        try
+        {
+            var xmlContent = await CreditNoteService.GetCreditNoteXmlAsync(creditNote.Id);
+            if (!string.IsNullOrEmpty(xmlContent))
+            {
+                var fileName = $"NotaCredito_{creditNote.NumeroNotaCredito}.xml";
+                var bytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
+                var base64Content = Convert.ToBase64String(bytes);
+                await JSRuntime.InvokeVoidAsync("saveAsFile", fileName, base64Content);
+            }
+            else
+            {
+                errorMessage = "No se pudo obtener el contenido XML de la nota de crédito.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al descargar el XML: {ex.Message}";
+        }
+    }
+
+
     private RenderFragment GetStatusBadge(EstadoNotaDeCredito estado)
     {
         return builder =>
         {
             var (badgeClass, iconClass, text) = estado switch
             {
-                // Verde para éxito
                 EstadoNotaDeCredito.Autorizada => ("bg-success", "bi-check-circle-fill", "Autorizada"),
                 
-                // Amarillo para procesos en espera (Pendiente y Borrador)
                 EstadoNotaDeCredito.Pendiente => ("bg-warning text-dark", "bi-hourglass-split", "Pendiente"),
                 EstadoNotaDeCredito.Borrador => ("bg-warning text-dark", "bi-pencil-square", "Borrador"), 
                 
-                // Azul para enviado
                 EstadoNotaDeCredito.EnviadaSRI => ("bg-info text-dark", "bi-send", "Enviada SRI"),
                 
-                // Rojo para errores
                 EstadoNotaDeCredito.RechazadaSRI => ("bg-danger", "bi-x-circle-fill", "Rechazada"),
                 
-                // Gris para anulados
                 EstadoNotaDeCredito.Cancelada => ("bg-secondary", "bi-trash", "Anulada"),
                 
                 _ => ("bg-secondary", "bi-question-circle", estado.ToString())
