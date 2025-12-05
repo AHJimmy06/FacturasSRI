@@ -177,7 +177,7 @@ else
     // Descarga el archivo subido a Supabase (Endpoint Existente)
     private async Task DownloadUploadedProof(Guid cobroId)
     {
-        var url = $"/api/downloads/invoice-receipt/{cobroId}";
+        var url = $"/api/public/invoice-receipt/{cobroId}"; // Changed "downloads" to "public"
         await JSRuntime.InvokeVoidAsync("open", url, "_blank");
     }
 }
