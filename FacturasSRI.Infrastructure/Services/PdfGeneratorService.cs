@@ -242,6 +242,120 @@ namespace FacturasSRI.Infrastructure.Services
             });
         }
 
+        // ======================== RECIBO DE COBRO (NUEVO) ========================
+        public byte[] GenerarReciboCobroPdf(CobroDto cobro)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A5.Landscape()); // Formato A5 Horizontal (Típico para recibos)
+                    page.Margin(1, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
+
+                    page.Header().Element(compose => ComposeHeaderRecibo(compose, cobro));
+                    page.Content().Element(compose => ComposeContentRecibo(compose, cobro));
+                    page.Footer().AlignCenter().Text(x => { x.Span("Generado automáticamente por Aether Tecnologías - "); x.CurrentPageNumber(); });
+                });
+            }).GeneratePdf();
+        }
+
+        private void ComposeHeaderRecibo(IContainer container, CobroDto cobro)
+        {
+            container.Row(row =>
+            {
+                // Columna Izquierda (Logo y Empresa)
+                row.RelativeItem().Column(column =>
+                {
+                    column.Item().Row(r =>
+                    {
+                        var logoPath = Path.Combine(_env.WebRootPath, "logo.png");
+                        if (File.Exists(logoPath)) r.AutoItem().Height(50).Image(logoPath).FitArea();
+                        r.ConstantItem(10);
+                        r.RelativeItem().PaddingTop(5).Text("Aether Tecnologías").Bold().FontSize(14).FontColor(Colors.Blue.Darken2);
+                    });
+                    column.Item().Text("R.U.C.: 1850641927001").FontSize(8);
+                    column.Item().Text("Matriz: AV. BENJAMIN FRANKLIN SNN Y EDWARD JENNER").FontSize(7);
+                });
+
+                row.ConstantItem(10);
+
+                // Columna Derecha (Datos del Recibo)
+                row.RelativeItem().Element(ContainerBox).Column(column =>
+                {
+                    column.Item().AlignCenter().Text("COMPROBANTE DE PAGO").Bold().FontSize(12);
+                    column.Item().PaddingTop(5).Row(r => {
+                        r.RelativeItem().Text("No. Referencia Interna:").FontSize(8);
+                        // Usamos los primeros 8 caracteres del ID como número de recibo visual
+                        r.RelativeItem().AlignRight().Text($"{cobro.Id.ToString().Substring(0, 8).ToUpper()}").Bold().FontSize(8);
+                    });
+                    column.Item().Row(r => {
+                        r.RelativeItem().Text("Fecha de Pago:").FontSize(8);
+                        r.RelativeItem().AlignRight().Text($"{cobro.FechaCobro:dd/MM/yyyy HH:mm}").FontSize(8);
+                    });
+                });
+            });
+        }
+
+        private void ComposeContentRecibo(IContainer container, CobroDto cobro)
+        {
+            container.PaddingVertical(10).Column(column =>
+            {
+                // Caja de Información del Cliente
+                column.Item().Element(ContainerBox).Column(col =>
+                {
+                    col.Item().Text("DATOS DEL PAGO").Bold().FontSize(10);
+                    col.Item().LineHorizontal(0.5f);
+                    
+                    col.Item().PaddingTop(5).Row(row => 
+                    { 
+                        row.RelativeItem().Text($"Cliente: {cobro.ClienteNombre}").FontSize(9); 
+                    });
+                    
+                    col.Item().Row(row => 
+                    { 
+                        row.RelativeItem().Text($"Abonado a Factura No.: {cobro.NumeroFactura}").FontSize(9).Bold(); 
+                    });
+
+                    col.Item().PaddingTop(5).Row(row => 
+                    { 
+                        row.RelativeItem(1).Text("Forma de Pago:").Bold();
+                        row.RelativeItem(3).Text(cobro.MetodoDePago);
+                    });
+
+                    if (!string.IsNullOrEmpty(cobro.Referencia))
+                    {
+                        col.Item().Row(row => 
+                        { 
+                            row.RelativeItem(1).Text("Referencia/Lote:").Bold();
+                            row.RelativeItem(3).Text(cobro.Referencia);
+                        });
+                    }
+                });
+
+                column.Item().PaddingVertical(10);
+
+                // Tabla de Valor (Simple)
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.ConstantColumn(100); });
+                    
+                    table.Header(header => {
+                        header.Cell().Element(HeaderCellStyle).Text("CONCEPTO");
+                        header.Cell().Element(HeaderCellStyle).Text("VALOR");
+                    });
+
+                    table.Cell().Element(CellStyle).Text($"Pago/Abono a Factura {cobro.NumeroFactura}");
+                    table.Cell().Element(CellStyle).AlignRight().Text(cobro.Monto.ToString("C"));
+                    
+                    // Total
+                    table.Cell().ColumnSpan(2).PaddingTop(5).AlignRight().Text($"TOTAL PAGADO: {cobro.Monto:C}").Bold().FontSize(12);
+                });
+            });
+        }
+
         private void ComposeContentNC(IContainer container, CreditNoteDetailViewDto nc)
         {
             container.PaddingVertical(10).Column(column =>

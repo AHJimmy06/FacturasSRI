@@ -46,6 +46,7 @@ else if (paginatedPayments != null)
                     <th>Método de Pago</th>
                     <th>Referencia</th>
                     <th class="text-end">Monto</th>
+                    <th class="text-end" style="width: 50px;"></th>
                 </tr>
             </thead>
             <tbody>
@@ -57,12 +58,18 @@ else if (paginatedPayments != null)
                         <td>@payment.MetodoDePago</td>
                         <td>@payment.Referencia</td>
                         <td class="text-end fw-bold">@payment.Monto.ToString("C")</td>
+                        <td class="text-end">
+                            @* Botón de Descarga *@
+                            <a href="/api/public/payment-receipt/@payment.Id" target="_blank" class="btn btn-sm btn-outline-primary" title="Descargar Recibo">
+                                <i class="bi bi-download"></i>
+                            </a>
+                        </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-
+    
     <div class="d-flex justify-content-between align-items-center mt-3">
         @if (paginatedPayments.TotalCount > 0)
         {

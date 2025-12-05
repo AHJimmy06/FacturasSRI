@@ -16,12 +16,14 @@ namespace FacturasSRI.Web.Controllers
         private readonly ICobroService _cobroService;
         private readonly IDbContextFactory<FacturasSRIDbContext> _contextFactory;
         private readonly ILogger<StripeWebhookController> _logger;
+        private readonly IEmailService _emailService;
 
         public StripeWebhookController(
             IConfiguration config, 
             ICobroService cobroService, 
             IDbContextFactory<FacturasSRIDbContext> contextFactory,
-            ILogger<StripeWebhookController> logger)
+            ILogger<StripeWebhookController> logger,
+            IEmailService emailService)
         {
             var secret = config["Stripe:WebhookSecret"];
             if (string.IsNullOrEmpty(secret)) throw new ArgumentNullException(nameof(secret));
@@ -30,6 +32,7 @@ namespace FacturasSRI.Web.Controllers
             _cobroService = cobroService;
             _contextFactory = contextFactory;
             _logger = logger;
+            _emailService = emailService;
         }
 
         [HttpPost]
@@ -52,8 +55,6 @@ namespace FacturasSRI.Web.Controllers
             catch (Exception e)
             {
                 _logger.LogError(e, "Error procesando el Webhook");
-                // Importante: No devolvemos 500 si es error de lógica de negocio para que Stripe no reintente infinitamente,
-                // pero si es código, mejor ver el log.
                 return StatusCode(500);
             }
         }
@@ -63,11 +64,9 @@ namespace FacturasSRI.Web.Controllers
             if (session.Metadata.TryGetValue("FacturaId", out string? facturaIdStr) &&
                 Guid.TryParse(facturaIdStr, out Guid facturaId))
             {
-                // 1. BUSCAR EL ID DEL VENDEDOR (USUARIO) QUE CREÓ LA FACTURA
                 Guid usuarioVendedorId;
                 using (var context = await _contextFactory.CreateDbContextAsync())
                 {
-                    // Buscamos solo el ID del creador para ser eficientes
                     var facturaInfo = await context.Facturas
                         .Where(f => f.Id == facturaId)
                         .Select(f => new { f.UsuarioIdCreador })
@@ -81,7 +80,6 @@ namespace FacturasSRI.Web.Controllers
                     usuarioVendedorId = facturaInfo.UsuarioIdCreador;
                 }
 
-                // 2. Registrar el cobro usando el ID del Vendedor (Usuario), NO del Cliente
                 var nuevoCobro = new RegistrarCobroDto
                 {
                     FacturaId = facturaId,
@@ -96,6 +94,38 @@ namespace FacturasSRI.Web.Controllers
                 {
                     await _cobroService.RegistrarCobroAsync(nuevoCobro, null, null);
                     _logger.LogInformation($"Pago registrado vía Webhook para Factura {facturaId}");
+                    
+                    try 
+                    {
+                        using (var context = await _contextFactory.CreateDbContextAsync())
+                        {
+                            var facturaDatos = await context.Facturas
+                                .Include(f => f.Cliente)
+                                .Where(f => f.Id == facturaId)
+                                .Select(f => new { 
+                                    f.NumeroFactura, 
+                                    ClienteNombre = f.Cliente.RazonSocial, 
+                                    ClienteEmail = f.Cliente.Email 
+                                })
+                                .FirstOrDefaultAsync();
+
+                            if (facturaDatos != null && !string.IsNullOrEmpty(facturaDatos.ClienteEmail))
+                            {
+                                await _emailService.SendPaymentConfirmationEmailAsync(
+                                    facturaDatos.ClienteEmail,
+                                    facturaDatos.ClienteNombre,
+                                    facturaDatos.NumeroFactura,
+                                    nuevoCobro.Monto,
+                                    nuevoCobro.FechaCobro.ToString("dd/MM/yyyy HH:mm"),
+                                    nuevoCobro.Referencia
+                                );
+                            }
+                        }
+                    }
+                    catch (Exception exEmail)
+                    {
+                        _logger.LogError(exEmail, "Error enviando correo de confirmación de pago.");
+                    }
                 }
                 catch (Exception ex)
                 {

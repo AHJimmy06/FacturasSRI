@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using FacturasSRI.Web.Extensions;
 using FacturasSRI.Application.Interfaces;
 using FacturasSRI.Infrastructure.Services;
+using FacturasSRI.Application.Dtos;
 
 namespace FacturasSRI.Web.Endpoints
 {
@@ -27,6 +28,42 @@ namespace FacturasSRI.Web.Endpoints
             var publicGroup = app.MapGroup("/api/public")
                                  .AllowAnonymous()
                                  .IgnoreAntiforgeryToken();
+
+            // --- ENDPOINT NUEVO: Descarga de Recibo de Cobro ---
+            publicGroup.MapGet("/payment-receipt/{id:guid}", async (
+                Guid id,
+                [FromServices] IDbContextFactory<FacturasSRIDbContext> dbContextFactory,
+                PdfGeneratorService pdfGenerator,
+                ILoggerFactory loggerFactory) =>
+            {
+                // Usamos el Factory directamente para no modificar ICobroService
+                using var dbContext = await dbContextFactory.CreateDbContextAsync();
+                
+                // Mapeamos manualmente a CobroDto para el PDF
+                var cobroDto = await dbContext.Cobros
+                    .AsNoTracking()
+                    .Include(c => c.Factura)
+                    .ThenInclude(f => f.Cliente)
+                    .Where(c => c.Id == id)
+                    .Select(c => new CobroDto
+                    {
+                        Id = c.Id,
+                        FacturaId = c.FacturaId,
+                        NumeroFactura = c.Factura.NumeroFactura,
+                        ClienteNombre = c.Factura.Cliente.RazonSocial,
+                        FechaCobro = c.FechaCobro,
+                        Monto = c.Monto,
+                        MetodoDePago = c.MetodoDePago,
+                        Referencia = c.Referencia
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (cobroDto == null) return Results.NotFound("Recibo no encontrado.");
+
+                var pdfBytes = pdfGenerator.GenerarReciboCobroPdf(cobroDto);
+                return Results.File(pdfBytes, "application/pdf", $"Recibo_{cobroDto.NumeroFactura}.pdf");
+            });
+            // ---------------------------------------------------
 
             downloadsGroup.MapGet("/purchase-receipt/{id}", async (
                 Guid id,
@@ -46,12 +83,11 @@ namespace FacturasSRI.Web.Endpoints
                     return Results.NotFound("El registro de compra no fue encontrado.");
                 }
 
-                // LÓGICA MODIFICADA: Usamos un switch para soportar "credit-note"
                 string? filePath = type?.ToLower() switch
                 {
                     "payment" => cuentaPorPagar.ComprobantePagoPath,
                     "credit-note" => cuentaPorPagar.NotaCreditoPath,
-                    "invoice" or _ => cuentaPorPagar.FacturaCompraPath // Por defecto devuelve la factura
+                    "invoice" or _ => cuentaPorPagar.FacturaCompraPath 
                 };
 
                 if (string.IsNullOrEmpty(filePath))
@@ -227,112 +263,56 @@ namespace FacturasSRI.Web.Endpoints
                 }
             });
 
-                        publicGroup.MapGet("/nc-ride/{id}", async (
+            publicGroup.MapGet("/nc-ride/{id}", async (
+                Guid id,
+                [FromServices] ICreditNoteService creditNoteService,
+                PdfGeneratorService pdfGenerator,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("DownloadEndpoints");
+                var nc = await creditNoteService.GetCreditNoteDetailByIdAsync(id);
 
-                            Guid id,
-
-                            [FromServices] ICreditNoteService creditNoteService,
-
-                            PdfGeneratorService pdfGenerator,
-
-                            ILoggerFactory loggerFactory) =>
-
-                        {
-
-                            var logger = loggerFactory.CreateLogger("DownloadEndpoints");
-
-            
-
-                            var nc = await creditNoteService.GetCreditNoteDetailByIdAsync(id);
-
-            
-
-                            if (nc == null)
-
-                            {
-
-                                return Results.NotFound("La nota de crédito solicitada no existe.");
-
-                            }
-
-            
-
-                            try
-
-                            {
-
-                                var pdfBytes = pdfGenerator.GenerarNotaCreditoPdf(nc);
-
-                                var fileName = $"RIDE_{nc.NumeroNotaCredito}.pdf";
-
-                                return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
-
-                            }
-
-                            catch (Exception ex)
-
-                            {
-
-                                logger.LogError(ex, "Error generando el RIDE público para la nota de crédito {Id}", id);
-
-                                return Results.Problem("Ocurrió un error al generar el PDF.");
-
-                            }
-
-                        });
-
-            
-
-                        var adminGroup = app.MapGroup("/api/admin")
-
-                                            .RequireAuthorization("AdminPolicy")
-
-                                            .IgnoreAntiforgeryToken();
-
-            
-
-                        adminGroup.MapPost("/refresh-cache", async (
-
-                            [FromServices] DataCacheService cacheService,
-
-                            ILoggerFactory loggerFactory) =>
-
-                        {
-
-                            var logger = loggerFactory.CreateLogger("AdminEndpoints");
-
-                            logger.LogInformation("Solicitud manual para refrescar caché recibida.");
-
-                            try
-
-                            {
-
-                                await cacheService.GenerateProductCache();
-
-                                await cacheService.GenerateCustomerCache();
-
-                                logger.LogInformation("Caché de productos y clientes regenerada exitosamente.");
-
-                                return Results.Ok("Caché de productos y clientes actualizada.");
-
-                            }
-
-                            catch (Exception ex)
-
-                            {
-
-                                logger.LogError(ex, "Error al regenerar la caché manualmente.");
-
-                                return Results.Problem("Ocurrió un error al refrescar la caché.");
-
-                            }
-
-                        });
-
-                    }
-
+                if (nc == null)
+                {
+                    return Results.NotFound("La nota de crédito solicitada no existe.");
                 }
 
-            }
+                try
+                {
+                    var pdfBytes = pdfGenerator.GenerarNotaCreditoPdf(nc);
+                    var fileName = $"RIDE_{nc.NumeroNotaCredito}.pdf";
+                    return Results.File(pdfBytes, "application/pdf", fileDownloadName: fileName);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error generando el RIDE público para la nota de crédito {Id}", id);
+                    return Results.Problem("Ocurrió un error al generar el PDF.");
+                }
+            });
 
-            
+            var adminGroup = app.MapGroup("/api/admin")
+                                .RequireAuthorization("AdminPolicy")
+                                .IgnoreAntiforgeryToken();
+
+            adminGroup.MapPost("/refresh-cache", async (
+                [FromServices] DataCacheService cacheService,
+                ILoggerFactory loggerFactory) =>
+            {
+                var logger = loggerFactory.CreateLogger("AdminEndpoints");
+                logger.LogInformation("Solicitud manual para refrescar caché recibida.");
+                try
+                {
+                    await cacheService.GenerateProductCache();
+                    await cacheService.GenerateCustomerCache();
+                    logger.LogInformation("Caché de productos y clientes regenerada exitosamente.");
+                    return Results.Ok("Caché de productos y clientes actualizada.");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error al regenerar la caché manualmente.");
+                    return Results.Problem("Ocurrió un error al refrescar la caché.");
+                }
+            });
+        }
+    }
+}
