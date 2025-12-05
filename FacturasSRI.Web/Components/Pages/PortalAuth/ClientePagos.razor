@@ -17,10 +17,22 @@
 
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input type="text" class="form-control" placeholder="Buscar por Nro. de Factura o Referencia..."
+        <div class="row g-3 align-items-end">
+            <div class="col-lg col-md-12">
+                <label for="search-payment" class="form-label fw-bold mb-1">Búsqueda</label>
+                <input type="text" id="search-payment" class="form-control" placeholder="Por Nro. de Factura o Referencia..."
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
+            </div>
+            <div class="col-lg-3 col-md-4">
+                <label for="start-date" class="form-label fw-bold mb-1">Fecha de Inicio</label>
+                <InputDate id="start-date" class="form-control" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" />
+            </div>
+            <div class="col-lg-3 col-md-4">
+                <label for="end-date" class="form-label fw-bold mb-1">Fecha de Fin</label>
+                <InputDate id="end-date" class="form-control" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" />
+            </div>
+            <div class="col-lg-auto col-md-4">
+                <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Limpiar</button>
             </div>
         </div>
     </div>
@@ -82,7 +94,7 @@ else if (paginatedPayments != null)
         }
         else
         {
-            <p class="text-muted mb-0 small">No se encontraron pagos.</p>
+            <p class="text-muted mb-0 small">No se encontraron pagos con los filtros aplicados.</p>
         }
     </div>
 }
@@ -95,6 +107,8 @@ else if (paginatedPayments != null)
     private int currentPage = 1;
     private int pageSize = 15;
     private string searchTerm = string.Empty;
+    private DateTime? startDate;
+    private DateTime? endDate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,13 +138,23 @@ else if (paginatedPayments != null)
         errorMessage = null;
         try
         {
-            paginatedPayments = await CobroService.GetCobrosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm);
+            var startDateUtc = startDate.HasValue ? startDate.Value.ToUniversalTime() : (DateTime?)null;
+            var endDateUtc = endDate.HasValue ? endDate.Value.ToUniversalTime() : (DateTime?)null;
+            paginatedPayments = await CobroService.GetCobrosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDateUtc, endDateUtc);
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar los pagos: {ex.Message}";
         }
         StateHasChanged();
+    }
+
+    private async Task ClearFilters()
+    {
+        searchTerm = string.Empty;
+        startDate = null;
+        endDate = null;
+        await LoadPayments(1);
     }
 
     private async Task OnFilterChanged() => await LoadPayments(1);

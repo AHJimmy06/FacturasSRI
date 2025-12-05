@@ -27,7 +27,9 @@ namespace FacturasSRI.Web.Controllers
         public async Task<ActionResult<PaginatedList<CobroDto>>> GetClientCobros(
             [FromQuery] int pageNumber = 1, 
             [FromQuery] int pageSize = 10, 
-            [FromQuery] string? searchTerm = null)
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
         {
             _logger.LogWarning("[API /api/cobros/cliente] Request received.");
             if (User.Identity?.IsAuthenticated ?? false)
@@ -46,7 +48,7 @@ namespace FacturasSRI.Web.Controllers
                 return Unauthorized("No se pudo identificar al cliente.");
             }
 
-            var cobros = await _cobroService.GetCobrosByClientIdAsync(clienteId, pageNumber, pageSize, searchTerm);
+            var cobros = await _cobroService.GetCobrosByClientIdAsync(clienteId, pageNumber, pageSize, searchTerm, startDate, endDate);
             return Ok(cobros);
         }
     }

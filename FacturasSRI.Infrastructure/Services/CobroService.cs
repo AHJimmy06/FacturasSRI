@@ -251,7 +251,7 @@ namespace FacturasSRI.Infrastructure.Services
             return await PaginatedList<FacturasConPagosDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
 
-        public async Task<PaginatedList<CobroDto>> GetCobrosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm)
+        public async Task<PaginatedList<CobroDto>> GetCobrosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm, DateTime? startDate, DateTime? endDate)
         {
              await using var context = await _contextFactory.CreateDbContextAsync();
             var query = context.Cobros
@@ -259,6 +259,22 @@ namespace FacturasSRI.Infrastructure.Services
                 .Include(c => c.Factura)
                 .Include(c => c.UsuarioCreador)
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(c => (c.Factura != null && c.Factura.NumeroFactura.Contains(searchTerm)) || (c.Referencia != null && c.Referencia.Contains(searchTerm)));
+            }
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(c => c.FechaCobro >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                var endOfDay = endDate.Value.Date.AddDays(1);
+                query = query.Where(c => c.FechaCobro < endOfDay);
+            }
 
             var finalQuery = query
                 .OrderByDescending(c => c.FechaCobro)
