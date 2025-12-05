@@ -1,3 +1,22 @@
+using FacturasSRI.Application.Dtos;
+using FacturasSRI.Application.Interfaces;
+using FacturasSRI.Domain.Enums;
+using Microsoft.AspNetCore.Hosting;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System;
+using System.IO;
+using System.Linq;
+using SkiaSharp;
+using ZXing;
+using ZXing.SkiaSharp;
+using ZXing.Common;
+
+namespace FacturasSRI.Infrastructure.Services
+{
+    public class PdfGeneratorService
+    {
         private readonly IWebHostEnvironment _env;
         private readonly ITimeZoneHelper _timeZoneHelper;
 
@@ -81,7 +100,7 @@
                     column.Item().PaddingTop(5).Row(r => {
                         r.RelativeItem().Column(c => {
                             c.Item().Text("FECHA Y HORA DE AUTORIZACIÓN").SemiBold().FontSize(6);
-                            var fecha = factura.FechaAutorizacion.HasValue ? _timeZoneHelper.ConvertUtcToEcuadorTime(factura.FechaAutorizacion.Value) : DateTime.Now;
+                            var fecha = factura.FechaEmision == default ? _timeZoneHelper.ConvertUtcToEcuadorTime(DateTime.UtcNow) : _timeZoneHelper.ConvertUtcToEcuadorTime(factura.FechaEmision);
                             c.Item().Text($"{fecha:dd/MM/yyyy HH:mm:ss}").FontSize(8);
                         });
                     });
@@ -207,7 +226,7 @@
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text("FECHA Y HORA DE AUTORIZACIÓN").SemiBold().FontSize(6);
-                            var fecha = nc.FechaAutorizacion.HasValue ? _timeZoneHelper.ConvertUtcToEcuadorTime(nc.FechaAutorizacion.Value) : DateTime.Now;
+                            var fecha = nc.FechaEmision == default ? _timeZoneHelper.ConvertUtcToEcuadorTime(DateTime.UtcNow) : _timeZoneHelper.ConvertUtcToEcuadorTime(nc.FechaEmision);
                             c.Item().Text($"{fecha:dd/MM/yyyy HH:mm:ss}").FontSize(8);
                         });
                     });
@@ -460,3 +479,35 @@
                 });
             });
         }
+
+        // --- Helpers Compartidos ---
+        private byte[] GenerarCodigoBarras(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return Array.Empty<byte>();
+            try
+            {
+                var writer = new BarcodeWriter
+                {
+                    Format = BarcodeFormat.CODE_128,
+                    Options = new EncodingOptions { Width = 400, Height = 60, PureBarcode = true, Margin = 0 }
+                };
+                var bitmap = writer.Write(texto);
+                using (var image = SKImage.FromBitmap(bitmap))
+                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                {
+                    return data.ToArray();
+                }
+            }
+            catch (Exception) { return Array.Empty<byte>(); }
+        }
+
+        static IContainer ContainerBox(IContainer container) => container.Border(1).BorderColor(Colors.Black).Padding(4);
+        static IContainer HeaderCellStyle(IContainer container) => container.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten3).Padding(2).AlignCenter();
+        static IContainer CellStyle(IContainer container) => container.BorderLeft(1).BorderRight(1).BorderBottom(1).BorderColor(Colors.Black).Padding(2);
+
+        void TotalesRow(ColumnDescriptor column, string label, decimal value)
+        {
+            column.Item().Row(row => { row.RelativeItem().Text(label).FontSize(7); row.RelativeItem().AlignRight().Text(value.ToString("N2")).FontSize(7); });
+        }
+    }
+}

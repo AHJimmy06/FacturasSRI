@@ -4,6 +4,7 @@
 @using FacturasSRI.Application.Interfaces
 @inject IProductService ProductService
 @inject NavigationManager Navigation
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Detalles del Producto</PageTitle>
 
@@ -28,7 +29,7 @@ else
             <p><strong>Descripción:</strong> @productDetails.Descripcion</p>
             <p><strong>Precio Unitario:</strong> @productDetails.PrecioVentaUnitario.ToString("C")</p>
             <p><strong>Creado Por:</strong> @productDetails.CreadoPor</p>
-            <p><strong>Fecha de Creación:</strong> @productDetails.FechaCreacion.ToLocalTime().ToString("g")</p>
+            <p><strong>Fecha de Creación:</strong> @TimeZoneHelper.ConvertUtcToEcuadorTime(productDetails.FechaCreacion).ToString("g")</p>
         </div>
     </div>
 
@@ -65,7 +66,7 @@ else
                             <tr>
                                 <td>@lote.CantidadDisponible</td>
                                 <td>@lote.PrecioCompraUnitario.ToString("C")</td>
-                                <td>@(lote.FechaCaducidad?.ToString("dd/MM/yyyy") ?? "N/A")</td>
+                                <td>@(lote.FechaCaducidad.HasValue ? TimeZoneHelper.ConvertUtcToEcuadorTime(lote.FechaCaducidad.Value).ToString("dd/MM/yyyy") : "N/A")</td>
                             </tr>
                         }
                     </tbody>

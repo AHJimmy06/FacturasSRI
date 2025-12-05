@@ -20,17 +20,20 @@ namespace FacturasSRI.Infrastructure.Services
         private readonly Client _supabase;
         private readonly ILogger<CobroService> _logger;
         private readonly IEmailService _emailService;
+        private readonly ITimeZoneHelper _timeZoneHelper;
 
         public CobroService(
             IDbContextFactory<FacturasSRIDbContext> contextFactory, 
             Client supabase, 
             ILogger<CobroService> logger,
-            IEmailService emailService) // <--- 2. INYECTAR
+            IEmailService emailService,
+            ITimeZoneHelper timeZoneHelper) // <--- 2. INYECTAR
         {
             _contextFactory = contextFactory;
             _supabase = supabase;
             _logger = logger;
             _emailService = emailService; // <--- 3. ASIGNAR
+            _timeZoneHelper = timeZoneHelper;
         }
 
         public async Task<PaginatedList<CobroDto>> GetAllCobrosAsync(int pageNumber, int pageSize, string? searchTerm)
@@ -166,7 +169,7 @@ namespace FacturasSRI.Infrastructure.Services
                                 cuentaPorCobrar.Factura.Cliente.RazonSocial,
                                 cuentaPorCobrar.Factura.NumeroFactura,
                                 cobro.Monto,
-                                cobro.FechaCobro.ToString("dd/MM/yyyy HH:mm"),
+                                _timeZoneHelper.ConvertUtcToEcuadorTime(cobro.FechaCobro).ToString("dd/MM/yyyy HH:mm"),
                                 cobro.Referencia ?? "Sin referencia"
                             );
                         }

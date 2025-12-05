@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient Http
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Ajuste de Inventario</PageTitle>
 
@@ -69,7 +70,7 @@
                             @foreach (var lote in selectedProductStock.Lotes)
                             {
                                 <option value="@lote.Id">
-                                    Cant: @lote.CantidadDisponible | P. Compra: @lote.PrecioCompraUnitario.ToString("C") | Cad: @(lote.FechaCaducidad?.ToString("yyyy-MM-dd") ?? "N/A")
+                                    Cant: @lote.CantidadDisponible | P. Compra: @lote.PrecioCompraUnitario.ToString("C") | Cad: @(lote.FechaCaducidad.HasValue ? TimeZoneHelper.ConvertUtcToEcuadorTime(lote.FechaCaducidad.Value).ToString("yyyy-MM-dd") : "N/A")
                                 </option>
                             }
                         </InputSelect>

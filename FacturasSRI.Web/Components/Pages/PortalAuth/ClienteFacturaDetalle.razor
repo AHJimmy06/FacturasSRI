@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Detalle de Factura - @(invoice?.NumeroFactura ?? "...")</PageTitle>
 
@@ -47,7 +48,7 @@ else
                         <div class="col-md-6 text-md-end">
                             <h2>FACTURA</h2>
                             <h5 class="text-danger">@Configuration["CompanyInfo:EstablishmentCode"]-@Configuration["CompanyInfo:EmissionPointCode"]-@invoice.NumeroFactura</h5>
-                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @invoice.FechaEmision.ToString("dd/MM/yyyy")</p>
+                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @TimeZoneHelper.ConvertUtcToEcuadorTime(invoice.FechaEmision).ToString("dd/MM/yyyy")</p>
                         </div>
                     </div>
                     <hr/>

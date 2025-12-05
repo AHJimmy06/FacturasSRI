@@ -11,6 +11,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Detalle de Compra</PageTitle>
 
@@ -58,7 +59,7 @@ else
                         </div>
                         <div class="col-md-6">
                             <p class="mb-2"><strong>Monto Total de la Factura:</strong><br /> <span class="fs-5 fw-bold">@purchase.MontoTotal.ToString("C")</span></p>
-                            <p class="mb-0"><strong>Fecha de Emisión:</strong><br /> @purchase.FechaEmision.ToLocalTime().ToString("g")</p>
+                            <p class="mb-0"><strong>Fecha de Emisión:</strong><br /> @TimeZoneHelper.ConvertUtcToEcuadorTime(purchase.FechaEmision).ToString("g")</p>
                         </div>
                     </div>
                 </div>
@@ -80,7 +81,7 @@ else
                     {
                         <div class="mb-3">
                             <label class="form-label">Fecha de Vencimiento:</label>
-                            <input type="text" class="form-control" value="@(purchase.FechaVencimiento?.ToLocalTime().ToString("g") ?? "N/A")" readonly />
+                            <input type="text" class="form-control" value="@(purchase.FechaVencimiento.HasValue ? TimeZoneHelper.ConvertUtcToEcuadorTime(purchase.FechaVencimiento.Value).ToString("g") : "N/A")" readonly />
                         </div>
                     }
                     
@@ -88,7 +89,7 @@ else
                     {
                         <div class="mb-3">
                             <label class="form-label">Fecha de Pago:</label>
-                            <input type="text" class="form-control" value="@(purchase.FechaPago?.ToLocalTime().ToString("g") ?? "N/A")" readonly />
+                            <input type="text" class="form-control" value="@(purchase.FechaPago.HasValue ? TimeZoneHelper.ConvertUtcToEcuadorTime(purchase.FechaPago.Value).ToString("g") : "N/A")" readonly />
                         </div>
                     }
 

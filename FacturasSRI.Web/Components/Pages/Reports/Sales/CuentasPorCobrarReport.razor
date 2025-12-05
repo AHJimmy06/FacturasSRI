@@ -110,7 +110,7 @@
                                 @foreach (var item in reportData.OrderByDescending(x => x.DiasVencida))
                                 {
                                     <tr class="@(item.DiasVencida > 30 ? "table-danger" : item.DiasVencida > 15 ? "table-warning" : "")">
-                                        <td>@item.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                        <td>@TimeZoneHelper.ConvertUtcToEcuadorTime(item.FechaEmision).ToString("dd/MM/yyyy")</td>
                                         <td>@item.Vendedor</td>
                                         <td>@item.NombreCliente</td>
                                         <td>@item.NumeroFactura</td>

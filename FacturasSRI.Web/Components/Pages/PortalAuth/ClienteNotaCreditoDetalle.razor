@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Detalle de Nota de Crédito - @(creditNote?.NumeroNotaCredito ?? "...")</PageTitle>
 
@@ -47,7 +48,7 @@ else
                         <div class="col-md-6 text-md-end">
                             <h2>NOTA DE CRÉDITO</h2>
                             <h5 class="text-danger">@Configuration["CompanyInfo:EstablishmentCode"]-@Configuration["CompanyInfo:EmissionPointCode"]-@creditNote.NumeroNotaCredito</h5>
-                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @creditNote.FechaEmision.ToString("dd/MM/yyyy")</p>
+                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @TimeZoneHelper.ConvertUtcToEcuadorTime(creditNote.FechaEmision).ToString("dd/MM/yyyy")</p>
                         </div>
                     </div>
                     <hr/>
@@ -59,7 +60,7 @@ else
                         </div>
                         <div class="col-md-6">
                              <p class="mb-1"><strong>Factura Modificada:</strong> @creditNote.NumeroFacturaModificada</p>
-                             <p class="mb-1"><strong>Fecha Factura:</strong> @creditNote.FechaEmisionFacturaModificada.ToString("dd/MM/yyyy")</p>
+                             <p class="mb-1"><strong>Fecha Factura:</strong> @TimeZoneHelper.ConvertUtcToEcuadorTime(creditNote.FechaEmisionFacturaModificada).ToString("dd/MM/yyyy")</p>
                              <p class="mb-0"><strong>Motivo:</strong> @creditNote.RazonModificacion</p>
                         </div>
                     </div>

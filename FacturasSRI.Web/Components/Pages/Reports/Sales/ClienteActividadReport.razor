@@ -6,7 +6,6 @@
 @using FacturasSRI.Application.Dtos.Reports
 @using FacturasSRI.Application.Interfaces
 @using Microsoft.JSInterop
-@using FacturasSRI.Application.Interfaces
 @inject IReportService ReportService
 @inject IUserService UserService
 @inject IJSRuntime JSRuntime
@@ -137,8 +136,8 @@
 
 @code {
     // Variables de Filtro
-    private DateTime startDate = DateTime.Now.AddMonths(-1).Date;
-    private DateTime endDate = DateTime.Now.Date;
+    private DateTime startDate = DateTime.Today.AddMonths(-1).Date;
+    private DateTime endDate = DateTime.Today;
 
     // Variables de Usuario y Roles
     private bool isAdmin = false;
@@ -211,7 +210,12 @@
         try
         {
             var queryUserId = GetQueryUserId();
-            reportData = await ReportService.GetActividadClientesAsync(startDate, endDate, queryUserId);
+
+            // Convert local selected dates to UTC (Ecuador's beginning/end of day)
+            var utcStartDate = TimeZoneHelper.ConvertEcuadorToUtc(startDate.Date);
+            var utcEndDate = TimeZoneHelper.ConvertEcuadorToUtc(endDate.Date.AddDays(1).AddTicks(-1)); // End of the selected day in Ecuador time
+
+            reportData = await ReportService.GetActividadClientesAsync(utcStartDate, utcEndDate, queryUserId);
         }
         catch (Exception ex)
         {
@@ -231,7 +235,12 @@
         try
         {
             var queryUserId = GetQueryUserId();
-            var pdfBytes = await ReportService.GetActividadClientesAsPdfAsync(startDate, endDate, queryUserId);
+
+            // Convert local selected dates to UTC (Ecuador's beginning/end of day)
+            var utcStartDate = TimeZoneHelper.ConvertEcuadorToUtc(startDate.Date);
+            var utcEndDate = TimeZoneHelper.ConvertEcuadorToUtc(endDate.Date.AddDays(1).AddTicks(-1)); // End of the selected day in Ecuador time
+
+            var pdfBytes = await ReportService.GetActividadClientesAsPdfAsync(utcStartDate, utcEndDate, queryUserId);
 
             if (pdfBytes.Length == 0)
             {

@@ -5,6 +5,7 @@
 @using FacturasSRI.Domain.Enums
 @using FacturasSRI.Web.Components.Shared
 @inject IAjusteInventarioService AjusteInventarioService
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Historial de Ajustes</PageTitle>
 
@@ -61,7 +62,7 @@ else if (paginatedAdjustments != null && paginatedAdjustments.Items.Any())
                 @foreach (var ajuste in paginatedAdjustments.Items)
                 {
                     <tr>
-                        <td class="text-muted small">@ajuste.Fecha.ToLocalTime().ToString("g")</td>
+                        <td class="text-muted small">@TimeZoneHelper.ConvertUtcToEcuadorTime(ajuste.Fecha).ToString("g")</td>
                         <td class="fw-medium">@ajuste.ProductoNombre</td>
                         <td>
                             @if (ajuste.CantidadAjustada > 0)

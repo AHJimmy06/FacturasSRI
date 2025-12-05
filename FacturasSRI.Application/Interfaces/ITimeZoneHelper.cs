@@ -5,5 +5,6 @@ namespace FacturasSRI.Application.Interfaces
     public interface ITimeZoneHelper
     {
         DateTime ConvertUtcToEcuadorTime(DateTime utcDateTime);
+        DateTime ConvertEcuadorToUtc(DateTime ecuadorDateTime);
     }
 }

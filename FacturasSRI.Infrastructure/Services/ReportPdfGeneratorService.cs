@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Hosting;
 using System.Globalization;
+using FacturasSRI.Application.Interfaces;
 
 namespace FacturasSRI.Infrastructure.Services
 {
@@ -15,10 +16,12 @@ namespace FacturasSRI.Infrastructure.Services
     {
         private readonly IWebHostEnvironment _env;
         private readonly CultureInfo esEcCulture = new CultureInfo("es-EC");
+        private readonly ITimeZoneHelper _timeZoneHelper;
 
-        public ReportPdfGeneratorService(IWebHostEnvironment env)
+        public ReportPdfGeneratorService(IWebHostEnvironment env, ITimeZoneHelper timeZoneHelper)
         {
             _env = env;
+            _timeZoneHelper = timeZoneHelper;
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
@@ -36,7 +39,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Período", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Período", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose => ComposeContentVentas(compose, data));
                     page.Footer().AlignCenter().Text(x => { x.CurrentPageNumber(); x.Span(" / "); x.TotalPages(); });
                 });
@@ -53,7 +56,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Producto", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ventas por Producto", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -80,7 +83,7 @@ namespace FacturasSRI.Infrastructure.Services
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
+                                table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy"));
                                 table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Element(DataCellStyle).Text(item.CodigoProducto);
                                 table.Cell().Element(DataCellStyle).Text(item.NombreProducto);
@@ -112,7 +115,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Actividad de Clientes", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Actividad de Clientes", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -139,7 +142,7 @@ namespace FacturasSRI.Infrastructure.Services
                             {
                                 table.Cell().Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Element(DataCellStyle).Text(item.Identificacion);
-                                table.Cell().Element(DataCellStyle).Text(item.UltimaCompra?.ToString("dd/MM/yyyy") ?? "N/A");
+                                table.Cell().Element(DataCellStyle).Text(item.UltimaCompra.HasValue ? _timeZoneHelper.ConvertUtcToEcuadorTime(item.UltimaCompra.Value).ToString("dd/MM/yyyy") : "N/A");
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.DiasDesdeUltimaCompra == -1 ? "N/A" : item.DiasDesdeUltimaCompra.ToString());
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.NumeroDeCompras.ToString());
                                 table.Cell().Element(DataCellStyle).AlignRight().Text(item.TotalComprado.ToString("C", esEcCulture));
@@ -194,7 +197,7 @@ namespace FacturasSRI.Infrastructure.Services
                                                     : item.DiasVencida > 15 ? Colors.Yellow.Lighten4
                                                     : Colors.White;
 
-                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
+                                table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.FechaEmision).ToString("dd/MM/yyyy"));
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NombreCliente);
                                 table.Cell().Background(backgroundColor).Element(DataCellStyle).Text(item.NumeroFactura);
@@ -225,7 +228,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Notas de Crédito Emitidas", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Notas de Crédito Emitidas", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -252,7 +255,7 @@ namespace FacturasSRI.Infrastructure.Services
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.FechaEmision.ToString("dd/MM/yyyy"));
+                                table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.FechaEmision).ToString("dd/MM/yyyy"));
                                 table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                                 table.Cell().Element(DataCellStyle).Text(item.NumeroNotaCredito);
                                 table.Cell().Element(DataCellStyle).Text(item.NombreCliente);
@@ -337,7 +340,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Kardex de Movimientos", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Kardex de Movimientos", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -365,7 +368,7 @@ namespace FacturasSRI.Infrastructure.Services
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                                table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy HH:mm"));
                                 table.Cell().Element(DataCellStyle).Text(item.UsuarioResponsable);
                                 table.Cell().Element(DataCellStyle).Text(item.ProductoNombre);
                                 table.Cell().Element(DataCellStyle).Text(item.TipoMovimiento);
@@ -395,7 +398,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte Detallado de Compras", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte Detallado de Compras", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -424,7 +427,7 @@ namespace FacturasSRI.Infrastructure.Services
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
+                                table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy"));
                                 table.Cell().Element(DataCellStyle).Text(item.UsuarioResponsable);
                                 table.Cell().Element(DataCellStyle).Text(item.NombreProveedor);
 
@@ -525,7 +528,7 @@ namespace FacturasSRI.Infrastructure.Services
                     page.Margin(1, Unit.Centimetre);
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
-                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ajustes de Inventario", startDate, endDate));
+                    page.Header().Element(compose => ComposeHeader(compose, "Reporte de Ajustes de Inventario", _timeZoneHelper.ConvertUtcToEcuadorTime(startDate), _timeZoneHelper.ConvertUtcToEcuadorTime(endDate)));
                     page.Content().Element(compose =>
                     {
                         compose.Table(table =>
@@ -550,7 +553,7 @@ namespace FacturasSRI.Infrastructure.Services
                             });
                             foreach (var item in data)
                             {
-                                table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                                table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy HH:mm"));
                                 table.Cell().Element(DataCellStyle).Text(item.UsuarioResponsable);
                                 table.Cell().Element(DataCellStyle).Text(item.ProductoNombre);
                                 table.Cell().Element(DataCellStyle).Text(item.TipoAjuste);
@@ -645,7 +648,7 @@ namespace FacturasSRI.Infrastructure.Services
 
                 foreach (var item in data)
                 {
-                    table.Cell().Element(DataCellStyle).Text(item.Fecha.ToString("dd/MM/yyyy"));
+                    table.Cell().Element(DataCellStyle).Text(_timeZoneHelper.ConvertUtcToEcuadorTime(item.Fecha).ToString("dd/MM/yyyy"));
                     table.Cell().Element(DataCellStyle).Text(item.Vendedor);
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.CantidadFacturas.ToString());
                     table.Cell().Element(DataCellStyle).AlignRight().Text(item.Subtotal.ToString("C", esEcCulture));

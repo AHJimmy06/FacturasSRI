@@ -31,5 +31,10 @@ namespace FacturasSRI.Infrastructure.Services
         {
             return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, _ecuadorTimeZone);
         }
+
+        public DateTime ConvertEcuadorToUtc(DateTime ecuadorDateTime)
+        {
+            return TimeZoneInfo.ConvertTimeToUtc(ecuadorDateTime, _ecuadorTimeZone);
+        }
     }
 }

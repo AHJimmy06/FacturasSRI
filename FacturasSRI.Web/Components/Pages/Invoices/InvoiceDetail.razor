@@ -12,6 +12,7 @@
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @inject IJSRuntime JSRuntime
+@inject ITimeZoneHelper TimeZoneHelper
 
 <PageTitle>Detalle de Factura - @(invoice?.NumeroFactura ?? "...")</PageTitle>
 
@@ -64,7 +65,7 @@ else
                     </button>
                 }
 
-                @if (invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0 && invoice.FechaVencimiento.HasValue && (invoice.FechaVencimiento.Value - DateTime.Today).Days <= 5)
+                @if (invoice.FormaDePago == FormaDePago.Credito && invoice.SaldoPendiente > 0 && invoice.FechaVencimiento.HasValue && (TimeZoneHelper.ConvertUtcToEcuadorTime(invoice.FechaVencimiento.Value).Date - DateTime.Today).Days <= 5)
                 {
                     <button class="btn btn-warning me-2" @onclick="SendPaymentReminder" disabled="@sendingEmail">
                         @if (sendingEmail)
@@ -113,7 +114,7 @@ else
                         <div class="col-md-6 text-md-end">
                             <h2>FACTURA</h2>
                             <h5 class="text-danger">@Configuration["CompanyInfo:EstablishmentCode"]-@Configuration["CompanyInfo:EmissionPointCode"]-@invoice.NumeroFactura</h5>
-                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @invoice.FechaEmision.ToString("dd/MM/yyyy")</p>
+                            <p class="mb-0"><strong>Fecha de Emisión:</strong> @TimeZoneHelper.ConvertUtcToEcuadorTime(invoice.FechaEmision).ToString("dd/MM/yyyy")</p>
                         </div>
                     </div>
                     <hr/>
@@ -337,7 +338,7 @@ else
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
                                     <div>
                                         <p class="mb-0"><strong>@cobro.Monto.ToString("C")</strong> - @cobro.MetodoDePago</p>
-                                        <small class="text-muted">@cobro.FechaCobro.ToString("g") por @cobro.CreadoPor</small>
+                                        <small class="text-muted">@TimeZoneHelper.ConvertUtcToEcuadorTime(cobro.FechaCobro).ToString("g") por @cobro.CreadoPor</small>
                                     </div>
                                     @if (!string.IsNullOrEmpty(cobro.ComprobantePagoPath))
                                     {
