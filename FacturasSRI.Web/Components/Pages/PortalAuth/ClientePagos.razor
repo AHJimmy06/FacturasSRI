@@ -19,20 +19,38 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="row g-3 align-items-end">
-            <div class="col-lg col-md-12">
+            @* Buscador *@
+            <div class="col-lg-4 col-md-6">
                 <label for="search-payment" class="form-label fw-bold mb-1">Búsqueda</label>
                 <input type="text" id="search-payment" class="form-control" placeholder="Por Nro. de Factura o Referencia..."
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
             </div>
-            <div class="col-lg-3 col-md-4">
+
+            @* Filtro de Método de Pago (NUEVO) *@
+            <div class="col-lg-2 col-md-6">
+                <label for="payment-method" class="form-label fw-bold mb-1">Método de Pago</label>
+                <InputSelect id="payment-method" class="form-select" @bind-Value="selectedPaymentMethod" @bind-Value:after="OnFilterChanged">
+                    <option value="All">Todos</option>
+                    <option value="Tarjeta">Tarjeta (Online)</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Abono">Abono Inicial</option>
+                </InputSelect>
+            </div>
+
+            @* Fechas *@
+            <div class="col-lg-2 col-md-6">
                 <label for="start-date" class="form-label fw-bold mb-1">Fecha de Inicio</label>
                 <InputDate id="start-date" class="form-control" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" />
             </div>
-            <div class="col-lg-3 col-md-4">
+            <div class="col-lg-2 col-md-6">
                 <label for="end-date" class="form-label fw-bold mb-1">Fecha de Fin</label>
                 <InputDate id="end-date" class="form-control" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" />
             </div>
-            <div class="col-lg-auto col-md-4">
+
+            @* Botón Limpiar *@
+            <div class="col-lg-2 col-md-12">
                 <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Limpiar</button>
             </div>
         </div>
@@ -57,7 +75,7 @@ else if (paginatedPayments != null)
                     <th>Fecha de Pago</th>
                     <th>Factura</th>
                     <th>Método de Pago</th>
-                    <th>Referencia</th>
+                    <th>Referencia / Detalle</th>
                     <th class="text-end">Monto</th>
                     <th class="text-end" style="width: 50px;"></th>
                 </tr>
@@ -68,11 +86,33 @@ else if (paginatedPayments != null)
                     <tr>
                         <td>@TimeZoneHelper.ConvertUtcToEcuadorTime(payment.FechaCobro).ToString("dd/MM/yyyy HH:mm")</td>
                         <td class="fw-medium">@payment.NumeroFactura</td>
-                        <td>@payment.MetodoDePago</td>
-                        <td>@payment.Referencia</td>
+                        
+                        <td>
+                            @if(payment.MetodoDePago.Contains("Tarjeta")) { <i class="bi bi-credit-card me-1 text-primary"></i> }
+                            else if(payment.MetodoDePago.Contains("Efectivo")) { <i class="bi bi-cash-coin me-1 text-success"></i> }
+                            else if(payment.MetodoDePago.Contains("Transferencia")) { <i class="bi bi-bank me-1 text-info"></i> }
+                            @payment.MetodoDePago
+                        </td>
+
+                        <td>
+                            @if (string.IsNullOrEmpty(payment.Referencia))
+                            {
+                                <span class="text-muted small fst-italic">N/A</span>
+                            }
+                            else if (payment.Referencia.Contains("Stripe"))
+                            {
+                                <span class="badge bg-primary bg-gradient shadow-sm" title="@payment.Referencia" style="cursor: help;">
+                                    <i class="bi bi-stripe"></i> Pago Online
+                                </span>
+                            }
+                            else
+                            {
+                                <span>@payment.Referencia</span>
+                            }
+                        </td>
+
                         <td class="text-end fw-bold">@payment.Monto.ToString("C")</td>
                         <td class="text-end">
-                            @* Botón de Descarga *@
                             <a href="/api/public/payment-receipt/@payment.Id" target="_blank" class="btn btn-sm btn-outline-primary" title="Descargar Recibo">
                                 <i class="bi bi-download"></i>
                             </a>
@@ -107,9 +147,12 @@ else if (paginatedPayments != null)
 
     private int currentPage = 1;
     private int pageSize = 15;
+    
+    // Filtros
     private string searchTerm = string.Empty;
     private DateTime? startDate;
     private DateTime? endDate;
+    private string selectedPaymentMethod = "All"; // Nuevo filtro
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,7 +184,9 @@ else if (paginatedPayments != null)
         {
             var startDateUtc = startDate.HasValue ? startDate.Value.ToUniversalTime() : (DateTime?)null;
             var endDateUtc = endDate.HasValue ? endDate.Value.ToUniversalTime() : (DateTime?)null;
-            paginatedPayments = await CobroService.GetCobrosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDateUtc, endDateUtc);
+            
+            // Pasamos el nuevo parámetro 'selectedPaymentMethod'
+            paginatedPayments = await CobroService.GetCobrosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDateUtc, endDateUtc, selectedPaymentMethod);
         }
         catch (Exception ex)
         {
@@ -155,6 +200,7 @@ else if (paginatedPayments != null)
         searchTerm = string.Empty;
         startDate = null;
         endDate = null;
+        selectedPaymentMethod = "All"; // Resetear filtro
         await LoadPayments(1);
     }
 

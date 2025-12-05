@@ -254,29 +254,47 @@ namespace FacturasSRI.Infrastructure.Services
             return await PaginatedList<FacturasConPagosDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
 
-        public async Task<PaginatedList<CobroDto>> GetCobrosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm, DateTime? startDate, DateTime? endDate)
+        public async Task<PaginatedList<CobroDto>> GetCobrosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm, DateTime? startDate, DateTime? endDate, string? paymentMethod)
         {
-             await using var context = await _contextFactory.CreateDbContextAsync();
+            await using var context = await _contextFactory.CreateDbContextAsync();
             var query = context.Cobros
                 .Where(c => c.Factura.ClienteId == clienteId)
                 .Include(c => c.Factura)
                 .Include(c => c.UsuarioCreador)
                 .AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                query = query.Where(c => (c.Factura != null && c.Factura.NumeroFactura.Contains(searchTerm)) || (c.Referencia != null && c.Referencia.Contains(searchTerm)));
-            }
-
+            // 1. Filtros de Fecha
             if (startDate.HasValue)
-            {
                 query = query.Where(c => c.FechaCobro >= startDate.Value);
-            }
 
             if (endDate.HasValue)
             {
                 var endOfDay = endDate.Value.Date.AddDays(1);
                 query = query.Where(c => c.FechaCobro < endOfDay);
+            }
+
+            // 2. Filtro de Método de Pago (NUEVO)
+            if (!string.IsNullOrEmpty(paymentMethod) && paymentMethod != "All")
+            {
+                // Usamos Contains para que "Tarjeta" encuentre "Tarjeta de Crédito/Débito"
+                query = query.Where(c => c.MetodoDePago.Contains(paymentMethod));
+            }
+
+            // 3. Filtro de Texto Inteligente
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term = searchTerm.Trim();
+                bool buscaStripe = term.Contains("Pago", StringComparison.OrdinalIgnoreCase) || 
+                                   term.Contains("Online", StringComparison.OrdinalIgnoreCase) ||
+                                   term.Contains("Stripe", StringComparison.OrdinalIgnoreCase);
+                bool buscaNA = term.Equals("N/A", StringComparison.OrdinalIgnoreCase);
+
+                query = query.Where(c => 
+                    c.Factura.NumeroFactura.Contains(term) ||
+                    (c.Referencia != null && c.Referencia.Contains(term)) ||
+                    (buscaStripe && c.Referencia != null && c.Referencia.Contains("Stripe")) ||
+                    (buscaNA && (c.Referencia == null || c.Referencia == ""))
+                );
             }
 
             var finalQuery = query

@@ -29,7 +29,8 @@ namespace FacturasSRI.Web.Controllers
             [FromQuery] int pageSize = 10, 
             [FromQuery] string? searchTerm = null,
             [FromQuery] DateTime? startDate = null,
-            [FromQuery] DateTime? endDate = null)
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] string? paymentMethod = null)
         {
             _logger.LogWarning("[API /api/cobros/cliente] Request received.");
             if (User.Identity?.IsAuthenticated ?? false)
@@ -48,7 +49,7 @@ namespace FacturasSRI.Web.Controllers
                 return Unauthorized("No se pudo identificar al cliente.");
             }
 
-            var cobros = await _cobroService.GetCobrosByClientIdAsync(clienteId, pageNumber, pageSize, searchTerm, startDate, endDate);
+            var cobros = await _cobroService.GetCobrosByClientIdAsync(clienteId, pageNumber, pageSize, searchTerm, startDate, endDate, paymentMethod);
             return Ok(cobros);
         }
     }
