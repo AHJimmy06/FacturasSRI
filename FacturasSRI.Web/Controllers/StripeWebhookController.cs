@@ -73,8 +73,8 @@ namespace FacturasSRI.Web.Controllers
                     FacturaId = facturaId,
                     Monto = (decimal)(session.AmountTotal ?? 0) / 100m,
                     MetodoDePago = "Tarjeta de Crédito/Débito",
-                    Referencia = $"Stripe Webhook: {session.PaymentIntentId}",
-                    UsuarioIdCreador = null, // <--- AHORA ES NULO (Indica Portal Cliente)
+                    Referencia = $"Stripe ID: {session.PaymentIntentId}", 
+                    UsuarioIdCreador = null,
                     FechaCobro = DateTime.UtcNow
                 };
 
@@ -83,37 +83,7 @@ namespace FacturasSRI.Web.Controllers
                     await _cobroService.RegistrarCobroAsync(nuevoCobro, null, null);
                     _logger.LogInformation($"Pago registrado vía Webhook para Factura {facturaId}");
                     
-                    try 
-                    {
-                        using (var context = await _contextFactory.CreateDbContextAsync())
-                        {
-                            var facturaDatos = await context.Facturas
-                                .Include(f => f.Cliente)
-                                .Where(f => f.Id == facturaId)
-                                .Select(f => new { 
-                                    f.NumeroFactura, 
-                                    ClienteNombre = f.Cliente.RazonSocial, 
-                                    ClienteEmail = f.Cliente.Email 
-                                })
-                                .FirstOrDefaultAsync();
-
-                            if (facturaDatos != null && !string.IsNullOrEmpty(facturaDatos.ClienteEmail))
-                            {
-                                await _emailService.SendPaymentConfirmationEmailAsync(
-                                    facturaDatos.ClienteEmail,
-                                    facturaDatos.ClienteNombre,
-                                    facturaDatos.NumeroFactura,
-                                    nuevoCobro.Monto,
-                                    _timeZoneHelper.ConvertUtcToEcuadorTime(nuevoCobro.FechaCobro).ToString("dd/MM/yyyy HH:mm"),
-                                    nuevoCobro.Referencia
-                                );
-                            }
-                        }
-                    }
-                    catch (Exception exEmail)
-                    {
-                        _logger.LogError(exEmail, "Error enviando correo de confirmación de pago.");
-                    }
+                    
                 }
                 catch (Exception ex)
                 {

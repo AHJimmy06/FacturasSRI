@@ -10,7 +10,7 @@ namespace FacturasSRI.Application.Interfaces
         Task SendCreditNoteEmailAsync(string toEmail, string clienteNombre, string numeroNC, Guid ncId, byte[] pdfBytes, string xmlSignedContent);
         Task SendPaymentReminderEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal total, decimal saldoPendiente, DateTime fechaVencimiento);
         Task SendCustomerConfirmationEmailAsync(string toEmail, string customerName, string confirmationLink);
-        Task SendPaymentConfirmationEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal monto, string fecha, string referencia);
+        Task SendPaymentConfirmationEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal monto, string fecha, string referencia, Guid cobroId);
         Task SendCustomerTemporaryPasswordEmailAsync(string toEmail, string customerName, string temporaryPassword);
     }
 }

@@ -240,52 +240,32 @@ namespace FacturasSRI.Infrastructure.Services
             return html.ToString();
         }
 
-                public async Task SendPaymentConfirmationEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal monto, string fecha, string referencia)
-
+                public async Task SendPaymentConfirmationEmailAsync(string toEmail, string clienteNombre, string numeroFactura, decimal monto, string fecha, string referencia, Guid cobroId)
                 {
-
                     if (string.IsNullOrWhiteSpace(toEmail)) return;
 
-        
+                    var baseUrl = _configuration["App:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:5000";
+                    var downloadUrl = $"{baseUrl}/api/public/payment-receipt/{cobroId}";
 
                     var subject = $"Confirmación de Pago - Factura {numeroFactura}";
-
-                    var plainTextContent = $"Estimado(a) {clienteNombre},\n\nHemos recibido su pago de {monto:C} para la factura {numeroFactura}.\n\nReferencia: {referencia}\nFecha: {fecha}\n\nGracias por su pago.";
-
-        
+                    var plainTextContent = $"Estimado(a) {clienteNombre},\n\nHemos recibido su pago de {monto:C} para la factura {numeroFactura}.\n\nReferencia: {referencia}\nFecha: {fecha}\n\nPuede descargar su comprobante aquí: {downloadUrl}\n\nGracias por su pago.";
 
                     var htmlContent = BuildEmailTemplate("¡Pago Recibido!",
-
                         $"<p>Estimado(a) <strong>{clienteNombre}</strong>,</p>" +
-
                         $"<p>Le confirmamos que hemos recibido su pago correctamente. A continuación los detalles de la transacción:</p>" +
-
                         $"<div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin: 20px 0;'>" +
-
                         $"<ul style='list-style: none; padding: 0; margin: 0;'>" +
-
                         $"<li style='margin-bottom: 10px;'><strong>Factura:</strong> {numeroFactura}</li>" +
-
                         $"<li style='margin-bottom: 10px;'><strong>Monto Pagado:</strong> <span style='color: #28a745; font-weight: bold; font-size: 1.1em;'>{monto:C}</span></li>" +
-
                         $"<li style='margin-bottom: 10px;'><strong>Fecha:</strong> {fecha}</li>" +
-
                         $"<li><strong>Referencia:</strong> <span style='font-family: monospace; background: #eee; padding: 2px 5px; border-radius: 3px;'>{referencia}</span></li>" +
-
                         $"</ul>" +
-
                         $"</div>" +
-
-                        "<p>Puede consultar este pago y descargar el comprobante desde su historial en el portal de clientes.</p>",
-
-                        "#",
-
-                        "Ir al Portal de Clientes"); // Texto del botón
-
-        
+                        "<p>Puede descargar el comprobante de pago directamente desde el siguiente botón.</p>",
+                        downloadUrl,
+                        "Descargar Comprobante"); // Texto del botón
 
                     await SendEmailAsync(toEmail, subject, htmlContent, plainTextContent);
-
                 }
 
         

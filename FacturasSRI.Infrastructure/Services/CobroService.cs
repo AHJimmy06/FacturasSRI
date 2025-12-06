@@ -169,15 +169,29 @@ namespace FacturasSRI.Infrastructure.Services
                 {
                     try
                     {
-                        if (!string.IsNullOrEmpty(cuentaPorCobrar.Factura.Cliente.Email))
+                        // 1. Extraemos las referencias de forma segura
+                        var factura = cuentaPorCobrar.Factura;
+                        var cliente = factura?.Cliente;
+
+                        // 2. Validamos que existan los objetos y el correo
+                        if (factura is not null && cliente is not null && !string.IsNullOrEmpty(cliente.Email))
                         {
+                            // 3. Preparamos los datos string para evitar advertencias en la llamada
+                            var emailCliente = cliente.Email;
+                            var nombreCliente = cliente.RazonSocial ?? "Cliente";
+                            var numeroFactura = factura.NumeroFactura ?? "S/N";
+                            var fechaFormateada = _timeZoneHelper.ConvertUtcToEcuadorTime(cobro.FechaCobro).ToString("dd/MM/yyyy HH:mm");
+                            var referenciaPago = cobro.Referencia ?? "Sin referencia";
+
+                            // 4. Llamamos al servicio usando las variables locales seguras
                             await _emailService.SendPaymentConfirmationEmailAsync(
-                                cuentaPorCobrar.Factura.Cliente.Email,
-                                cuentaPorCobrar.Factura.Cliente.RazonSocial,
-                                cuentaPorCobrar.Factura.NumeroFactura,
+                                emailCliente,
+                                nombreCliente,
+                                numeroFactura,
                                 cobro.Monto,
-                                _timeZoneHelper.ConvertUtcToEcuadorTime(cobro.FechaCobro).ToString("dd/MM/yyyy HH:mm"),
-                                cobro.Referencia ?? "Sin referencia"
+                                fechaFormateada,
+                                referenciaPago,
+                                cobro.Id
                             );
                         }
                     }
@@ -365,16 +379,9 @@ namespace FacturasSRI.Infrastructure.Services
                     Id = c.Id,
                     FacturaId = c.FacturaId,
                     NumeroFactura = c.Factura != null ? c.Factura.NumeroFactura : "N/A",
-                    ClienteNombre = c.Factura != null && c.Factura.Cliente != null ? c.Factura.Cliente.RazonSocial : "N/A",
-                    FechaCobro = c.FechaCobro,
-                    Monto = c.Monto,
-                    MetodoDePago = c.MetodoDePago,
-                    Referencia = c.Referencia,
-                    ComprobantePagoPath = c.ComprobantePagoPath,
-                    // CAMBIO VISUAL
                     CreadoPor = c.UsuarioCreador != null 
                         ? $"{c.UsuarioCreador.PrimerNombre} {c.UsuarioCreador.PrimerApellido}" 
-                        : (c.Factura.Cliente != null ? c.Factura.Cliente.RazonSocial : "Cliente")
+                        : (c.Factura != null && c.Factura.Cliente != null ? c.Factura.Cliente.RazonSocial : "Cliente")
                 });
 
             return await PaginatedList<CobroDto>.CreateAsync(finalQuery, pageNumber, pageSize);
