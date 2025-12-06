@@ -5,13 +5,11 @@
 @using FacturasSRI.Application.Dtos.Reports
 @using System.Security.Claims
 @using FacturasSRI.Application.Interfaces
-@using Microsoft.Extensions.Logging
 @inject IReportService ReportService
 @inject IUserService UserService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JSRuntime
 @inject ITimeZoneHelper TimeZoneHelper
-@inject ILogger<ComprasPorPeriodoReport> Logger
 
 @attribute [Authorize(Roles = "Administrador, Bodeguero")]
 
@@ -244,12 +242,10 @@
                         .ToList();
                 }
             }
-            Logger.LogInformation("ComprasPorPeriodoReport: IsAdmin = {IsAdmin}", isAdmin);
         }
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar permisos: {ex.Message}";
-            Logger.LogError(ex, "ComprasPorPeriodoReport: Error en OnInitializedAsync");
         }
     }
 
@@ -258,7 +254,6 @@
         // Si es Admin, retornamos lo que seleccionó (o null para todos).
         // Si NO es Admin (es Bodeguero), retornamos NULL para que vea TODOS los registros.
         var queryUserId = isAdmin ? selectedFilterUserId : null;
-        Logger.LogInformation("ComprasPorPeriodoReport: GetQueryUserId determined QueryUserId = {QueryUserId}", queryUserId);
         return queryUserId;
     }
 
@@ -278,7 +273,6 @@
         try
         {
             var queryUserId = GetQueryUserId();
-            Logger.LogInformation("ComprasPorPeriodoReport: Generating report with QueryUserId = {QueryUserId}", queryUserId);
 
             var safeStartDate = DateTime.SpecifyKind(startDate, DateTimeKind.Unspecified);
             var safeEndDate = DateTime.SpecifyKind(endDate, DateTimeKind.Unspecified);
@@ -292,7 +286,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Ocurrió un error al generar el reporte: {ex.Message}";
-            Logger.LogError(ex, "ComprasPorPeriodoReport: Error in GenerateReport");
         }
         finally
         {

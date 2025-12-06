@@ -6,13 +6,11 @@
 @using FacturasSRI.Application.Dtos.Reports
 @using FacturasSRI.Application.Interfaces
 @using Microsoft.JSInterop
-@using Microsoft.Extensions.Logging 
 @inject IReportService ReportService
 @inject IUserService UserService
 @inject IJSRuntime JSRuntime
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITimeZoneHelper TimeZoneHelper
-@inject ILogger<VentasPorProductoReport> Logger
 
 @attribute [Authorize(Roles = "Administrador, Vendedor")]
 
@@ -237,7 +235,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al cargar permisos: {ex.Message}";
-            Logger.LogError(ex, "Error en OnInitializedAsync");
         }
     }
 
@@ -270,7 +267,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al generar: {ex.Message}";
-            Logger.LogError(ex, "Error en GenerateReport");
         }
         finally
         {
@@ -311,7 +307,6 @@
         catch (Exception ex)
         {
             errorMessage = $"Error al descargar el PDF: {ex.Message}";
-            Logger.LogError(ex, "Error en DownloadPdf");
         }
         finally
         {
