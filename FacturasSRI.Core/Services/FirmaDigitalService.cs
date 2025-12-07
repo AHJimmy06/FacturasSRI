@@ -11,7 +11,29 @@ namespace FacturasSRI.Core.Services
     {
         public byte[] FirmarXml(string xmlSinFirmar, string rutaCertificado, string passwordCertificado)
         {
-            var certificado = new X509Certificate2(rutaCertificado, passwordCertificado, X509KeyStorageFlags.Exportable);
+            X509Certificate2 certificado;
+
+            // MODIFICACIÓN: Lógica híbrida para soportar Archivo Local y Base64 en la Nube
+            if (File.Exists(rutaCertificado))
+            {
+                // Si existe el archivo físico (Entorno Local), lo cargamos normal
+                certificado = new X509Certificate2(rutaCertificado, passwordCertificado, X509KeyStorageFlags.Exportable);
+            }
+            else
+            {
+                try
+                {
+                    // Si no existe archivo, intentamos convertir el string Base64 a bytes (Entorno Nube)
+                    // En Render, 'rutaCertificado' contendrá la cadena larga Base64
+                    byte[] certificadoBytes = Convert.FromBase64String(rutaCertificado);
+                    certificado = new X509Certificate2(certificadoBytes, passwordCertificado, X509KeyStorageFlags.Exportable);
+                }
+                catch (Exception)
+                {
+                    // Si falla, es que no era ni archivo válido ni base64 válido
+                    throw new FileNotFoundException($"No se encontró el certificado en la ruta física '{rutaCertificado}' y tampoco se pudo procesar como una cadena Base64 válida.");
+                }
+            }
 
             var xadesService = new XadesService();
 
