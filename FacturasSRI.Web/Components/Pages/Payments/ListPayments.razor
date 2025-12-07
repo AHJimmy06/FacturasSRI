@@ -17,11 +17,11 @@
 </div>
 
 <div class="row g-2 mb-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <input type="text" class="form-control" placeholder="Buscar por número de factura o cliente..." 
                @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <InputSelect class="form-select" @bind-Value="selectedFormaDePago" @bind-Value:after="OnFilterChanged">
             <option value="">Todas las Formas de Pago</option>
             @foreach (var s in Enum.GetValues(typeof(FormaDePago)))
@@ -30,13 +30,11 @@
             }
         </InputSelect>
     </div>
-    <div class="col-md-3">
-        <InputSelect class="form-select" @bind-Value="selectedEstadoFactura" @bind-Value:after="OnFilterChanged">
-            <option value="">Todos los Estados</option>
-            @foreach (var s in Enum.GetValues(typeof(EstadoFactura)))
-            {
-                <option value="@s">@s.ToString()</option>
-            }
+    <div class="col-md-4">
+        <InputSelect class="form-select" @bind-Value="selectedPaymentStatus" @bind-Value:after="OnFilterChanged">
+            <option value="All">Todos los estados de pago</option>
+            <option value="Pending">Pendientes</option>
+            <option value="Paid">Pagadas</option>
         </InputSelect>
     </div>
 </div>
@@ -139,7 +137,7 @@ else
     private int pageSize = 15;
     private string searchTerm = string.Empty;
     private FormaDePago? selectedFormaDePago;
-    private EstadoFactura? selectedEstadoFactura;
+    private string selectedPaymentStatus = "All";
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,7 +150,7 @@ else
         errorMessage = null;
         try
         {
-            paginatedFacturasConPagos = await CobroService.GetFacturasConPagosAsync(currentPage, pageSize, searchTerm, selectedFormaDePago, selectedEstadoFactura);
+            paginatedFacturasConPagos = await CobroService.GetFacturasConPagosAsync(currentPage, pageSize, searchTerm, selectedFormaDePago, selectedPaymentStatus);
             StateHasChanged();
         }
         catch (Exception ex)

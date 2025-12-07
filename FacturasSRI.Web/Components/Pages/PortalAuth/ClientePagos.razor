@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "IsCustomer")]
 @using FacturasSRI.Application.Dtos
 @using FacturasSRI.Application.Interfaces
+@using FacturasSRI.Domain.Enums
 @using FacturasSRI.Web.Components.Shared
 @inject ICobroService CobroService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -19,26 +20,31 @@
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
         <div class="row g-3 align-items-end">
-            @* Buscador *@
-            <div class="col-lg-6 col-md-6">
+            <div class="col-lg-5 col-md-12">
                 <label for="search-payment" class="form-label fw-bold mb-1">Búsqueda</label>
                 <input type="text" id="search-payment" class="form-control" placeholder="Por Nro. de Factura..."
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnFilterChanged" />
             </div>
-
-            @* Fechas *@
             <div class="col-lg-2 col-md-6">
-                <label for="start-date" class="form-label fw-bold mb-1">Fecha de Inicio</label>
-                <InputDate id="start-date" class="form-control" @bind-Value="startDate" @bind-Value:after="OnFilterChanged" />
+                <label for="forma-pago-filter" class="form-label fw-bold mb-1">Forma de Pago</label>
+                <InputSelect id="forma-pago-filter" class="form-select" @bind-Value="selectedFormaDePago" @bind-Value:after="OnFilterChanged">
+                    <option value="">Todas</option>
+                    @foreach (var s in Enum.GetValues(typeof(FormaDePago)))
+                    {
+                        <option value="@s">@s.ToString()</option>
+                    }
+                </InputSelect>
             </div>
-            <div class="col-lg-2 col-md-6">
-                <label for="end-date" class="form-label fw-bold mb-1">Fecha de Fin</label>
-                <InputDate id="end-date" class="form-control" @bind-Value="endDate" @bind-Value:after="OnFilterChanged" />
+            <div class="col-lg-3 col-md-6">
+                <label for="payment-status-filter" class="form-label fw-bold mb-1">Estado de Pago</label>
+                <InputSelect id="payment-status-filter" class="form-select" @bind-Value="selectedPaymentStatus" @bind-Value:after="OnFilterChanged">
+                    <option value="All">Todos</option>
+                    <option value="Pending">Pendientes</option>
+                    <option value="Paid">Pagadas</option>
+                </InputSelect>
             </div>
-
-            @* Botón Limpiar *@
-            <div class="col-lg-2 col-md-12">
-                <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Limpiar</button>
+            <div class="col-lg-2 col-md-12 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100 h-100" @onclick="ClearFilters">Limpiar</button>
             </div>
         </div>
     </div>
@@ -61,6 +67,7 @@ else if (paginatedInvoices != null)
                 <tr>
                     <th>Factura</th>
                     <th>Fecha Emisión</th>
+                    <th>Forma de Pago</th>
                     <th class="text-end">Total</th>
                     <th class="text-end">Pagado</th>
                     <th class="text-end">Pendiente</th>
@@ -73,6 +80,11 @@ else if (paginatedInvoices != null)
                     <tr>
                         <td class="fw-bold">@invoice.NumeroFactura</td>
                         <td>@TimeZoneHelper.ConvertUtcToEcuadorTime(invoice.FechaEmision).ToString("dd/MM/yyyy")</td>
+                        <td>
+                            <span class="badge @(invoice.FormaDePago == FormaDePago.Credito ? "bg-info text-dark" : "bg-light text-dark border")">
+                                @invoice.FormaDePago
+                            </span>
+                        </td>
                         <td class="text-end fw-bold">@invoice.TotalFactura.ToString("C")</td>
                         <td class="text-end text-success">@invoice.TotalPagado.ToString("C")</td>
                         <td class="text-end">
@@ -123,8 +135,8 @@ else if (paginatedInvoices != null)
     
     // Filtros
     private string searchTerm = string.Empty;
-    private DateTime? startDate;
-    private DateTime? endDate;
+    private FormaDePago? selectedFormaDePago;
+    private string selectedPaymentStatus = "All";
 
     protected override async Task OnInitializedAsync()
     {
@@ -154,10 +166,7 @@ else if (paginatedInvoices != null)
         errorMessage = null;
         try
         {
-            var startDateUtc = startDate.HasValue ? startDate.Value.ToUniversalTime() : (DateTime?)null;
-            var endDateUtc = endDate.HasValue ? endDate.Value.ToUniversalTime() : (DateTime?)null;
-            
-            paginatedInvoices = await CobroService.GetFacturasConPagosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, startDateUtc, endDateUtc);
+            paginatedInvoices = await CobroService.GetFacturasConPagosByClientIdAsync(clienteId, currentPage, pageSize, searchTerm, selectedFormaDePago, selectedPaymentStatus);
         }
         catch (Exception ex)
         {
@@ -169,8 +178,8 @@ else if (paginatedInvoices != null)
     private async Task ClearFilters()
     {
         searchTerm = string.Empty;
-        startDate = null;
-        endDate = null;
+        selectedFormaDePago = null;
+        selectedPaymentStatus = "All";
         await LoadInvoices(1);
     }
 

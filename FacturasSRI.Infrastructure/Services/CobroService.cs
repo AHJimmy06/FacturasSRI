@@ -232,7 +232,7 @@ namespace FacturasSRI.Infrastructure.Services
             }
         }
 
-        public async Task<PaginatedList<FacturasConPagosDto>> GetFacturasConPagosAsync(int pageNumber, int pageSize, string? searchTerm, FormaDePago? formaDePago, EstadoFactura? estadoFactura)
+        public async Task<PaginatedList<FacturasConPagosDto>> GetFacturasConPagosAsync(int pageNumber, int pageSize, string? searchTerm, FormaDePago? formaDePago, string? paymentStatus)
         {
              await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from f in context.Facturas
@@ -260,9 +260,16 @@ namespace FacturasSRI.Infrastructure.Services
                 query = query.Where(x => x.Factura.FormaDePago == formaDePago.Value);
             }
 
-            if (estadoFactura.HasValue)
+            if (!string.IsNullOrEmpty(paymentStatus) && paymentStatus != "All")
             {
-                query = query.Where(x => x.Factura.Estado == estadoFactura.Value);
+                if (paymentStatus == "Pending")
+                {
+                    query = query.Where(x => x.CuentaPorCobrar != null && x.CuentaPorCobrar.SaldoPendiente > 0);
+                }
+                else if (paymentStatus == "Paid")
+                {
+                    query = query.Where(x => x.CuentaPorCobrar == null || x.CuentaPorCobrar.SaldoPendiente <= 0);
+                }
             }
 
             var finalQuery = query
@@ -283,7 +290,7 @@ namespace FacturasSRI.Infrastructure.Services
             return await PaginatedList<FacturasConPagosDto>.CreateAsync(finalQuery, pageNumber, pageSize);
         }
 
-        public async Task<PaginatedList<FacturasConPagosDto>> GetFacturasConPagosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm, DateTime? startDate, DateTime? endDate)
+        public async Task<PaginatedList<FacturasConPagosDto>> GetFacturasConPagosByClientIdAsync(Guid clienteId, int pageNumber, int pageSize, string? searchTerm, FormaDePago? formaDePago, string? paymentStatus)
         {
             await using var context = await _contextFactory.CreateDbContextAsync();
             var query = from f in context.Facturas
@@ -303,15 +310,21 @@ namespace FacturasSRI.Infrastructure.Services
                 query = query.Where(x => x.Factura.NumeroFactura.Contains(searchTerm));
             }
 
-            if (startDate.HasValue)
+            if (formaDePago.HasValue)
             {
-                query = query.Where(x => x.Factura.FechaEmision >= startDate.Value);
+                query = query.Where(x => x.Factura.FormaDePago == formaDePago.Value);
             }
 
-            if (endDate.HasValue)
+            if (!string.IsNullOrEmpty(paymentStatus) && paymentStatus != "All")
             {
-                var endOfDay = endDate.Value.Date.AddDays(1);
-                query = query.Where(x => x.Factura.FechaEmision < endOfDay);
+                if (paymentStatus == "Pending")
+                {
+                    query = query.Where(x => x.CuentaPorCobrar != null && x.CuentaPorCobrar.SaldoPendiente > 0);
+                }
+                else if (paymentStatus == "Paid")
+                {
+                    query = query.Where(x => x.CuentaPorCobrar == null || x.CuentaPorCobrar.SaldoPendiente <= 0);
+                }
             }
 
             var finalQuery = query
@@ -436,6 +449,27 @@ namespace FacturasSRI.Infrastructure.Services
                 });
 
             return await PaginatedList<CobroDto>.CreateAsync(finalQuery, pageNumber, pageSize);
+        }
+
+        public async Task<List<CobroDto>> GetCobrosByFacturaIdAndClientIdAsync(Guid facturaId, Guid clienteId)
+        {
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            return await context.Cobros
+                .Where(c => c.FacturaId == facturaId && c.Factura.ClienteId == clienteId)
+                .Include(c => c.Factura)
+                .OrderByDescending(c => c.FechaCobro)
+                .Select(c => new CobroDto
+                {
+                    Id = c.Id,
+                    FacturaId = c.FacturaId,
+                    FechaCobro = c.FechaCobro,
+                    Monto = c.Monto,
+                    MetodoDePago = c.MetodoDePago,
+                    Referencia = c.Referencia,
+                    ComprobantePagoPath = c.ComprobantePagoPath,
+                    // CreadoPor no es relevante aquí ya que es la vista del cliente.
+                })
+                .ToListAsync();
         }
     }
 }
